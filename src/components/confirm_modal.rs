@@ -1,5 +1,5 @@
-use crate::components::Modal;
 use crate::AppState;
+use crate::components::Modal;
 use leptos::prelude::*;
 
 #[component]
@@ -23,7 +23,7 @@ pub fn ConfirmModal(
     let footer = Box::new(move || {
         view! {
             <button
-                on:click=move |_| show.set(false)
+                on:click=move |_| state.cancel_delete_note()
                 class="px-5 py-2 font-semibold rounded-lg transition-colors bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-white/10 dark:text-gray-300 dark:hover:bg-white/20"
             >
                 "Cancel"
@@ -31,7 +31,6 @@ pub fn ConfirmModal(
             <button
                 on:click=move |_| {
                     state.confirm_delete_selected_note();
-                    show.set(false);
                 }
                 class="px-5 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition-colors"
             >

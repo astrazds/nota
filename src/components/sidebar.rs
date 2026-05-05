@@ -1,9 +1,8 @@
-use crate::note_discovery::{collect_note_tags, filter_and_sort_notes, highlight_segments};
+use crate::note_discovery::{NoteListItem, collect_note_tags, project_note_list};
 use crate::{AppState, SaveStatus};
 use leptos::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
-use uuid::Uuid;
 use wasm_bindgen::prelude::*;
 use web_sys::window;
 
@@ -18,11 +17,16 @@ pub fn Sidebar() -> impl IntoView {
 
     let add_note = move |_| state.create_note();
 
-    let filtered_notes = Memo::new(move |_| {
+    let note_projection = Memo::new(move |_| {
         let query = state.search_query.get();
         let active_tag = state.active_tag.get();
         let notes = state.notes.get();
-        filter_and_sort_notes(&notes, &query, active_tag.as_deref())
+        project_note_list(
+            &notes,
+            state.selected_id.get(),
+            &query,
+            active_tag.as_deref(),
+        )
     });
     let available_tags = Memo::new(move |_| collect_note_tags(&state.notes.get()));
 
@@ -34,10 +38,10 @@ pub fn Sidebar() -> impl IntoView {
         let query_for_closure = input.clone();
         let timeout_ref = debounce_timeout.clone();
 
-        if let Some((id, _)) = timeout_ref.borrow_mut().take() {
-            if let Some(win) = window() {
-                win.clear_timeout_with_handle(id);
-            }
+        if let Some((id, _)) = timeout_ref.borrow_mut().take()
+            && let Some(win) = window()
+        {
+            win.clear_timeout_with_handle(id);
         }
 
         if let Some(win) = window() {
@@ -145,11 +149,7 @@ pub fn Sidebar() -> impl IntoView {
                             >
                                 "All"
                             </button>
-                            <For
-                                each=move || available_tags.get()
-                                key=|tag| tag.clone()
-                                let:tag
-                            >
+                            <For each=move || available_tags.get() key=|tag| tag.clone() let:tag>
                                 <button
                                     class={
                                         let tag_for_class = tag.clone();
@@ -181,18 +181,18 @@ pub fn Sidebar() -> impl IntoView {
                     </Show>
                 </div>
                 <div class="flex-1 overflow-y-auto pb-4">
-                    <Show when=move || !filtered_notes.get().is_empty()>
+                    <Show when=move || !note_projection.get().rows.is_empty()>
                         <For
-                            each=move || filtered_notes.get()
-                            key=|note_id| *note_id
-                            let:note_id
+                            each=move || note_projection.get().rows
+                            key=|item| item.id
+                            let:item
                         >
-                            <NoteItem id=note_id />
+                            <NoteItem item=item />
                         </For>
                     </Show>
                     <Show when=move || {
-                        filtered_notes.get().is_empty()
-                            && (!state.search_query.get().is_empty() || state.active_tag.get().is_some())
+                        let projection = note_projection.get();
+                        projection.rows.is_empty() && projection.has_active_filter
                     }>
                         <div class="p-8 text-center text-gray-400 dark:text-gray-500">
                             <p>No notes found</p>
@@ -222,23 +222,29 @@ pub fn Sidebar() -> impl IntoView {
 }
 
 #[component]
-fn NoteItem(id: Uuid) -> impl IntoView {
+fn NoteItem(item: NoteListItem) -> impl IntoView {
     let state = use_context::<AppState>().expect("state not found");
-    let note = Memo::new(move |_| state.notes.get().iter().find(|n| n.id == id).cloned());
+    let id = item.id;
+    let title_highlights = item.title_highlights.clone();
+    let preview_highlights = item.preview_highlights.clone();
+    let display_date = item.display_date.clone();
+    let tags = item.tags.clone();
+    let tags_for_visibility = tags.clone();
+    let is_pinned = item.is_pinned;
+
     let is_selected = move || state.selected_id.get() == Some(id);
 
     let select = move |_| {
         state.select_note(id);
-        if let Some(win) = window() {
-            if win
+        if let Some(win) = window()
+            && win
                 .inner_width()
                 .unwrap_or_default()
                 .as_f64()
                 .unwrap_or(MOBILE_BREAKPOINT)
                 < MOBILE_BREAKPOINT
-            {
-                state.is_sidebar_open.set(false);
-            }
+        {
+            state.is_sidebar_open.set(false);
         }
     };
 
@@ -266,40 +272,31 @@ fn NoteItem(id: Uuid) -> impl IntoView {
             <div class="flex justify-between items-start">
                 <h3 class="font-semibold truncate pr-2 flex-1 text-gray-900 dark:text-white">
                     <span class="block truncate">
-                        {move || {
-                            let title = note
-                                .get()
-                                .map(|n| n.display_title().to_string())
-                                .unwrap_or_default();
-                            let query = state.search_query.get();
-                            highlight_segments(&title, &query)
-                                .into_iter()
-                                .map(|segment| {
-                                    if segment.is_match {
-                                        view! { <mark class="bg-apple-yellow/30">{segment.text}</mark> }.into_any()
-                                    } else {
-                                        view! { <span>{segment.text}</span> }.into_any()
-                                    }
-                                })
-                                .collect_view()
-                        }}
+                        {title_highlights.iter().cloned()
+                            .map(|segment| {
+                                if segment.is_match {
+                                    view! { <mark class="bg-apple-yellow/30">{segment.text}</mark> }.into_any()
+                                } else {
+                                    view! { <span>{segment.text}</span> }.into_any()
+                                }
+                            })
+                            .collect_view()}
                     </span>
                 </h3>
                 <div class="flex items-center space-x-1">
                     <button
                         on:click=toggle_pin
                         class=move || {
-                            let is_pinned = note.get().map(|n| n.is_pinned).unwrap_or(false);
                             if is_pinned {
                                 "opacity-100 transition-opacity p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-apple-yellow"
                             } else {
                                 "opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-gray-400"
                             }
                         }
-                        title=move || if note.get().map(|n| n.is_pinned).unwrap_or(false) { "Unpin Note" } else { "Pin Note" }
-                        aria-label=move || if note.get().map(|n| n.is_pinned).unwrap_or(false) { "Unpin note" } else { "Pin note" }
+                        title=if is_pinned { "Unpin Note" } else { "Pin Note" }
+                        aria-label=if is_pinned { "Unpin note" } else { "Pin note" }
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill=move || if note.get().map(|n| n.is_pinned).unwrap_or(false) { "currentColor" } else { "none" } viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill=if is_pinned { "currentColor" } else { "none" } viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                         </svg>
                     </button>
@@ -316,51 +313,40 @@ fn NoteItem(id: Uuid) -> impl IntoView {
                 </div>
             </div>
             <div class="flex space-x-2 text-sm mt-1">
-                <span class="whitespace-nowrap text-gray-500 dark:text-gray-400">
-                    {move || note.get().map(|n| n.display_date()).unwrap_or_default()}
-                </span>
+                <span class="whitespace-nowrap text-gray-500 dark:text-gray-400">{display_date}</span>
                 <span class="block truncate text-gray-400 dark:text-gray-500">
-                    {move || {
-                        let preview = note.get().map(|n| n.preview()).unwrap_or_default();
-                        let query = state.search_query.get();
-                        highlight_segments(&preview, &query)
-                            .into_iter()
-                            .map(|segment| {
-                                if segment.is_match {
-                                    view! { <mark class="bg-apple-yellow/30">{segment.text}</mark> }
-                                        .into_any()
-                                } else {
-                                    view! { <span>{segment.text}</span> }.into_any()
-                                }
-                            })
-                            .collect_view()
-                    }}
+                    {preview_highlights.iter().cloned()
+                        .map(|segment| {
+                            if segment.is_match {
+                                view! { <mark class="bg-apple-yellow/30">{segment.text}</mark> }.into_any()
+                            } else {
+                                view! { <span>{segment.text}</span> }.into_any()
+                            }
+                        })
+                        .collect_view()}
                 </span>
             </div>
-            <Show when=move || note.get().is_some_and(|n| !n.tags.is_empty())>
+            <Show when=move || !tags_for_visibility.is_empty()>
                 <div class="mt-2 flex flex-wrap gap-1">
-                    {move || {
-                        let tags = note.get().map(|n| n.tags.clone()).unwrap_or_default();
-                        tags.into_iter()
-                            .map(|tag| {
-                                let tag_for_click = tag.clone();
-                                view! {
-                                    <button
-                                        class="px-2 py-0.5 text-xs rounded-full bg-black/5 text-gray-500 hover:bg-black/10 dark:bg-white/10 dark:text-gray-400 dark:hover:bg-white/20"
-                                        on:click=move |ev| {
-                                            ev.stop_propagation();
-                                            state.active_tag.set(Some(tag_for_click.clone()));
-                                        }
-                                        title=tag.clone()
-                                        aria-label=format!("Filter by tag {tag}")
-                                    >
-                                        {format!("#{tag}")}
-                                    </button>
-                                }
-                                    .into_any()
-                            })
-                            .collect_view()
-                    }}
+                    {tags.iter()
+                        .map(|tag| {
+                            let tag_for_click = tag.clone();
+                            view! {
+                                <button
+                                    class="px-2 py-0.5 text-xs rounded-full bg-black/5 text-gray-500 hover:bg-black/10 dark:bg-white/10 dark:text-gray-400 dark:hover:bg-white/20"
+                                    on:click=move |ev| {
+                                        ev.stop_propagation();
+                                        state.active_tag.set(Some(tag_for_click.clone()));
+                                    }
+                                    title=tag.clone()
+                                    aria-label=format!("Filter by tag {tag}")
+                                >
+                                    {format!("#{tag}")}
+                                </button>
+                            }
+                                .into_any()
+                        })
+                        .collect_view()}
                 </div>
             </Show>
         </div>

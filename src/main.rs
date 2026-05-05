@@ -4,20 +4,20 @@ mod markdown_preview;
 mod model;
 mod note_collection;
 mod note_discovery;
+mod note_workspace;
 mod storage;
+mod tag_rules;
 
 use components::{ConfirmModal, Editor, Sidebar};
 
 use leptos::prelude::*;
 use model::Note;
+use note_workspace::NoteWorkspace;
 use storage::{
-    flush_pending_save, load_dark_mode, load_notes, load_sidebar_open, save_dark_mode,
-    save_sidebar_open, schedule_notes_save, SaveStatus, SaveTimeout,
+    SaveSession, SaveStatus, load_dark_mode, load_notes, load_sidebar_open, save_dark_mode,
+    save_sidebar_open,
 };
 use uuid::Uuid;
-use wasm_bindgen::prelude::Closure;
-use wasm_bindgen::JsCast;
-use web_sys::window;
 
 #[derive(Clone, Copy)]
 pub struct AppState {
@@ -34,11 +34,12 @@ pub struct AppState {
 }
 
 impl AppState {
+    pub fn selected_note(self) -> Option<Note> {
+        NoteWorkspace::selected_note(&self.notes.get(), self.selected_id.get())
+    }
+
     pub fn create_note(self) {
-        if let Some(created) = self
-            .notes
-            .try_update(note_collection::NoteCollection::create_note)
-        {
+        if let Some(created) = self.notes.try_update(NoteWorkspace::create_note) {
             self.selected_id.set(created.selected_id);
             self.focus_title_request.set(created.should_focus_title);
         }
@@ -49,49 +50,53 @@ impl AppState {
     }
 
     pub fn request_delete_note(self, id: Uuid) {
-        self.selected_id.set(Some(id));
-        self.show_delete_confirm.set(true);
+        let mut selected_id = self.selected_id.get_untracked();
+        let mut show_delete_confirm = self.show_delete_confirm.get_untracked();
+        NoteWorkspace::request_delete(&mut selected_id, &mut show_delete_confirm, id);
+        self.selected_id.set(selected_id);
+        self.show_delete_confirm.set(show_delete_confirm);
+    }
+
+    pub fn cancel_delete_note(self) {
+        let mut show_delete_confirm = self.show_delete_confirm.get_untracked();
+        NoteWorkspace::cancel_delete(&mut show_delete_confirm);
+        self.show_delete_confirm.set(show_delete_confirm);
     }
 
     pub fn confirm_delete_selected_note(self) {
-        if let Some(id) = self.selected_id.get_untracked() {
-            if let Some(next_selected) = self
-                .notes
-                .try_update(|notes| note_collection::NoteCollection::delete_note(notes, id))
-            {
-                self.selected_id.set(next_selected);
-            }
-        }
-        self.show_delete_confirm.set(false);
+        let mut selected_id = self.selected_id.get_untracked();
+        let mut show_delete_confirm = self.show_delete_confirm.get_untracked();
+        self.notes.update(|notes| {
+            NoteWorkspace::confirm_delete(notes, &mut selected_id, &mut show_delete_confirm);
+        });
+        self.selected_id.set(selected_id);
+        self.show_delete_confirm.set(show_delete_confirm);
     }
 
     pub fn update_selected_title(self, title: String) {
-        if let Some(id) = self.selected_id.get_untracked() {
-            self.notes.update(|notes| {
-                note_collection::NoteCollection::update_title(notes, id, title.clone());
-            });
-        }
+        let selected_id = self.selected_id.get_untracked();
+        self.notes.update(|notes| {
+            NoteWorkspace::update_selected_title(notes, selected_id, title.clone());
+        });
     }
 
     pub fn update_selected_content(self, content: String) {
-        if let Some(id) = self.selected_id.get_untracked() {
-            self.notes.update(|notes| {
-                note_collection::NoteCollection::update_content(notes, id, content.clone());
-            });
-        }
+        let selected_id = self.selected_id.get_untracked();
+        self.notes.update(|notes| {
+            NoteWorkspace::update_selected_content(notes, selected_id, content.clone());
+        });
     }
 
     pub fn update_selected_tags(self, tags: Vec<String>) {
-        if let Some(id) = self.selected_id.get_untracked() {
-            self.notes.update(|notes| {
-                note_collection::NoteCollection::update_tags(notes, id, tags.clone());
-            });
-        }
+        let selected_id = self.selected_id.get_untracked();
+        self.notes.update(|notes| {
+            NoteWorkspace::update_selected_tags(notes, selected_id, tags.clone());
+        });
     }
 
     pub fn toggle_note_pin(self, id: Uuid) {
         self.notes.update(|notes| {
-            note_collection::NoteCollection::toggle_pin(notes, id);
+            NoteWorkspace::toggle_pin(notes, id);
         });
     }
 
@@ -154,49 +159,13 @@ fn App() -> impl IntoView {
     });
 
     // Persist notes on change
-    let save_timeout: SaveTimeout = Default::default();
-    let save_timeout_for_effect = save_timeout.clone();
+    let save_session = SaveSession::default();
+    let save_session_for_effect = save_session.clone();
     Effect::new(move |_| {
         let notes_to_save = state.notes.get();
-        schedule_notes_save(&save_timeout_for_effect, notes_to_save, state.save_status);
+        save_session_for_effect.schedule_notes_save(notes_to_save, state.save_status);
     });
-
-    if let Some(win) = window() {
-        if let Some(doc) = win.document() {
-            let notes_for_visibility = state.notes;
-            let status_for_visibility = state.save_status;
-            let timeout_for_visibility = save_timeout.clone();
-            let visibility_listener = Closure::wrap(Box::new(move |_ev: web_sys::Event| {
-                flush_pending_save(
-                    &timeout_for_visibility,
-                    notes_for_visibility,
-                    status_for_visibility,
-                );
-            }) as Box<dyn FnMut(_)>);
-            let _ = doc.add_event_listener_with_callback(
-                "visibilitychange",
-                visibility_listener.as_ref().unchecked_ref(),
-            );
-
-            let notes_for_unload = state.notes;
-            let status_for_unload = state.save_status;
-            let timeout_for_unload = save_timeout.clone();
-            let unload_listener = Closure::wrap(Box::new(move |_ev: web_sys::Event| {
-                flush_pending_save(&timeout_for_unload, notes_for_unload, status_for_unload);
-            }) as Box<dyn FnMut(_)>);
-            let _ = win.add_event_listener_with_callback(
-                "pagehide",
-                unload_listener.as_ref().unchecked_ref(),
-            );
-            let _ = win.add_event_listener_with_callback(
-                "beforeunload",
-                unload_listener.as_ref().unchecked_ref(),
-            );
-
-            visibility_listener.forget();
-            unload_listener.forget();
-        }
-    }
+    save_session.install_page_flush_listeners(state.notes, state.save_status);
 
     view! {
         <div

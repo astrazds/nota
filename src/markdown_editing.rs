@@ -1,4 +1,117 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MarkdownCommand {
+    Bold,
+    Italic,
+    Strikethrough,
+    TaskList,
+    Table,
+}
+
+impl MarkdownCommand {
+    fn affixes(self) -> (&'static str, &'static str) {
+        match self {
+            Self::Bold => ("**", "**"),
+            Self::Italic => ("*", "*"),
+            Self::Strikethrough => ("~~", "~~"),
+            Self::TaskList => ("- [ ] ", ""),
+            Self::Table => (
+                "\n| Column 1 | Column 2 |\n| --- | --- |\n| Value 1 | Value 2 |\n",
+                "",
+            ),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MarkdownCheatsheetSection {
+    pub title: &'static str,
+    pub items: &'static [&'static str],
+}
+
+pub const MARKDOWN_CHEATSHEET_SECTIONS: &[MarkdownCheatsheetSection] = &[
+    MarkdownCheatsheetSection {
+        title: "Headings",
+        items: &[
+            "# Heading 1",
+            "## Heading 2",
+            "### Heading 3",
+            "#### Heading 4",
+            "##### Heading 5",
+            "###### Heading 6",
+        ],
+    },
+    MarkdownCheatsheetSection {
+        title: "Emphasis",
+        items: &[
+            "**bold** or __bold__",
+            "*italic* or _italic_",
+            "***bold italic***",
+            "~~strikethrough~~",
+        ],
+    },
+    MarkdownCheatsheetSection {
+        title: "Lists",
+        items: &[
+            "- Unordered item",
+            "* Also unordered",
+            "1. Ordered item",
+            "   - Nested item",
+        ],
+    },
+    MarkdownCheatsheetSection {
+        title: "Task Lists",
+        items: &["- [ ] To do", "- [x] Done"],
+    },
+    MarkdownCheatsheetSection {
+        title: "Links & Images",
+        items: &[
+            "[Link text](https://example.com)",
+            "<https://example.com>",
+            "![Alt text](https://example.com/image.png)",
+        ],
+    },
+    MarkdownCheatsheetSection {
+        title: "Code",
+        items: &[
+            "`inline code`",
+            "```rust",
+            "fn main() { println!(\"hi\"); }",
+            "```",
+        ],
+    },
+    MarkdownCheatsheetSection {
+        title: "Quotes & Rules",
+        items: &["> Blockquote", "> Nested quote", "--- (horizontal rule)"],
+    },
+    MarkdownCheatsheetSection {
+        title: "Tables",
+        items: &["| Name | Value |", "| --- | --- |", "| Foo | Bar |"],
+    },
+    MarkdownCheatsheetSection {
+        title: "Footnotes",
+        items: &["Reference[^1]", "[^1]: Footnote text"],
+    },
+    MarkdownCheatsheetSection {
+        title: "Line Breaks",
+        items: &[
+            "End line with two spaces  ",
+            "or use a blank line between paragraphs",
+        ],
+    },
+    MarkdownCheatsheetSection {
+        title: "Escaping",
+        items: &["\\*literal asterisks\\*", "\\# literal heading marker"],
+    },
+    MarkdownCheatsheetSection {
+        title: "Note",
+        items: &[
+            "Raw HTML is displayed as text for safety.",
+            "Click backdrop or X to close.",
+        ],
+    },
+];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BrowserSelection {
     pub start_utf16: usize,
     pub end_utf16: usize,
@@ -8,6 +121,15 @@ pub struct BrowserSelection {
 pub struct FormattingResult {
     pub content: String,
     pub caret_utf16: usize,
+}
+
+pub fn apply_markdown_command(
+    content: &str,
+    selection: BrowserSelection,
+    command: MarkdownCommand,
+) -> FormattingResult {
+    let (prefix, suffix) = command.affixes();
+    apply_markdown_format(content, selection, prefix, suffix)
 }
 
 pub fn apply_markdown_format(
@@ -102,6 +224,29 @@ pub fn utf16_range_to_byte_range(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn applies_named_markdown_commands() {
+        let bold = apply_markdown_command(
+            "Hello world",
+            BrowserSelection {
+                start_utf16: 6,
+                end_utf16: 11,
+            },
+            MarkdownCommand::Bold,
+        );
+        assert_eq!(bold.content, "Hello **world**");
+
+        let table = apply_markdown_command(
+            "Hello",
+            BrowserSelection {
+                start_utf16: 5,
+                end_utf16: 5,
+            },
+            MarkdownCommand::Table,
+        );
+        assert!(table.content.contains("| Column 1 | Column 2 |"));
+    }
 
     #[test]
     fn formats_browser_selection_without_corrupting_unicode_and_returns_caret() {

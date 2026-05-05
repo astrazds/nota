@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -68,31 +66,6 @@ impl Note {
     }
 }
 
-fn fold_case(text: &str) -> String {
-    if text.is_ascii() {
-        text.to_ascii_lowercase()
-    } else {
-        text.to_lowercase()
-    }
-}
-
-pub fn parse_tags_input(input: &str) -> Vec<String> {
-    let mut seen = HashSet::new();
-    input
-        .split(',')
-        .map(str::trim)
-        .filter(|tag| !tag.is_empty())
-        .filter_map(|tag| {
-            let folded = fold_case(tag);
-            if seen.insert(folded) {
-                Some(tag.to_string())
-            } else {
-                None
-            }
-        })
-        .collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -100,6 +73,7 @@ mod tests {
         format_text, utf16_index_to_byte_index, utf16_range_to_byte_range,
     };
     use crate::note_discovery::filter_and_sort_notes;
+    use crate::tag_rules::parse_tags_input;
 
     #[test]
     fn should_filter_and_sort_notes_correctly() {

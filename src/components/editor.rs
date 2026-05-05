@@ -1,13 +1,10 @@
-use crate::components::CheatsheetModal;
-use crate::markdown_editing::{apply_markdown_format, BrowserSelection};
-use crate::markdown_preview::render_markdown_preview;
-use crate::model::{parse_tags_input, Note};
 use crate::AppState;
+use crate::components::CheatsheetModal;
+use crate::markdown_editing::{BrowserSelection, MarkdownCommand, apply_markdown_command};
+use crate::markdown_preview::render_markdown_preview;
+use crate::model::Note;
+use crate::tag_rules::{parse_tags_input, tags_to_input};
 use leptos::prelude::*;
-
-fn tags_to_input(tags: &[String]) -> String {
-    tags.join(", ")
-}
 
 #[component]
 pub fn Editor() -> impl IntoView {
@@ -19,10 +16,7 @@ pub fn Editor() -> impl IntoView {
     let tags_input_value = RwSignal::new(String::new());
     let is_editing_tags = RwSignal::new(false);
 
-    let selected_note = Memo::new(move |_| {
-        let id = state.selected_id.get();
-        id.and_then(|id| state.notes.get().iter().find(|n| n.id == id).cloned())
-    });
+    let selected_note = Memo::new(move |_| state.selected_note());
 
     Effect::new(move |_| {
         if state.focus_title_request.get() {
@@ -73,7 +67,7 @@ pub fn Editor() -> impl IntoView {
 
     let commit_tags_input = move || {
         let parsed_tags = parse_tags_input(&tags_input_value.get_untracked());
-        if state.selected_id.get_untracked().is_some() {
+        if state.selected_note().is_some() {
             let normalised_input = tags_to_input(&parsed_tags);
             state.update_selected_tags(parsed_tags);
             tags_input_value.set(normalised_input);
@@ -94,19 +88,18 @@ pub fn Editor() -> impl IntoView {
         render_markdown_preview(&title, content)
     });
 
-    let apply_format = move |prefix: &str, suffix: &str| {
+    let apply_format = move |command: MarkdownCommand| {
         if let Some(textarea) = content_area_ref.get() {
             let start_utf16 = textarea.selection_start().unwrap_or_default().unwrap_or(0);
             let end_utf16 = textarea.selection_end().unwrap_or_default().unwrap_or(0);
             let content = textarea.value();
-            let formatted = apply_markdown_format(
+            let formatted = apply_markdown_command(
                 &content,
                 BrowserSelection {
                     start_utf16: start_utf16 as usize,
                     end_utf16: end_utf16 as usize,
                 },
-                prefix,
-                suffix,
+                command,
             );
 
             if selected_note.get_untracked().is_some() {
@@ -178,28 +171,23 @@ pub fn Editor() -> impl IntoView {
                     </div>
 
                     <div class="flex items-center space-x-1">
-                        <ToolbarButton on_click=move |_| apply_format("**", "**") title="Bold" aria_label="Bold">
+                        <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Bold) title="Bold" aria_label="Bold">
                             <span class="font-bold">B</span>
                         </ToolbarButton>
-                        <ToolbarButton on_click=move |_| apply_format("*", "*") title="Italic" aria_label="Italic">
+                        <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Italic) title="Italic" aria_label="Italic">
                             <span class="italic">I</span>
                         </ToolbarButton>
-                        <ToolbarButton on_click=move |_| apply_format("~~", "~~") title="Strikethrough" aria_label="Strikethrough">
+                        <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Strikethrough) title="Strikethrough" aria_label="Strikethrough">
                             <span class="line-through">S</span>
                         </ToolbarButton>
-                        <ToolbarButton on_click=move |_| apply_format("- [ ] ", "") title="Task List" aria_label="Task list">
+                        <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::TaskList) title="Task List" aria_label="Task list">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h4v4H4V6zm0 8h4v4H4v-4zm0 8h4v-4H4v4zM12 7h8M12 15h8M12 19h8" />
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 7.5l1.2 1.2L7.8 7" />
                             </svg>
                         </ToolbarButton>
                         <ToolbarButton
-                            on_click=move |_| {
-                                apply_format(
-                                    "\n| Column 1 | Column 2 |\n| --- | --- |\n| Value 1 | Value 2 |\n",
-                                    "",
-                                )
-                            }
+                            on_click=move |_| apply_format(MarkdownCommand::Table)
                             title="Insert Table"
                             aria_label="Insert table"
                         >

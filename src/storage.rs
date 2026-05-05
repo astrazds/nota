@@ -1,10 +1,10 @@
 use crate::model::Note;
 use gloo_storage::{LocalStorage, Storage};
-use leptos::prelude::{window, GetUntracked, RwSignal, Set};
+use leptos::prelude::{GetUntracked, RwSignal, Set, window};
 use std::cell::RefCell;
 use std::rc::Rc;
-use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::Closure;
 use web_sys::console;
 
 const STORAGE_KEY: &str = "noter-notes";
@@ -17,6 +17,56 @@ pub type SaveTimeout = Rc<RefCell<Option<(i32, Closure<dyn FnMut()>)>>>;
 pub enum SaveStatus {
     Saving,
     Saved,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct SaveSession {
+    timeout: SaveTimeout,
+}
+
+impl SaveSession {
+    pub fn schedule_notes_save(&self, notes_to_save: Vec<Note>, status: RwSignal<SaveStatus>) {
+        schedule_notes_save(&self.timeout, notes_to_save, status);
+    }
+
+    pub fn flush_pending_save(&self, notes: RwSignal<Vec<Note>>, status: RwSignal<SaveStatus>) {
+        flush_pending_save(&self.timeout, notes, status);
+    }
+
+    pub fn install_page_flush_listeners(
+        &self,
+        notes: RwSignal<Vec<Note>>,
+        status: RwSignal<SaveStatus>,
+    ) {
+        if let Some(win) = web_sys::window()
+            && let Some(doc) = win.document()
+        {
+            let session_for_visibility = self.clone();
+            let visibility_listener = Closure::wrap(Box::new(move |_ev: web_sys::Event| {
+                session_for_visibility.flush_pending_save(notes, status);
+            }) as Box<dyn FnMut(_)>);
+            let _ = doc.add_event_listener_with_callback(
+                "visibilitychange",
+                visibility_listener.as_ref().unchecked_ref(),
+            );
+
+            let session_for_unload = self.clone();
+            let unload_listener = Closure::wrap(Box::new(move |_ev: web_sys::Event| {
+                session_for_unload.flush_pending_save(notes, status);
+            }) as Box<dyn FnMut(_)>);
+            let _ = win.add_event_listener_with_callback(
+                "pagehide",
+                unload_listener.as_ref().unchecked_ref(),
+            );
+            let _ = win.add_event_listener_with_callback(
+                "beforeunload",
+                unload_listener.as_ref().unchecked_ref(),
+            );
+
+            visibility_listener.forget();
+            unload_listener.forget();
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -192,5 +242,14 @@ mod tests {
         assert_eq!(lifecycle.note_changed(), SaveStatus::Saving);
         assert_eq!(lifecycle.flush_pending(), Some(SaveStatus::Saved));
         assert_eq!(lifecycle.flush_pending(), None);
+    }
+
+    #[test]
+    fn save_session_owns_a_shared_pending_timeout() {
+        let session = SaveSession::default();
+        let clone = session.clone();
+
+        assert!(session.timeout.borrow().is_none());
+        assert!(clone.timeout.borrow().is_none());
     }
 }

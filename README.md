@@ -1,0 +1,76 @@
+# Noter - Apple Notes Clone
+
+A simple, high-performance Markdown note-taking web app built with **Rust**, **Leptos**, and **Tailwind CSS**.
+
+## Features
+
+- **Apple Notes Aesthetic**: Clean sidebar and editor layout with the iconic yellow accents.
+- **Markdown Support**: Markdown editing with a real-time side-by-side preview.
+  - Supports CommonMark plus tables, footnotes, strikethrough, and task lists.
+  - Raw HTML in notes is rendered as text for safety.
+  - Use 2 spaces at line-end for hard line breaks.
+- **Organisation Tools**:
+  - **Search**: Real-time search bar (with debounce) to filter notes by title or content with text highlighting.
+  - **Pinning**: Pin important notes to the top of your list.
+- **Live Sync**: Automatically persists notes to your browser's `LocalStorage` with debounced saves while typing.
+- **Dark Mode**: Supports both Light and Dark modes with system preference detection using Tailwind CSS `dark:` modifier classes.
+- **Responsive Design**: Optimised for desktop and mobile, including a collapsible sidebar.
+- **Enhanced Editing**:
+  - Formatting toolbar (Bold, Italic, Strikethrough, Task List, Insert Table)
+  - Markdown cheatsheet modal
+  - Live preview toggle
+- **Delete Confirmation**: Modal confirmation before deleting notes (accessible from sidebar).
+- **Accessibility**: ARIA labels on interactive elements.
+
+## Technology Stack
+
+- **Frontend**: [Leptos](https://leptos.dev/) (Rust Full-stack Framework)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/) with Typography plugin
+- **Parsing**: [pulldown-cmark](https://github.com/raphlinus/pulldown-cmark)
+- **Build Tool**: [Trunk](https://trunkrs.dev/)
+
+## Getting Started
+
+### Prerequisites
+
+- [Rust](https://www.rust-lang.org/tools/install)
+- [Trunk](https://trunkrs.dev/#install)
+- [Node.js](https://nodejs.org/) (for Tailwind CSS processing)
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd noter
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+### Running the App
+
+Start the development server:
+```bash
+trunk serve --open
+```
+The app will be available at `http://localhost:8080`.
+
+## Testing
+
+Run the Rust unit tests:
+```bash
+cargo test
+```
+
+Tests cover core domain logic including:
+- **Filtering & Sorting**: Real-time search, text highlighting with optimised string allocation, and note pinning logic.
+- **Formatting**: Markdown text wrapping and UTF-16/UTF-8-safe selection handling.
+- **Note Logic**: Title extraction, date formatting, preview truncation, and deserialisation.
+- **Unicode Support**: Proper handling of multi-byte characters in character counting, preview truncation, and search highlighting.
+
+## Code Guidelines
+
+For AI agents and contributors, please refer to [AGENTS.md](./AGENTS.md) for detailed coding standards and project conventions.

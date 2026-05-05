@@ -7,6 +7,7 @@ use crate::model::Note;
 use crate::note_workspace::{FocusIntent, WorkspaceDisplayState};
 use crate::storage::SaveStatus;
 use crate::tag_rules::{parse_tags_input, tags_to_input};
+use crate::theme::{ThemeAccent, ThemeState, ThemeSurface, ThemeText};
 use leptos::prelude::*;
 
 #[component]
@@ -113,11 +114,11 @@ pub fn Editor() -> impl IntoView {
         <div class="flex-1 flex flex-col h-full overflow-hidden relative transition-colors duration-300">
             <CheatsheetModal show=show_cheatsheet />
 
-            <div class="min-h-14 p-2 px-3 md:px-4 flex justify-between items-center gap-3 border-b sticky top-0 z-10 transition-colors bg-white border-apple-gray-200 dark:bg-apple-dark-bg dark:border-apple-dark-border">
+            <div class=move || format!("min-h-14 p-2 px-3 md:px-4 flex justify-between items-center gap-3 border-b sticky top-0 z-10 {}", ThemeSurface::EditorChrome.classes())>
                 <div class="flex items-center gap-2 min-w-0">
                     <button
                         on:click=move |_| state.toggle_sidebar()
-                        class="p-2 lg:hidden text-gray-500 hover:text-apple-yellow transition-colors"
+                        class=move || format!("p-2 lg:hidden {}", ThemeAccent::PrimaryText.classes())
                         title="Toggle Sidebar"
                         aria-label="Toggle sidebar"
                     >
@@ -133,9 +134,9 @@ pub fn Editor() -> impl IntoView {
                             aria-pressed=move || state.editor_view_mode.get() == EditorViewMode::Write
                             class=move || {
                                 if state.editor_view_mode.get() == EditorViewMode::Write {
-                                    "px-2.5 py-1 text-sm rounded-md transition-all border bg-apple-yellow/10 border-apple-yellow text-apple-yellow"
+                                    format!("px-2.5 py-1 text-sm rounded-md transition-all {}", ThemeState::SegmentedActive.classes())
                                 } else {
-                                    "px-2.5 py-1 text-sm rounded-md transition-all border bg-white border-gray-200 text-gray-500 hover:border-gray-300 dark:bg-white/5 dark:border-apple-dark-border dark:text-gray-400 dark:hover:border-gray-500"
+                                    format!("px-2.5 py-1 text-sm rounded-md transition-all {}", ThemeState::SegmentedIdle.classes())
                                 }
                             }
                         >
@@ -148,9 +149,9 @@ pub fn Editor() -> impl IntoView {
                             aria-pressed=move || state.editor_view_mode.get() == EditorViewMode::Preview
                             class=move || {
                                 if state.editor_view_mode.get() == EditorViewMode::Preview {
-                                    "px-2.5 py-1 text-sm rounded-md transition-all border bg-apple-yellow/10 border-apple-yellow text-apple-yellow"
+                                    format!("px-2.5 py-1 text-sm rounded-md transition-all {}", ThemeState::SegmentedActive.classes())
                                 } else {
-                                    "px-2.5 py-1 text-sm rounded-md transition-all border bg-white border-gray-200 text-gray-500 hover:border-gray-300 dark:bg-white/5 dark:border-apple-dark-border dark:text-gray-400 dark:hover:border-gray-500"
+                                    format!("px-2.5 py-1 text-sm rounded-md transition-all {}", ThemeState::SegmentedIdle.classes())
                                 }
                             }
                         >
@@ -163,9 +164,9 @@ pub fn Editor() -> impl IntoView {
                             aria-pressed=move || state.editor_view_mode.get() == EditorViewMode::Split
                             class=move || {
                                 if state.editor_view_mode.get() == EditorViewMode::Split {
-                                    "hidden lg:inline-flex px-2.5 py-1 text-sm rounded-md transition-all border bg-apple-yellow/10 border-apple-yellow text-apple-yellow"
+                                    format!("hidden lg:inline-flex px-2.5 py-1 text-sm rounded-md transition-all {}", ThemeState::SegmentedActive.classes())
                                 } else {
-                                    "hidden lg:inline-flex px-2.5 py-1 text-sm rounded-md transition-all border bg-white border-gray-200 text-gray-500 hover:border-gray-300 dark:bg-white/5 dark:border-apple-dark-border dark:text-gray-400 dark:hover:border-gray-500"
+                                    format!("hidden lg:inline-flex px-2.5 py-1 text-sm rounded-md transition-all {}", ThemeState::SegmentedIdle.classes())
                                 }
                             }
                         >
@@ -175,7 +176,7 @@ pub fn Editor() -> impl IntoView {
                             on:click=move |_| show_cheatsheet.set(true)
                             title="Markdown Help"
                             aria-label="Show markdown cheatsheet"
-                            class="px-3 py-1 text-sm rounded-md border transition-colors border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-apple-dark-border dark:bg-white/5 dark:text-gray-400 dark:hover:bg-white/10"
+                            class=move || format!("px-3 py-1 text-sm rounded-md transition-colors {}", ThemeState::SegmentedIdle.classes())
                         >
                             "?"
                         </button>
@@ -227,19 +228,19 @@ pub fn Editor() -> impl IntoView {
                     WorkspaceDisplayState::NoteSelected => view! {
                         <div class="flex-1 flex overflow-hidden divide-x divide-apple-gray-200 dark:divide-apple-dark-border">
                             <Show when=move || state.editor_view_mode.get().surfaces().writing>
-                                <div class="flex-1 flex flex-col overflow-hidden bg-white dark:bg-apple-dark-bg">
+                                <div class=move || format!("flex-1 flex flex-col overflow-hidden {}", ThemeSurface::WritingSurface.classes())>
                                     <div class="px-6 pt-7 pb-3 md:px-8 md:pt-8 space-y-3 border-b border-transparent">
                                         <input
                                             node_ref=title_input_ref
                                             type="text"
-                                            class="w-full min-w-0 text-2xl md:text-3xl font-bold leading-tight focus:outline-none bg-transparent placeholder:text-gray-300 dark:placeholder:text-gray-600 dark:text-white"
+                                            class=move || format!("w-full min-w-0 text-2xl md:text-3xl font-bold leading-tight focus:outline-none bg-transparent {} {}", ThemeText::Primary.classes(), ThemeText::Placeholder.classes())
                                             placeholder="Note Title"
                                             prop:value=move || selected_note.get().map(|note| note.title).unwrap_or_default()
                                             on:input=on_input_title
                                         />
                                         <input
                                             type="text"
-                                            class="w-full max-w-xl px-0 py-1 text-sm focus:outline-none bg-transparent text-gray-500 placeholder-gray-400 dark:text-gray-400 dark:placeholder-gray-600"
+                                            class=move || format!("w-full max-w-xl px-0 py-1 text-sm focus:outline-none bg-transparent placeholder-gray-400 dark:placeholder-gray-600 {}", ThemeText::Muted.classes())
                                             placeholder="Tags"
                                             prop:value=move || tags_input_value.get()
                                             on:focus=move |_| is_editing_tags.set(true)
@@ -252,7 +253,7 @@ pub fn Editor() -> impl IntoView {
                                     </div>
                                     <textarea
                                         node_ref=content_area_ref
-                                        class="flex-1 px-6 pb-8 pt-3 md:px-8 text-base md:text-lg leading-8 focus:outline-none resize-none bg-transparent selection:bg-apple-yellow/30 font-mono dark:text-gray-300"
+                                        class=move || format!("flex-1 px-6 pb-8 pt-3 md:px-8 text-base md:text-lg leading-8 focus:outline-none resize-none bg-transparent font-mono dark:text-gray-300 {}", ThemeAccent::Selection.classes())
                                         placeholder="Start typing..."
                                         prop:value=move || selected_note.get().map(|note| note.content).unwrap_or_default()
                                         on:input=on_input_content
@@ -264,9 +265,9 @@ pub fn Editor() -> impl IntoView {
                                 <div
                                     class=move || {
                                         if state.editor_view_mode.get() == EditorViewMode::Split {
-                                            "flex-1 px-6 pb-8 pt-7 md:px-8 md:pt-8 overflow-y-auto prose max-w-none break-words shadow-inner border-l transition-colors bg-gray-50 prose-yellow border-apple-gray-200 dark:bg-white/5 dark:prose-invert dark:border-apple-dark-border"
+                                            format!("flex-1 px-6 pb-8 pt-7 md:px-8 md:pt-8 overflow-y-auto prose max-w-none break-words shadow-inner border-l transition-colors {}", ThemeSurface::SplitPreview.classes())
                                         } else {
-                                            "flex-1 px-6 pb-8 pt-7 md:px-8 md:pt-8 overflow-y-auto prose max-w-none break-words transition-colors bg-white prose-yellow dark:bg-apple-dark-bg dark:prose-invert"
+                                            format!("flex-1 px-6 pb-8 pt-7 md:px-8 md:pt-8 overflow-y-auto prose max-w-none break-words transition-colors {}", ThemeSurface::Preview.classes())
                                         }
                                     }
                                 >
@@ -276,16 +277,16 @@ pub fn Editor() -> impl IntoView {
                         </div>
                     }.into_any(),
                     WorkspaceDisplayState::EmptyCollection => view! {
-                        <div class="flex-1 flex items-center justify-center px-6 text-gray-500 dark:text-gray-400">
+                        <div class=move || format!("flex-1 flex items-center justify-center px-6 {}", ThemeState::EmptyState.classes())>
                             <div class="text-center max-w-sm">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-apple-yellow mb-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg xmlns="http://www.w3.org/2000/svg" class=move || format!("h-16 w-16 mx-auto mb-5 {}", ThemeState::EmptyIllustration.classes()) fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4" />
                                 </svg>
-                                <h2 class="text-2xl font-semibold text-gray-900 dark:text-white">"Create your first note"</h2>
+                                <h2 class=move || format!("text-2xl font-semibold {}", ThemeText::Primary.classes())>"Create your first note"</h2>
                                 <p class="mt-2 text-sm leading-6">"Start with a title, then write in Markdown when you need it."</p>
                                 <button
                                     on:click=move |_| state.create_note()
-                                    class="mt-6 inline-flex items-center rounded-md bg-apple-yellow px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-apple-yellow focus:ring-offset-2 dark:focus:ring-offset-apple-dark-bg"
+                                    class=move || format!("mt-6 inline-flex items-center rounded-md px-4 py-2 text-sm font-semibold transition-colors {} {}", ThemeAccent::PrimaryFill.classes(), ThemeAccent::Focus.classes())
                                 >
                                     "New Note"
                                 </button>
@@ -320,7 +321,7 @@ fn ToolbarButton(
             on:click=on_click
             title=title
             aria-label=aria_label
-            class="p-1.5 hover:bg-black/5 dark:hover:bg-white/5 rounded text-gray-600 dark:text-gray-400"
+            class=move || format!("p-1.5 rounded {}", ThemeState::ToolbarButton.classes())
         >
             {children()}
         </button>

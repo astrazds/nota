@@ -1,27 +1,18 @@
-use crate::AppState;
 use crate::components::Modal;
 use crate::markdown_editing::MARKDOWN_CHEATSHEET_SECTIONS;
+use crate::theme::{ThemeAccent, ThemeState, ThemeText};
 use leptos::prelude::*;
 
 #[component]
 pub fn CheatsheetModal(show: RwSignal<bool>) -> impl IntoView {
-    let state = use_context::<AppState>().expect("state not found");
-
     let header = Box::new(move || {
         view! {
             <div class="flex justify-between items-center w-full">
-                <h2 class=move || {
-                    let text_color = if state.is_dark_mode.get() {
-                        "text-white"
-                    } else {
-                        "text-gray-800"
-                    };
-                    format!("text-2xl font-bold {}", text_color)
-                }>"Markdown help"</h2>
+                <h2 class=move || format!("text-2xl font-bold {}", ThemeText::Primary.classes())>"Markdown help"</h2>
                 <button
                     on:click=move |_| show.set(false)
                     aria-label="Close markdown help"
-                    class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                    class=move || ThemeState::SidebarToggle.classes()
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -36,7 +27,7 @@ pub fn CheatsheetModal(show: RwSignal<bool>) -> impl IntoView {
         view! {
             <button
                 on:click=move |_| show.set(false)
-                class="px-6 py-2 bg-apple-yellow text-white font-semibold rounded-md hover:bg-yellow-600 transition-colors shadow-sm"
+                class=move || format!("px-6 py-2 font-semibold rounded-md transition-colors shadow-sm {}", ThemeAccent::PrimaryFill.classes())
             >
                 "Got it"
             </button>
@@ -69,8 +60,8 @@ pub fn CheatsheetModal(show: RwSignal<bool>) -> impl IntoView {
 fn Section(title: &'static str, items: &'static [&'static str]) -> impl IntoView {
     view! {
         <div>
-            <h3 class="font-bold text-apple-yellow mb-3 uppercase text-xs tracking-widest">{title}</h3>
-            <div class="space-y-2 font-mono text-sm text-gray-600 dark:text-gray-400">
+            <h3 class=move || format!("font-bold mb-3 uppercase text-xs tracking-widest {}", ThemeAccent::PrimaryText.classes())>{title}</h3>
+            <div class=move || format!("space-y-2 font-mono text-sm {}", ThemeText::Muted.classes())>
                 {items.iter().map(|item| view! { <p>{*item}</p> }).collect_view()}
             </div>
         </div>

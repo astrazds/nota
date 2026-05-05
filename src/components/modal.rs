@@ -1,3 +1,4 @@
+use crate::theme::ThemeSurface;
 use leptos::prelude::*;
 
 #[component]
@@ -19,9 +20,9 @@ pub fn Modal(
             role="dialog"
             aria-modal="true"
         >
-            <div class=move || format!("rounded-lg shadow-2xl w-full {} overflow-hidden flex flex-col max-h-[80vh] transform transition-all duration-300 bg-white border border-apple-gray-200 dark:bg-apple-dark-sidebar dark:border-apple-dark-border", max_width_class)>
+            <div class=move || format!("rounded-lg shadow-2xl w-full {} overflow-hidden flex flex-col max-h-[80vh] transform transition-all duration-300 border {}", max_width_class, ThemeSurface::ModalPanel.classes())>
                 {header.map(|h| view! {
-                    <div class="p-6 border-b bg-apple-gray-100 border-apple-gray-200 dark:bg-white/5 dark:border-apple-dark-border">
+                    <div class=move || format!("p-6 border-b {}", ThemeSurface::ModalChrome.classes())>
                         {h()}
                     </div>
                 })}
@@ -31,7 +32,7 @@ pub fn Modal(
                 </div>
 
                 {footer.map(|f| view! {
-                    <div class="p-4 border-t flex justify-end gap-3 bg-apple-gray-100 border-apple-gray-200 dark:bg-white/5 dark:border-apple-dark-border">
+                    <div class=move || format!("p-4 border-t flex justify-end gap-3 {}", ThemeSurface::ModalChrome.classes())>
                         {f()}
                     </div>
                 })}

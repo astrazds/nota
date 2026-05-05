@@ -11,6 +11,7 @@ mod responsive_navigation;
 mod sample_notes;
 mod storage;
 mod tag_rules;
+mod theme;
 
 use components::{ConfirmModal, Editor, Sidebar};
 
@@ -31,6 +32,7 @@ use storage::{
     save_sidebar_open,
 };
 use tag_rules::collect_note_tags;
+use theme::ThemeSurface;
 use uuid::Uuid;
 use wasm_bindgen::{JsCast, prelude::Closure};
 
@@ -330,11 +332,7 @@ fn App() -> impl IntoView {
     view! {
         <div
             class=move || {
-                if is_dark_mode.get() {
-                    "dark bg-apple-dark-bg text-white flex h-screen overflow-hidden transition-colors duration-300"
-                } else {
-                    "bg-white text-gray-900 flex h-screen overflow-hidden transition-colors duration-300"
-                }
+                format!("{} flex h-screen overflow-hidden", ThemeSurface::RootApp.classes())
             }
             class:dark=move || is_dark_mode.get()
         >

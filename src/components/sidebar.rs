@@ -1,13 +1,14 @@
 use crate::AppState;
 use crate::note_discovery::NoteListItem;
 use crate::note_list_interaction::{NoteListDisplayState, SEARCH_DEBOUNCE_MS};
+use crate::theme::{ThemeAccent, ThemeState, ThemeSurface, ThemeText};
 use leptos::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 use web_sys::window;
 
-const SIDEBAR_BASE_CLASS: &str = "fixed inset-y-0 left-0 z-30 transform transition-all duration-300 ease-in-out lg:relative lg:translate-x-0 flex flex-col h-full border-r bg-apple-gray-100 border-apple-gray-300 dark:bg-apple-dark-sidebar dark:border-apple-dark-border";
+const SIDEBAR_BASE_CLASS: &str = "fixed inset-y-0 left-0 z-30 transform transition-all duration-300 ease-in-out lg:relative lg:translate-x-0 flex flex-col h-full border-r";
 type TimeoutState = Rc<RefCell<Option<(i32, Closure<dyn FnMut()>)>>>;
 
 #[component]
@@ -58,7 +59,7 @@ pub fn Sidebar() -> impl IntoView {
                 } else {
                     "-translate-x-full w-0 overflow-hidden"
                 };
-                format!("{SIDEBAR_BASE_CLASS} {state_class}")
+                format!("{SIDEBAR_BASE_CLASS} {} {state_class}", ThemeSurface::Sidebar.classes())
             }
             role="navigation"
             aria-label="Notes sidebar"
@@ -69,7 +70,7 @@ pub fn Sidebar() -> impl IntoView {
                         <div class="flex items-center space-x-2">
                             <button
                                 on:click=move |_| state.toggle_dark_mode()
-                                class="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                                class=move || format!("p-2 rounded-full {}", ThemeState::IconButton.classes())
                                 title="Toggle Theme"
                                 aria-label=move || if state.is_dark_mode.get() { "Switch to light mode" } else { "Switch to dark mode" }
                             >
@@ -84,7 +85,7 @@ pub fn Sidebar() -> impl IntoView {
                         <div class="flex items-center space-x-1">
                             <button
                                 on:click=move |_| state.toggle_sidebar()
-                                class="p-2 lg:hidden text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                                class=move || format!("p-2 lg:hidden {}", ThemeState::SidebarToggle.classes())
                                 title=move || if state.is_sidebar_open.get() { "Collapse sidebar" } else { "Expand sidebar" }
                                 aria-label=move || if state.is_sidebar_open.get() { "Collapse sidebar" } else { "Expand sidebar" }
                             >
@@ -95,7 +96,7 @@ pub fn Sidebar() -> impl IntoView {
                             <button
                                 on:click=add_note
                                 title="New Note"
-                                class="text-apple-yellow hover:text-yellow-600 transition-colors p-2"
+                                class=move || format!("transition-colors p-2 {}", ThemeAccent::PrimaryText.classes())
                                 aria-label="Create new note"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -127,9 +128,9 @@ pub fn Sidebar() -> impl IntoView {
 
                     <Show when=move || state.active_tag().is_some() && !available_tags.get().is_empty()>
                         <div class="flex items-center gap-2 text-xs">
-                            <span class="text-gray-500 dark:text-gray-400">"Filtered by"</span>
+                            <span class=move || ThemeText::Muted.classes()>"Filtered by"</span>
                             <button
-                                class="px-2 py-0.5 rounded-full bg-apple-yellow text-white"
+                                class=move || format!("px-2 py-0.5 rounded-full {}", ThemeState::FilterPill.classes())
                                 on:click=move |_| state.clear_active_tag()
                                 title="Clear tag filter"
                                 aria-label="Clear tag filter"
@@ -153,13 +154,13 @@ pub fn Sidebar() -> impl IntoView {
                         let projection = note_projection.get();
                         state.note_list_display_state(&projection) == NoteListDisplayState::FilteredEmpty
                     }>
-                        <div class="p-8 text-center text-gray-400 dark:text-gray-500">
+                        <div class=move || format!("p-8 text-center {}", ThemeText::Subtle.classes())>
                             <p>No notes found</p>
                             <p class="text-sm mt-1">Try a different search term</p>
                         </div>
                     </Show>
                 </div>
-                <div class="h-12 px-4 border-t border-apple-gray-300 text-gray-400 dark:border-apple-dark-border dark:text-gray-500 flex items-center text-xs">
+                <div class=move || format!("h-12 px-4 border-t border-apple-gray-300 dark:border-apple-dark-border flex items-center text-xs {}", ThemeText::Subtle.classes())>
                     <span>{move || format!("{} notes", state.note_count())}</span>
                 </div>
             </Show>
@@ -206,19 +207,19 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
             on:click=select
             class=move || {
                 if is_selected() {
-                    "px-4 py-3 border-b border-apple-gray-200 dark:border-apple-dark-border cursor-pointer transition-all duration-200 ease-in-out group bg-apple-yellow/15 dark:bg-apple-yellow/20"
+                    format!("px-4 py-3 border-b cursor-pointer transition-all duration-200 ease-in-out group {}", ThemeState::NoteRowSelected.classes())
                 } else {
-                    "px-4 py-3 border-b border-apple-gray-200 dark:border-apple-dark-border cursor-pointer transition-all duration-200 ease-in-out group hover:bg-apple-gray-200 dark:hover:bg-white/5"
+                    format!("px-4 py-3 border-b cursor-pointer transition-all duration-200 ease-in-out group {}", ThemeState::NoteRowIdle.classes())
                 }
             }
         >
             <div class="flex justify-between items-start">
-                <h3 class="font-semibold truncate pr-2 flex-1 text-gray-900 dark:text-white">
+                <h3 class=move || format!("font-semibold truncate pr-2 flex-1 {}", ThemeText::Primary.classes())>
                     <span class="block truncate">
                         {title_highlights.iter().cloned()
                             .map(|segment| {
                                 if segment.is_match {
-                                    view! { <mark class="bg-apple-yellow/30">{segment.text}</mark> }.into_any()
+                                    view! { <mark class=move || ThemeAccent::Highlight.classes()>{segment.text}</mark> }.into_any()
                                 } else {
                                     view! { <span>{segment.text}</span> }.into_any()
                                 }
@@ -228,7 +229,7 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
                 </h3>
                 <div class="relative flex items-center gap-1">
                     <Show when=move || is_pinned>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-apple-yellow" fill="currentColor" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" class=move || format!("h-4 w-4 {}", ThemeAccent::PrimaryText.classes()) fill="currentColor" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                         </svg>
                     </Show>
@@ -237,7 +238,7 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
                             ev.stop_propagation();
                             action_menu_open.update(|open| *open = !*open);
                         }
-                        class="p-1 rounded-full text-gray-400 hover:text-gray-700 hover:bg-black/10 dark:hover:text-gray-200 dark:hover:bg-white/10"
+                        class=move || format!("p-1 rounded-full {}", ThemeState::NoteActionButton.classes())
                         title="Note actions"
                         aria-label="Note actions"
                     >
@@ -247,18 +248,18 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
                     </button>
                     <Show when=move || action_menu_open.get()>
                         <div
-                            class="absolute right-0 top-7 z-20 w-36 overflow-hidden rounded-md border border-apple-gray-200 bg-white py-1 text-sm shadow-lg dark:border-apple-dark-border dark:bg-apple-dark-sidebar"
+                            class=move || format!("absolute right-0 top-7 z-20 w-36 overflow-hidden rounded-md border py-1 text-sm shadow-lg {}", ThemeState::NoteActionMenu.classes())
                             on:click=move |ev| ev.stop_propagation()
                         >
                             <button
                                 on:click=toggle_pin
-                                class="block w-full px-3 py-2 text-left text-gray-700 hover:bg-black/5 dark:text-gray-200 dark:hover:bg-white/10"
+                                class=move || format!("block w-full px-3 py-2 text-left {}", ThemeState::NoteMenuItem.classes())
                             >
                                 {pin_label}
                             </button>
                             <button
                                 on:click=delete_note
-                                class="block w-full px-3 py-2 text-left text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
+                                class=move || format!("block w-full px-3 py-2 text-left {}", ThemeState::DangerMenuItem.classes())
                             >
                                 "Delete"
                             </button>
@@ -267,12 +268,12 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
                 </div>
             </div>
             <div class="flex space-x-2 text-sm mt-1">
-                <span class="whitespace-nowrap text-gray-500 dark:text-gray-400">{display_date}</span>
-                <span class="block truncate text-gray-400 dark:text-gray-500">
+                <span class=move || format!("whitespace-nowrap {}", ThemeText::Muted.classes())>{display_date}</span>
+                <span class=move || format!("block truncate {}", ThemeText::Subtle.classes())>
                     {preview_highlights.iter().cloned()
                         .map(|segment| {
                             if segment.is_match {
-                                view! { <mark class="bg-apple-yellow/30">{segment.text}</mark> }.into_any()
+                                view! { <mark class=move || ThemeAccent::Highlight.classes()>{segment.text}</mark> }.into_any()
                             } else {
                                 view! { <span>{segment.text}</span> }.into_any()
                             }
@@ -287,7 +288,7 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
                             let tag_for_click = tag.clone();
                             view! {
                                 <button
-                                    class="px-1.5 py-0.5 text-xs rounded-full bg-black/5 text-gray-500 hover:bg-black/10 dark:bg-white/10 dark:text-gray-400 dark:hover:bg-white/20"
+                                    class=move || format!("px-1.5 py-0.5 text-xs rounded-full {}", ThemeState::TagPill.classes())
                                     on:click=move |ev| {
                                         ev.stop_propagation();
                                         state.select_active_tag(tag_for_click.clone());

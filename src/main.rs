@@ -6,6 +6,7 @@ mod model;
 mod note_collection;
 mod note_discovery;
 mod note_workspace;
+mod sample_notes;
 mod storage;
 mod tag_rules;
 

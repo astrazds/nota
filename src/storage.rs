@@ -1,4 +1,5 @@
 use crate::model::Note;
+use crate::sample_notes::debug_starter_notes;
 use gloo_storage::{LocalStorage, Storage};
 use leptos::prelude::{GetUntracked, RwSignal, Set, window};
 use std::cell::RefCell;
@@ -116,6 +117,10 @@ fn log_storage_error(operation: &str, key: &str, error: &gloo_storage::errors::S
 }
 
 pub fn load_notes() -> Vec<Note> {
+    if !notes_storage_key_exists() {
+        return debug_starter_notes();
+    }
+
     match LocalStorage::get(STORAGE_KEY) {
         Ok(notes) => notes,
         Err(e) => {
@@ -123,6 +128,13 @@ pub fn load_notes() -> Vec<Note> {
             Vec::new()
         }
     }
+}
+
+fn notes_storage_key_exists() -> bool {
+    web_sys::window()
+        .and_then(|window| window.local_storage().ok().flatten())
+        .and_then(|storage| storage.get_item(STORAGE_KEY).ok().flatten())
+        .is_some()
 }
 
 pub fn save_notes(notes: &[Note]) {

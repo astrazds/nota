@@ -16,6 +16,7 @@ Current app version: **0.3.0**.
   - **Tags**: Lightweight note metadata for secondary filtering without folders or notebooks.
   - **Pinning**: Pin important notes to the top of your list.
 - **Local Persistence**: Automatically persists notes to your browser's `LocalStorage` with debounced saves while typing.
+- **Debug Starter Notes**: Debug builds seed three representative notes when the browser has no saved notes yet, giving manual testing coverage for pinning, tags, rich Markdown, preview safety, search, and responsive editing.
 - **Tuned Themes**: Supports Light and Dark themes with coherent surfaces, borders, selection states, and accents.
 - **Responsive Design**: Optimised for desktop and mobile, with top-bar navigation between the Note List and Writing Surface.
 - **First-Run Flow**: Empty collections show a direct path to create the first note and focus the note title.
@@ -64,6 +65,8 @@ trunk serve --open
 ```
 The app will be available at `http://localhost:8080`.
 
+In debug builds, a browser with no saved `noter-notes` LocalStorage entry starts with three representative testing notes. Release builds and browsers with an existing saved note collection keep the normal empty/saved collection behaviour.
+
 ## Testing
 
 Run the Rust unit tests:
@@ -92,6 +95,7 @@ Tests cover core domain logic including:
 - **Note Logic**: Workspace behaviours for note creation, selected note editing, delete confirmation, title extraction, date formatting, preview truncation, and deserialisation.
 - **Tags**: Parsing, display formatting, case-insensitive matching, collection, and sorting.
 - **Persistence**: Save lifecycle and save session behaviour for debounced LocalStorage saves.
+- **Starter Notes**: Debug-only sample notes cover pinning, tags, rich Markdown, preview safety, long previews, and responsive editing checks.
 - **Preview Safety**: Raw HTML escaping, safe URL policy, and supported Markdown preview dialect.
 - **Unicode Support**: Proper handling of multi-byte characters in character counting, preview truncation, formatting, and search highlighting.
 

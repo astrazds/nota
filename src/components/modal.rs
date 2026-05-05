@@ -2,7 +2,7 @@ use leptos::prelude::*;
 
 #[component]
 pub fn Modal(
-    show: RwSignal<bool>,
+    on_dismiss: impl Fn() + Send + Sync + 'static,
     #[prop(optional)] header: Option<Box<dyn Fn() -> AnyView + Send + Sync + 'static>>,
     #[prop(optional)] footer: Option<Box<dyn Fn() -> AnyView + Send + Sync + 'static>>,
     #[prop(default = "max-w-2xl")] max_width_class: &'static str,
@@ -13,7 +13,7 @@ pub fn Modal(
             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/35 backdrop-blur-sm transition-opacity duration-200"
             on:click=move |ev| {
                 if ev.target() == ev.current_target() {
-                    show.set(false);
+                    on_dismiss();
                 }
             }
             role="dialog"

@@ -2,8 +2,6 @@ use crate::model::Note;
 use crate::tag_rules::{fold_case, note_has_active_tag};
 use uuid::Uuid;
 
-pub use crate::tag_rules::collect_note_tags;
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct HighlightSegment {
     pub text: String,

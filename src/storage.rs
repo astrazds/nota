@@ -1,7 +1,7 @@
 use crate::model::Note;
 use crate::sample_notes::debug_starter_notes;
 use gloo_storage::{LocalStorage, Storage};
-use leptos::prelude::{GetUntracked, RwSignal, Set, window};
+use leptos::prelude::{RwSignal, Set, window};
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::JsCast;
@@ -11,13 +11,35 @@ use web_sys::console;
 const STORAGE_KEY: &str = "noter-notes";
 const DARK_MODE_KEY: &str = "noter-dark-mode";
 const SIDEBAR_OPEN_KEY: &str = "noter-sidebar-open";
-pub const NOTES_SAVE_DEBOUNCE_MS: i32 = 300;
-pub type SaveTimeout = Rc<RefCell<Option<(i32, Closure<dyn FnMut()>)>>>;
+const DOCUMENT_PAGE_FLUSH_EVENTS: &[&str] = &["visibilitychange"];
+const WINDOW_PAGE_FLUSH_EVENTS: &[&str] = &["pagehide", "beforeunload"];
+const NOTES_SAVE_DEBOUNCE_MS: i32 = 300;
+type SaveTimeout = Rc<RefCell<Option<(i32, Closure<dyn FnMut()>)>>>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SaveStatus {
     Saving,
     Saved,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StartupDecision {
+    MissingStorage,
+    DebugStarterNotes(Vec<Note>),
+    SavedEmptyCollection,
+    SavedCollection(Vec<Note>),
+    CorruptSavedData,
+}
+
+impl StartupDecision {
+    pub fn into_notes(self) -> Vec<Note> {
+        match self {
+            Self::MissingStorage | Self::SavedEmptyCollection | Self::CorruptSavedData => {
+                Vec::new()
+            }
+            Self::DebugStarterNotes(notes) | Self::SavedCollection(notes) => notes,
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -30,39 +52,41 @@ impl SaveSession {
         schedule_notes_save(&self.timeout, notes_to_save, status);
     }
 
-    pub fn flush_pending_save(&self, notes: RwSignal<Vec<Note>>, status: RwSignal<SaveStatus>) {
-        flush_pending_save(&self.timeout, notes, status);
+    pub fn flush_pending_save(&self, notes_to_save: Vec<Note>, status: RwSignal<SaveStatus>) {
+        flush_pending_save(&self.timeout, notes_to_save, status);
     }
 
     pub fn install_page_flush_listeners(
         &self,
-        notes: RwSignal<Vec<Note>>,
+        notes: impl Fn() -> Vec<Note> + Clone + 'static,
         status: RwSignal<SaveStatus>,
     ) {
         if let Some(win) = web_sys::window()
             && let Some(doc) = win.document()
         {
             let session_for_visibility = self.clone();
+            let notes_for_visibility = notes.clone();
             let visibility_listener = Closure::wrap(Box::new(move |_ev: web_sys::Event| {
-                session_for_visibility.flush_pending_save(notes, status);
+                session_for_visibility.flush_pending_save(notes_for_visibility(), status);
             }) as Box<dyn FnMut(_)>);
-            let _ = doc.add_event_listener_with_callback(
-                "visibilitychange",
-                visibility_listener.as_ref().unchecked_ref(),
-            );
+            for event_name in DOCUMENT_PAGE_FLUSH_EVENTS {
+                let _ = doc.add_event_listener_with_callback(
+                    event_name,
+                    visibility_listener.as_ref().unchecked_ref(),
+                );
+            }
 
             let session_for_unload = self.clone();
+            let notes_for_unload = notes.clone();
             let unload_listener = Closure::wrap(Box::new(move |_ev: web_sys::Event| {
-                session_for_unload.flush_pending_save(notes, status);
+                session_for_unload.flush_pending_save(notes_for_unload(), status);
             }) as Box<dyn FnMut(_)>);
-            let _ = win.add_event_listener_with_callback(
-                "pagehide",
-                unload_listener.as_ref().unchecked_ref(),
-            );
-            let _ = win.add_event_listener_with_callback(
-                "beforeunload",
-                unload_listener.as_ref().unchecked_ref(),
-            );
+            for event_name in WINDOW_PAGE_FLUSH_EVENTS {
+                let _ = win.add_event_listener_with_callback(
+                    event_name,
+                    unload_listener.as_ref().unchecked_ref(),
+                );
+            }
 
             visibility_listener.forget();
             unload_listener.forget();
@@ -116,36 +140,78 @@ fn log_storage_error(operation: &str, key: &str, error: &gloo_storage::errors::S
     console::error_1(&message.into());
 }
 
+fn log_browser_storage_error(operation: &str, key: &str, error: &wasm_bindgen::JsValue) {
+    let message = format!("Storage error ({} {}): {:?}", operation, key, error);
+    console::error_1(&message.into());
+}
+
 pub fn load_notes() -> Vec<Note> {
-    if !notes_storage_key_exists() {
-        return debug_starter_notes();
+    let adapter = BrowserNotesStorage;
+    let decision =
+        decide_notes_startup(adapter.load_notes_json().as_deref(), debug_starter_notes());
+
+    if matches!(decision, StartupDecision::CorruptSavedData) {
+        let message = format!("Storage error (load {STORAGE_KEY}): corrupt saved Notes");
+        console::error_1(&message.into());
     }
 
-    match LocalStorage::get(STORAGE_KEY) {
-        Ok(notes) => notes,
-        Err(e) => {
-            log_storage_error("load", STORAGE_KEY, &e);
-            Vec::new()
+    decision.into_notes()
+}
+
+fn decide_notes_startup(saved_json: Option<&str>, starter_notes: Vec<Note>) -> StartupDecision {
+    let Some(saved_json) = saved_json else {
+        return if starter_notes.is_empty() {
+            StartupDecision::MissingStorage
+        } else {
+            StartupDecision::DebugStarterNotes(starter_notes)
+        };
+    };
+
+    match serde_json::from_str::<Vec<Note>>(saved_json) {
+        Ok(notes) if notes.is_empty() => StartupDecision::SavedEmptyCollection,
+        Ok(notes) => StartupDecision::SavedCollection(notes),
+        Err(_) => StartupDecision::CorruptSavedData,
+    }
+}
+
+struct BrowserNotesStorage;
+
+impl BrowserNotesStorage {
+    fn load_notes_json(&self) -> Option<String> {
+        web_sys::window()
+            .and_then(|window| window.local_storage().ok().flatten())
+            .and_then(|storage| match storage.get_item(STORAGE_KEY) {
+                Ok(value) => value,
+                Err(error) => {
+                    log_browser_storage_error("load", STORAGE_KEY, &error);
+                    None
+                }
+            })
+    }
+
+    fn save_notes(&self, notes: &[Note]) {
+        let Ok(notes_json) = serde_json::to_string(notes) else {
+            let message = format!("Storage error (save {STORAGE_KEY}): could not serialise Notes");
+            console::error_1(&message.into());
+            return;
+        };
+
+        if let Some(storage) =
+            web_sys::window().and_then(|window| window.local_storage().ok().flatten())
+            && let Err(error) = storage.set_item(STORAGE_KEY, &notes_json)
+        {
+            log_browser_storage_error("save", STORAGE_KEY, &error);
         }
     }
 }
 
-fn notes_storage_key_exists() -> bool {
-    web_sys::window()
-        .and_then(|window| window.local_storage().ok().flatten())
-        .and_then(|storage| storage.get_item(STORAGE_KEY).ok().flatten())
-        .is_some()
-}
-
 pub fn save_notes(notes: &[Note]) {
-    if let Err(e) = LocalStorage::set(STORAGE_KEY, notes) {
-        log_storage_error("save", STORAGE_KEY, &e);
-    }
+    BrowserNotesStorage.save_notes(notes);
 }
 
-pub fn flush_pending_save(
+fn flush_pending_save(
     timeout: &SaveTimeout,
-    notes: RwSignal<Vec<Note>>,
+    notes_to_save: Vec<Note>,
     status: RwSignal<SaveStatus>,
 ) {
     let had_pending_save = if let Some((id, _)) = timeout.borrow_mut().take() {
@@ -154,7 +220,7 @@ pub fn flush_pending_save(
     } else {
         false
     };
-    save_notes(&notes.get_untracked());
+    save_notes(&notes_to_save);
     let mut lifecycle = SaveLifecycle::default();
     if had_pending_save {
         lifecycle.note_changed();
@@ -166,7 +232,7 @@ pub fn flush_pending_save(
     );
 }
 
-pub fn schedule_notes_save(
+fn schedule_notes_save(
     timeout: &SaveTimeout,
     notes_to_save: Vec<Note>,
     status: RwSignal<SaveStatus>,
@@ -254,6 +320,66 @@ mod tests {
         assert_eq!(lifecycle.note_changed(), SaveStatus::Saving);
         assert_eq!(lifecycle.flush_pending(), Some(SaveStatus::Saved));
         assert_eq!(lifecycle.flush_pending(), None);
+    }
+
+    #[test]
+    fn startup_uses_saved_empty_collection_instead_of_starter_notes() {
+        let starter_note = Note::new("Starter".to_string(), "Only for first run".to_string());
+
+        let decision = decide_notes_startup(Some("[]"), vec![starter_note]);
+
+        assert_eq!(decision, StartupDecision::SavedEmptyCollection);
+        assert_eq!(decision.into_notes(), Vec::new());
+    }
+
+    #[test]
+    fn startup_distinguishes_missing_storage_from_debug_starter_notes() {
+        assert_eq!(
+            decide_notes_startup(None, Vec::new()),
+            StartupDecision::MissingStorage
+        );
+
+        let starter_note = Note::new("Starter".to_string(), "Debug first run".to_string());
+        assert_eq!(
+            decide_notes_startup(None, vec![starter_note.clone()]),
+            StartupDecision::DebugStarterNotes(vec![starter_note])
+        );
+    }
+
+    #[test]
+    fn startup_uses_saved_notes_when_storage_contains_a_collection() {
+        let saved_note = Note::new("Saved".to_string(), "Existing note".to_string());
+        let saved_json = serde_json::to_string(&vec![saved_note.clone()]).unwrap();
+        let starter_note = Note::new("Starter".to_string(), "Not used".to_string());
+
+        let decision = decide_notes_startup(Some(&saved_json), vec![starter_note]);
+
+        assert_eq!(decision, StartupDecision::SavedCollection(vec![saved_note]));
+    }
+
+    #[test]
+    fn startup_treats_corrupt_saved_data_as_distinct_from_first_run() {
+        let starter_note = Note::new("Starter".to_string(), "Not used".to_string());
+
+        let decision = decide_notes_startup(Some("{not valid json"), vec![starter_note]);
+
+        assert_eq!(decision, StartupDecision::CorruptSavedData);
+        assert_eq!(decision.into_notes(), Vec::new());
+    }
+
+    #[test]
+    fn save_lifecycle_reports_debounce_completion_as_saved() {
+        let mut lifecycle = SaveLifecycle::default();
+
+        assert_eq!(lifecycle.note_changed(), SaveStatus::Saving);
+        assert_eq!(lifecycle.save_completed(), SaveStatus::Saved);
+        assert_eq!(lifecycle.flush_pending(), None);
+    }
+
+    #[test]
+    fn page_lifecycle_flush_uses_visibility_and_unload_events() {
+        assert_eq!(DOCUMENT_PAGE_FLUSH_EVENTS, &["visibilitychange"]);
+        assert_eq!(WINDOW_PAGE_FLUSH_EVENTS, &["pagehide", "beforeunload"]);
     }
 
     #[test]

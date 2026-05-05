@@ -4,7 +4,7 @@ use crate::editor_view::EditorViewMode;
 use crate::markdown_editing::{BrowserSelection, MarkdownCommand, apply_markdown_command};
 use crate::markdown_preview::render_markdown_preview;
 use crate::model::Note;
-use crate::note_workspace::WorkspaceDisplayState;
+use crate::note_workspace::{FocusIntent, WorkspaceDisplayState};
 use crate::storage::SaveStatus;
 use crate::tag_rules::{parse_tags_input, tags_to_input};
 use leptos::prelude::*;
@@ -23,11 +23,11 @@ pub fn Editor() -> impl IntoView {
     let workspace_display_state = Memo::new(move |_| state.workspace_display_state());
 
     Effect::new(move |_| {
-        if state.focus_title_request.get() {
+        if state.focus_intent() == FocusIntent::NoteTitle {
             if let Some(input) = title_input_ref.get() {
                 let _ = input.focus();
             }
-            state.focus_title_request.set(false);
+            state.take_focus_intent();
         }
     });
 
@@ -37,16 +37,8 @@ pub fn Editor() -> impl IntoView {
         }
 
         let tags_value = state
-            .selected_id
-            .get()
-            .and_then(|id| {
-                state
-                    .notes
-                    .get()
-                    .iter()
-                    .find(|note| note.id == id)
-                    .map(|note| tags_to_input(&note.tags))
-            })
+            .selected_note()
+            .map(|note| tags_to_input(&note.tags))
             .unwrap_or_default();
         tags_input_value.set(tags_value);
     });
@@ -171,9 +163,9 @@ pub fn Editor() -> impl IntoView {
                             aria-pressed=move || state.editor_view_mode.get() == EditorViewMode::Split
                             class=move || {
                                 if state.editor_view_mode.get() == EditorViewMode::Split {
-                                    "hidden md:inline-flex px-2.5 py-1 text-sm rounded-md transition-all border bg-apple-yellow/10 border-apple-yellow text-apple-yellow"
+                                    "hidden lg:inline-flex px-2.5 py-1 text-sm rounded-md transition-all border bg-apple-yellow/10 border-apple-yellow text-apple-yellow"
                                 } else {
-                                    "hidden md:inline-flex px-2.5 py-1 text-sm rounded-md transition-all border bg-white border-gray-200 text-gray-500 hover:border-gray-300 dark:bg-white/5 dark:border-apple-dark-border dark:text-gray-400 dark:hover:border-gray-500"
+                                    "hidden lg:inline-flex px-2.5 py-1 text-sm rounded-md transition-all border bg-white border-gray-200 text-gray-500 hover:border-gray-300 dark:bg-white/5 dark:border-apple-dark-border dark:text-gray-400 dark:hover:border-gray-500"
                                 }
                             }
                         >

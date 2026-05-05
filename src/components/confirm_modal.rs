@@ -3,11 +3,7 @@ use crate::components::Modal;
 use leptos::prelude::*;
 
 #[component]
-pub fn ConfirmModal(
-    show: RwSignal<bool>,
-    title: &'static str,
-    message: &'static str,
-) -> impl IntoView {
+pub fn ConfirmModal(title: &'static str, message: &'static str) -> impl IntoView {
     let state = use_context::<AppState>().expect("state not found");
 
     let header = Box::new(move || {
@@ -51,9 +47,9 @@ pub fn ConfirmModal(
     let footer_clone = footer.clone();
 
     view! {
-        <Show when=move || show.get()>
+        <Show when=move || state.is_delete_confirmation_open()>
             <Modal
-                show=show
+                on_dismiss=move || state.cancel_delete_note()
                 max_width_class="max-w-sm"
                 header=header_clone.clone()
                 footer=footer_clone.clone()

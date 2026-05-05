@@ -1,13 +1,12 @@
 use crate::AppState;
-use crate::note_discovery::{NoteListItem, collect_note_tags, project_note_list};
+use crate::note_discovery::NoteListItem;
+use crate::note_list_interaction::{NoteListDisplayState, SEARCH_DEBOUNCE_MS};
 use leptos::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 use web_sys::window;
 
-const MOBILE_BREAKPOINT: f64 = 1024.0;
-const SEARCH_DEBOUNCE_MS: i32 = 200;
 const SIDEBAR_BASE_CLASS: &str = "fixed inset-y-0 left-0 z-30 transform transition-all duration-300 ease-in-out lg:relative lg:translate-x-0 flex flex-col h-full border-r bg-apple-gray-100 border-apple-gray-300 dark:bg-apple-dark-sidebar dark:border-apple-dark-border";
 type TimeoutState = Rc<RefCell<Option<(i32, Closure<dyn FnMut()>)>>>;
 
@@ -17,25 +16,14 @@ pub fn Sidebar() -> impl IntoView {
 
     let add_note = move |_| state.create_note();
 
-    let note_projection = Memo::new(move |_| {
-        let query = state.search_query.get();
-        let active_tag = state.active_tag.get();
-        let notes = state.notes.get();
-        project_note_list(
-            &notes,
-            state.selected_id.get(),
-            &query,
-            active_tag.as_deref(),
-        )
-    });
-    let available_tags = Memo::new(move |_| collect_note_tags(&state.notes.get()));
+    let note_projection = Memo::new(move |_| state.note_list_projection());
+    let available_tags = Memo::new(move |_| state.available_tags());
 
-    let search_input_value = RwSignal::new(state.search_query.get());
+    let search_input_value = RwSignal::new(state.note_search_input());
     let debounce_timeout: TimeoutState = Rc::new(RefCell::new(None));
 
     Effect::new(move |_| {
-        let input = search_input_value.get();
-        let query_for_closure = input.clone();
+        let _input = search_input_value.get();
         let timeout_ref = debounce_timeout.clone();
 
         if let Some((id, _)) = timeout_ref.borrow_mut().take()
@@ -46,7 +34,7 @@ pub fn Sidebar() -> impl IntoView {
 
         if let Some(win) = window() {
             let closure = Closure::wrap(Box::new(move || {
-                state.search_query.set(query_for_closure.clone());
+                state.commit_note_search();
             }) as Box<dyn FnMut()>);
 
             let id = win
@@ -129,20 +117,24 @@ pub fn Sidebar() -> impl IntoView {
                             aria-label="Search notes"
                             class="w-full pl-10 pr-4 py-1.5 text-sm rounded-lg focus:outline-none transition-colors bg-black/5 text-gray-900 placeholder-gray-400 focus:bg-black/10 dark:bg-white/10 dark:text-white dark:placeholder-gray-500 dark:focus:bg-white/20"
                             prop:value=move || search_input_value.get()
-                            on:input=move |ev| search_input_value.set(event_target_value(&ev))
+                            on:input=move |ev| {
+                                let value = event_target_value(&ev);
+                                state.edit_note_search(value.clone());
+                                search_input_value.set(value);
+                            }
                         />
                     </div>
 
-                    <Show when=move || state.active_tag.get().is_some() && !available_tags.get().is_empty()>
+                    <Show when=move || state.active_tag().is_some() && !available_tags.get().is_empty()>
                         <div class="flex items-center gap-2 text-xs">
                             <span class="text-gray-500 dark:text-gray-400">"Filtered by"</span>
                             <button
                                 class="px-2 py-0.5 rounded-full bg-apple-yellow text-white"
-                                on:click=move |_| state.active_tag.set(None)
+                                on:click=move |_| state.clear_active_tag()
                                 title="Clear tag filter"
                                 aria-label="Clear tag filter"
                             >
-                                {move || state.active_tag.get().map(|tag| format!("#{tag}")).unwrap_or_else(|| "All".to_string())}
+                                {move || state.active_tag().map(|tag| format!("#{tag}")).unwrap_or_else(|| "All".to_string())}
                             </button>
                         </div>
                     </Show>
@@ -159,7 +151,7 @@ pub fn Sidebar() -> impl IntoView {
                     </Show>
                     <Show when=move || {
                         let projection = note_projection.get();
-                        projection.rows.is_empty() && projection.has_active_filter
+                        state.note_list_display_state(&projection) == NoteListDisplayState::FilteredEmpty
                     }>
                         <div class="p-8 text-center text-gray-400 dark:text-gray-500">
                             <p>No notes found</p>
@@ -168,7 +160,7 @@ pub fn Sidebar() -> impl IntoView {
                     </Show>
                 </div>
                 <div class="h-12 px-4 border-t border-apple-gray-300 text-gray-400 dark:border-apple-dark-border dark:text-gray-500 flex items-center text-xs">
-                    <span>{move || format!("{} notes", state.notes.get().len())}</span>
+                    <span>{move || format!("{} notes", state.note_count())}</span>
                 </div>
             </Show>
         </div>
@@ -185,34 +177,28 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
     let tags = item.tags.clone();
     let tags_for_visibility = tags.clone();
     let is_pinned = item.is_pinned;
+    let actions = state.note_actions(&item);
+    let pin_label = actions.pin_label;
+    let pin_command = actions.pin_command;
+    let delete_command = actions.delete_command;
     let action_menu_open = RwSignal::new(false);
 
-    let is_selected = move || state.selected_id.get() == Some(id);
+    let is_selected = move || state.selected_id() == Some(id);
 
     let select = move |_| {
-        state.select_note(id);
-        if let Some(win) = window()
-            && win
-                .inner_width()
-                .unwrap_or_default()
-                .as_f64()
-                .unwrap_or(MOBILE_BREAKPOINT)
-                < MOBILE_BREAKPOINT
-        {
-            state.is_sidebar_open.set(false);
-        }
+        state.select_note_list_row(id);
     };
 
     let toggle_pin = move |ev: leptos::web_sys::MouseEvent| {
         ev.stop_propagation();
         action_menu_open.set(false);
-        state.toggle_note_pin(id);
+        state.apply_note_list_command(pin_command);
     };
 
     let delete_note = move |ev: leptos::web_sys::MouseEvent| {
         ev.stop_propagation();
         action_menu_open.set(false);
-        state.request_delete_note(id);
+        state.apply_note_list_command(delete_command);
     };
 
     view! {
@@ -268,7 +254,7 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
                                 on:click=toggle_pin
                                 class="block w-full px-3 py-2 text-left text-gray-700 hover:bg-black/5 dark:text-gray-200 dark:hover:bg-white/10"
                             >
-                                {if is_pinned { "Unpin" } else { "Pin" }}
+                                {pin_label}
                             </button>
                             <button
                                 on:click=delete_note
@@ -304,7 +290,7 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
                                     class="px-1.5 py-0.5 text-xs rounded-full bg-black/5 text-gray-500 hover:bg-black/10 dark:bg-white/10 dark:text-gray-400 dark:hover:bg-white/20"
                                     on:click=move |ev| {
                                         ev.stop_propagation();
-                                        state.active_tag.set(Some(tag_for_click.clone()));
+                                        state.select_active_tag(tag_for_click.clone());
                                     }
                                     title=tag.clone()
                                     aria-label=format!("Filter by tag {tag}")

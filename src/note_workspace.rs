@@ -1,9 +1,28 @@
 use crate::model::Note;
-use crate::note_collection::{NoteCollection, NoteCreation};
+use crate::note_collection::NoteCollection;
+use crate::note_discovery::{NoteListProjection, project_note_list};
 use uuid::Uuid;
 
-#[derive(Debug, Default, Clone, Copy)]
-pub struct NoteWorkspace;
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct NoteWorkspace {
+    notes: Vec<Note>,
+    selected_id: Option<Uuid>,
+    focus_intent: FocusIntent,
+    delete_confirmation: Option<DeleteConfirmation>,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum FocusIntent {
+    #[default]
+    None,
+    NoteTitle,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DeleteConfirmation {
+    id: Uuid,
+    title: String,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WorkspaceDisplayState {
@@ -13,89 +32,145 @@ pub enum WorkspaceDisplayState {
 }
 
 impl NoteWorkspace {
-    pub fn selected_note(notes: &[Note], selected_id: Option<Uuid>) -> Option<Note> {
-        selected_id.and_then(|id| notes.iter().find(|note| note.id == id).cloned())
+    pub fn new(notes: Vec<Note>) -> Self {
+        let selected_id = notes.first().map(|note| note.id);
+        Self {
+            notes,
+            selected_id,
+            focus_intent: FocusIntent::None,
+            delete_confirmation: None,
+        }
     }
 
-    pub fn display_state(notes: &[Note], selected_id: Option<Uuid>) -> WorkspaceDisplayState {
-        if notes.is_empty() {
+    pub fn notes(&self) -> &[Note] {
+        &self.notes
+    }
+
+    pub fn selected_id(&self) -> Option<Uuid> {
+        self.selected_id
+    }
+
+    pub fn selected_note(&self) -> Option<Note> {
+        self.selected_note_ref().cloned()
+    }
+
+    pub fn display_state(&self) -> WorkspaceDisplayState {
+        if self.notes.is_empty() {
             return WorkspaceDisplayState::EmptyCollection;
         }
 
-        if Self::selected_note(notes, selected_id).is_some() {
+        if self.selected_note_ref().is_some() {
             WorkspaceDisplayState::NoteSelected
         } else {
             WorkspaceDisplayState::NoNoteSelected
         }
     }
 
-    pub fn create_note(notes: &mut Vec<Note>) -> NoteCreation {
-        NoteCollection::create_note(notes)
-    }
-
-    pub fn update_selected_title(
-        notes: &mut [Note],
-        selected_id: Option<Uuid>,
-        title: String,
-    ) -> bool {
-        let Some(id) = selected_id else {
-            return false;
+    pub fn create_note(&mut self) {
+        let created = NoteCollection::create_note(&mut self.notes);
+        self.selected_id = created.selected_id;
+        self.focus_intent = if created.should_focus_title {
+            FocusIntent::NoteTitle
+        } else {
+            FocusIntent::None
         };
-        NoteCollection::update_title(notes, id, title)
     }
 
-    pub fn update_selected_content(
-        notes: &mut [Note],
-        selected_id: Option<Uuid>,
-        content: String,
-    ) -> bool {
-        let Some(id) = selected_id else {
-            return false;
-        };
-        NoteCollection::update_content(notes, id, content)
-    }
-
-    pub fn update_selected_tags(
-        notes: &mut [Note],
-        selected_id: Option<Uuid>,
-        tags: Vec<String>,
-    ) -> bool {
-        let Some(id) = selected_id else {
-            return false;
-        };
-        NoteCollection::update_tags(notes, id, tags)
-    }
-
-    pub fn request_delete(
-        selected_id: &mut Option<Uuid>,
-        show_delete_confirm: &mut bool,
-        id: Uuid,
-    ) {
-        *selected_id = Some(id);
-        *show_delete_confirm = true;
-    }
-
-    pub fn cancel_delete(show_delete_confirm: &mut bool) {
-        *show_delete_confirm = false;
-    }
-
-    pub fn delete_confirmation_title(notes: &[Note], selected_id: Option<Uuid>) -> Option<String> {
-        Self::selected_note(notes, selected_id).map(|note| note.display_title().to_string())
-    }
-
-    pub fn confirm_delete(
-        notes: &mut Vec<Note>,
-        selected_id: &mut Option<Uuid>,
-        show_delete_confirm: &mut bool,
-    ) {
-        if let Some(id) = *selected_id {
-            *selected_id = NoteCollection::delete_note(notes, id);
+    pub fn select_note(&mut self, id: Uuid) -> bool {
+        if self.notes.iter().any(|note| note.id == id) {
+            self.selected_id = Some(id);
+            true
+        } else {
+            false
         }
-        *show_delete_confirm = false;
     }
 
-    pub fn toggle_pin(notes: &mut [Note], id: Uuid) -> bool {
-        NoteCollection::toggle_pin(notes, id)
+    pub fn update_selected_title(&mut self, title: String) -> bool {
+        let Some(id) = self.selected_id else {
+            return false;
+        };
+        NoteCollection::update_title(&mut self.notes, id, title)
+    }
+
+    pub fn update_selected_content(&mut self, content: String) -> bool {
+        let Some(id) = self.selected_id else {
+            return false;
+        };
+        NoteCollection::update_content(&mut self.notes, id, content)
+    }
+
+    pub fn update_selected_tags(&mut self, tags: Vec<String>) -> bool {
+        let Some(id) = self.selected_id else {
+            return false;
+        };
+        NoteCollection::update_tags(&mut self.notes, id, tags)
+    }
+
+    pub fn request_delete(&mut self, id: Uuid) -> bool {
+        let Some(note) = self.notes.iter().find(|note| note.id == id) else {
+            return false;
+        };
+
+        self.selected_id = Some(id);
+        self.delete_confirmation = Some(DeleteConfirmation {
+            id,
+            title: note.display_title().to_string(),
+        });
+        true
+    }
+
+    pub fn cancel_delete(&mut self) {
+        self.delete_confirmation = None;
+    }
+
+    pub fn is_delete_confirmation_open(&self) -> bool {
+        self.delete_confirmation.is_some()
+    }
+
+    pub fn delete_confirmation_title(&self) -> Option<&str> {
+        self.delete_confirmation
+            .as_ref()
+            .map(|confirmation| confirmation.title.as_str())
+    }
+
+    pub fn confirm_delete(&mut self) -> bool {
+        let Some(confirmation) = self.delete_confirmation.take() else {
+            return false;
+        };
+
+        if self.notes.iter().any(|note| note.id == confirmation.id) {
+            self.selected_id = NoteCollection::delete_note(&mut self.notes, confirmation.id);
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn toggle_pin(&mut self, id: Uuid) -> bool {
+        NoteCollection::toggle_pin(&mut self.notes, id)
+    }
+
+    pub fn focus_intent(&self) -> FocusIntent {
+        self.focus_intent
+    }
+
+    pub fn take_focus_intent(&mut self) -> FocusIntent {
+        let intent = self.focus_intent;
+        self.focus_intent = FocusIntent::None;
+        intent
+    }
+
+    pub fn note_list_projection(
+        &self,
+        query: &str,
+        active_tag: Option<&str>,
+    ) -> NoteListProjection {
+        project_note_list(&self.notes, self.selected_id, query, active_tag)
+    }
+
+    fn selected_note_ref(&self) -> Option<&Note> {
+        self.selected_id
+            .and_then(|id| self.notes.iter().find(|note| note.id == id))
     }
 }
 
@@ -104,66 +179,63 @@ mod tests {
     use super::*;
 
     #[test]
-    fn distinguishes_empty_collection_from_missing_selection() {
-        let empty_notes = Vec::new();
+    fn creating_a_note_updates_selection_and_focus_intent_inside_the_workspace() {
+        let mut workspace = NoteWorkspace::new(Vec::new());
+
+        workspace.create_note();
+
+        assert_eq!(workspace.notes().len(), 1);
+        assert_eq!(workspace.selected_id(), Some(workspace.notes()[0].id));
+        assert_eq!(workspace.take_focus_intent(), FocusIntent::NoteTitle);
+        assert_eq!(workspace.take_focus_intent(), FocusIntent::None);
+    }
+
+    #[test]
+    fn distinguishes_empty_collection_from_a_selected_note() {
         assert_eq!(
-            NoteWorkspace::display_state(&empty_notes, None),
+            NoteWorkspace::new(Vec::new()).display_state(),
             WorkspaceDisplayState::EmptyCollection
         );
 
         let note = Note::new("First".to_string(), String::new());
-        let notes = vec![note];
         assert_eq!(
-            NoteWorkspace::display_state(&notes, None),
-            WorkspaceDisplayState::NoNoteSelected
+            NoteWorkspace::new(vec![note]).display_state(),
+            WorkspaceDisplayState::NoteSelected
         );
     }
 
     #[test]
     fn selected_display_state_does_not_change_when_selected_note_content_changes() {
-        let mut note = Note::new("First".to_string(), "Draft".to_string());
-        let selected_id = Some(note.id);
-        let before = NoteWorkspace::display_state(&[note.clone()], selected_id);
+        let note = Note::new("First".to_string(), "Draft".to_string());
+        let mut workspace = NoteWorkspace::new(vec![note]);
+        let before = workspace.display_state();
 
-        note.title = "Updated".to_string();
-        note.content = "Updated draft".to_string();
-        note.tags = vec!["work".to_string()];
-        let after = NoteWorkspace::display_state(&[note], selected_id);
+        assert!(workspace.update_selected_title("Updated".to_string()));
+        assert!(workspace.update_selected_content("Updated draft".to_string()));
+        assert!(workspace.update_selected_tags(vec!["work".to_string()]));
+        let after = workspace.display_state();
 
         assert_eq!(before, after);
     }
 
     #[test]
     fn creates_selects_and_updates_the_selected_note() {
-        let mut notes = Vec::new();
-        let created = NoteWorkspace::create_note(&mut notes);
-        let selected_id = created.selected_id;
+        let mut workspace = NoteWorkspace::new(Vec::new());
+        workspace.create_note();
+        let selected_id = workspace.selected_id();
 
         assert_eq!(
-            NoteWorkspace::selected_note(&notes, selected_id)
-                .unwrap()
-                .id,
-            notes[0].id
+            workspace.selected_note().unwrap().id,
+            workspace.notes()[0].id
         );
-        assert!(created.should_focus_title);
+        assert_eq!(workspace.take_focus_intent(), FocusIntent::NoteTitle);
 
-        assert!(NoteWorkspace::update_selected_title(
-            &mut notes,
-            selected_id,
-            "Title".to_string()
-        ));
-        assert!(NoteWorkspace::update_selected_content(
-            &mut notes,
-            selected_id,
-            "Content".to_string()
-        ));
-        assert!(NoteWorkspace::update_selected_tags(
-            &mut notes,
-            selected_id,
-            vec!["work".to_string()]
-        ));
+        assert!(workspace.update_selected_title("Title".to_string()));
+        assert!(workspace.update_selected_content("Content".to_string()));
+        assert!(workspace.update_selected_tags(vec!["work".to_string()]));
 
-        let selected = NoteWorkspace::selected_note(&notes, selected_id).unwrap();
+        let selected = workspace.selected_note().unwrap();
+        assert_eq!(selected_id, Some(selected.id));
         assert_eq!(selected.title, "Title");
         assert_eq!(selected.content, "Content");
         assert_eq!(selected.tags, vec!["work".to_string()]);
@@ -175,43 +247,59 @@ mod tests {
         let second = Note::new("Second".to_string(), String::new());
         let first_id = first.id;
         let second_id = second.id;
-        let mut notes = vec![first, second];
-        let mut selected_id = None;
-        let mut show_delete_confirm = false;
+        let mut workspace = NoteWorkspace::new(vec![first, second]);
 
-        NoteWorkspace::request_delete(&mut selected_id, &mut show_delete_confirm, first_id);
-        assert_eq!(selected_id, Some(first_id));
-        assert!(show_delete_confirm);
+        assert!(workspace.request_delete(first_id));
+        assert_eq!(workspace.selected_id(), Some(first_id));
+        assert!(workspace.is_delete_confirmation_open());
 
-        NoteWorkspace::confirm_delete(&mut notes, &mut selected_id, &mut show_delete_confirm);
-        assert_eq!(selected_id, Some(second_id));
-        assert!(!show_delete_confirm);
-        assert_eq!(notes.len(), 1);
-        assert_eq!(notes[0].id, second_id);
+        assert!(workspace.confirm_delete());
+        assert_eq!(workspace.selected_id(), Some(second_id));
+        assert!(!workspace.is_delete_confirmation_open());
+        assert_eq!(workspace.notes().len(), 1);
+        assert_eq!(workspace.notes()[0].id, second_id);
     }
 
     #[test]
     fn delete_confirmation_identifies_the_selected_note() {
         let note = Note::new("Delete me".to_string(), String::new());
         let note_id = note.id;
-        let notes = vec![note];
+        let mut workspace = NoteWorkspace::new(vec![note]);
+        assert!(workspace.request_delete(note_id));
 
-        assert_eq!(
-            NoteWorkspace::delete_confirmation_title(&notes, Some(note_id)),
-            Some("Delete me".to_string())
-        );
+        assert_eq!(workspace.delete_confirmation_title(), Some("Delete me"));
     }
 
     #[test]
     fn cancelled_delete_leaves_notes_unchanged() {
         let note = Note::new("First".to_string(), String::new());
-        let mut show_delete_confirm = true;
-        let notes = [note];
+        let note_id = note.id;
+        let mut workspace = NoteWorkspace::new(vec![note]);
 
-        NoteWorkspace::cancel_delete(&mut show_delete_confirm);
+        assert!(workspace.request_delete(note_id));
+        workspace.cancel_delete();
 
-        assert!(!show_delete_confirm);
-        assert_eq!(notes.len(), 1);
+        assert!(!workspace.is_delete_confirmation_open());
+        assert_eq!(workspace.notes().len(), 1);
+        assert_eq!(workspace.notes()[0].id, note_id);
+        assert!(!workspace.confirm_delete());
+        assert_eq!(workspace.notes().len(), 1);
+    }
+
+    #[test]
+    fn confirmed_delete_uses_the_confirmation_target_not_later_selection() {
+        let first = Note::new("First".to_string(), String::new());
+        let second = Note::new("Second".to_string(), String::new());
+        let first_id = first.id;
+        let second_id = second.id;
+        let mut workspace = NoteWorkspace::new(vec![first, second]);
+
+        assert!(workspace.request_delete(first_id));
+        assert!(workspace.select_note(second_id));
+        assert!(workspace.confirm_delete());
+
+        assert_eq!(workspace.notes().len(), 1);
+        assert_eq!(workspace.notes()[0].id, second_id);
     }
 
     #[test]
@@ -219,9 +307,13 @@ mod tests {
         let first = Note::new("First".to_string(), String::new());
         let second = Note::new("Second".to_string(), String::new());
         let second_id = second.id;
-        let mut notes = vec![first, second];
+        let mut workspace = NoteWorkspace::new(vec![first, second]);
 
-        assert!(NoteWorkspace::toggle_pin(&mut notes, second_id));
-        assert!(notes[1].is_pinned);
+        assert!(workspace.toggle_pin(second_id));
+        assert!(workspace.notes()[1].is_pinned);
+        assert_eq!(
+            workspace.note_list_projection("", None).rows[0].id,
+            second_id
+        );
     }
 }

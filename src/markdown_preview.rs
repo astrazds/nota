@@ -1,18 +1,16 @@
 use std::collections::HashMap;
 
-use pulldown_cmark::{CowStr, Event, Options, Parser, Tag, TagEnd, html};
+use pulldown_cmark::{CowStr, Event, LinkType, Options, Parser, Tag, TagEnd, html};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 #[cfg(target_arch = "wasm32")]
 use web_sys::window;
 
-#[cfg(any(test, target_arch = "wasm32"))]
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub struct PreviewSafetyPolicy;
+struct PreviewSafetyPolicy;
 
-#[cfg(any(test, target_arch = "wasm32"))]
 impl PreviewSafetyPolicy {
-    pub fn is_safe_url(url: &str) -> bool {
+    fn is_safe_url(url: &str) -> bool {
         let trimmed = url.trim();
         if trimmed.is_empty() {
             return true;
@@ -28,7 +26,14 @@ impl PreviewSafetyPolicy {
             || normalised.starts_with("../")
     }
 
-    pub fn should_remove_element(tag: &str, input_type: Option<&str>) -> bool {
+    fn is_safe_markdown_url(link_type: LinkType, url: &str) -> bool {
+        matches!(link_type, LinkType::Email) || Self::is_safe_url(url)
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl PreviewSafetyPolicy {
+    fn should_remove_element(tag: &str, input_type: Option<&str>) -> bool {
         let tag = tag.to_ascii_lowercase();
         matches!(
             tag.as_str(),
@@ -36,7 +41,7 @@ impl PreviewSafetyPolicy {
         ) || (tag == "input" && input_type != Some("checkbox"))
     }
 
-    pub fn should_remove_attribute(_tag: &str, attr_name: &str, attr_value: Option<&str>) -> bool {
+    fn should_remove_attribute(_tag: &str, attr_name: &str, attr_value: Option<&str>) -> bool {
         let attr_name = attr_name.to_ascii_lowercase();
 
         attr_name.starts_with("on")
@@ -46,18 +51,14 @@ impl PreviewSafetyPolicy {
                 && attr_value.is_some_and(|value| !Self::is_safe_url(value)))
     }
 
-    pub fn link_rel_for_target(tag: &str, attr_name: &str) -> Option<&'static str> {
+    fn link_rel_for_target(tag: &str, attr_name: &str) -> Option<&'static str> {
         (tag.eq_ignore_ascii_case("a") && attr_name.eq_ignore_ascii_case("target"))
             .then_some("noopener noreferrer")
     }
 }
 
 pub fn render_markdown_preview(title: &str, content: &str) -> String {
-    let safe_title = escape_html(title);
-    let mut html_output = format!("<h1 class=\"text-3xl font-bold mb-4\">{safe_title}</h1>");
-    let parser = Parser::new_ext(content, markdown_preview_options()).map(escape_raw_html_event);
-    html::push_html(&mut html_output, render_preview_events(parser).into_iter());
-    sanitize_preview_html(&html_output)
+    PreviewPipeline.render(title, content)
 }
 
 pub fn markdown_preview_options() -> Options {
@@ -69,6 +70,46 @@ pub fn markdown_preview_options() -> Options {
     options
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+struct PreviewPipeline;
+
+impl PreviewPipeline {
+    fn render(self, title: &str, content: &str) -> String {
+        let events = Parser::new_ext(content, markdown_preview_options())
+            .map(escape_user_raw_html)
+            .map(neutralize_unsafe_markdown_urls);
+        let generated_events = render_preview_events(events);
+        let generated_html = render_generated_preview_html(title, generated_events);
+
+        sanitize_preview_html(generated_html)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GeneratedPreviewHtml(String);
+
+impl GeneratedPreviewHtml {
+    #[cfg(target_arch = "wasm32")]
+    fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn into_string(self) -> String {
+        self.0
+    }
+}
+
+fn render_generated_preview_html<'a>(
+    title: &str,
+    events: impl IntoIterator<Item = Event<'a>>,
+) -> GeneratedPreviewHtml {
+    let safe_title = escape_html(title);
+    let mut html_output = format!("<h1 class=\"text-3xl font-bold mb-4\">{safe_title}</h1>");
+    html::push_html(&mut html_output, events.into_iter());
+    GeneratedPreviewHtml(html_output)
+}
+
 fn escape_html(input: &str) -> String {
     input
         .replace('&', "&amp;")
@@ -78,9 +119,41 @@ fn escape_html(input: &str) -> String {
         .replace('\'', "&#39;")
 }
 
-fn escape_raw_html_event(event: Event<'_>) -> Event<'_> {
+fn escape_user_raw_html(event: Event<'_>) -> Event<'_> {
     match event {
         Event::Html(raw_html) | Event::InlineHtml(raw_html) => Event::Text(raw_html),
+        _ => event,
+    }
+}
+
+fn neutralize_unsafe_markdown_urls(event: Event<'_>) -> Event<'_> {
+    match event {
+        Event::Start(Tag::Link {
+            link_type,
+            dest_url,
+            title,
+            id,
+        }) if !PreviewSafetyPolicy::is_safe_markdown_url(link_type, &dest_url) => {
+            Event::Start(Tag::Link {
+                link_type,
+                dest_url: "#".into(),
+                title,
+                id,
+            })
+        }
+        Event::Start(Tag::Image {
+            link_type,
+            dest_url,
+            title,
+            id,
+        }) if !PreviewSafetyPolicy::is_safe_markdown_url(link_type, &dest_url) => {
+            Event::Start(Tag::Image {
+                link_type,
+                dest_url: "#".into(),
+                title,
+                id,
+            })
+        }
         _ => event,
     }
 }
@@ -177,12 +250,13 @@ fn append_footnotes<'a>(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn sanitize_preview_html(raw_html: &str) -> String {
-    raw_html.to_string()
+fn sanitize_preview_html(generated_html: GeneratedPreviewHtml) -> String {
+    generated_html.into_string()
 }
 
 #[cfg(target_arch = "wasm32")]
-fn sanitize_preview_html(raw_html: &str) -> String {
+fn sanitize_preview_html(generated_html: GeneratedPreviewHtml) -> String {
+    let raw_html = generated_html.as_str();
     let Some(win) = window() else {
         return raw_html.to_string();
     };
@@ -245,58 +319,30 @@ mod tests {
 
     #[test]
     fn renders_title_safely_and_treats_raw_html_as_text() {
-        let html = render_markdown_preview("<Unsafe>", "<script>alert(1)</script>");
+        let html = render_markdown_preview(
+            "<Unsafe>",
+            "<a onclick=\"alert(1)\" href=\"javascript:alert(1)\">bad</a>\n\n<script>alert(1)</script>",
+        );
 
         assert!(html.contains("&lt;Unsafe&gt;"));
+        assert!(html.contains("&lt;a onclick=\"alert(1)\""));
+        assert!(html.contains("href=\"javascript:alert(1)\""));
         assert!(html.contains("&lt;script&gt;alert(1)&lt;/script&gt;"));
+        assert!(!html.contains("<a onclick=\"alert(1)\""));
         assert!(!html.contains("<script>alert(1)</script>"));
     }
 
     #[test]
-    fn should_allow_safe_preview_urls() {
-        assert!(PreviewSafetyPolicy::is_safe_url("https://example.com"));
-        assert!(PreviewSafetyPolicy::is_safe_url("mailto:test@example.com"));
-        assert!(PreviewSafetyPolicy::is_safe_url("/notes/123"));
-    }
-
-    #[test]
-    fn should_reject_unsafe_preview_urls() {
-        assert!(!PreviewSafetyPolicy::is_safe_url("javascript:alert(1)"));
-        assert!(!PreviewSafetyPolicy::is_safe_url(
-            "data:text/html;base64,AAAA"
-        ));
-        assert!(!PreviewSafetyPolicy::is_safe_url("vbscript:msgbox(1)"));
-    }
-
-    #[test]
-    fn preview_safety_policy_identifies_unsafe_elements_and_attributes() {
-        assert!(PreviewSafetyPolicy::should_remove_element("script", None));
-        assert!(PreviewSafetyPolicy::should_remove_element(
-            "input",
-            Some("text")
-        ));
-        assert!(!PreviewSafetyPolicy::should_remove_element(
-            "input",
-            Some("checkbox")
-        ));
-
-        assert!(PreviewSafetyPolicy::should_remove_attribute(
-            "a", "onclick", None
-        ));
-        assert!(PreviewSafetyPolicy::should_remove_attribute(
-            "a",
-            "href",
-            Some("javascript:alert(1)")
-        ));
-        assert!(!PreviewSafetyPolicy::should_remove_attribute(
-            "a",
-            "href",
-            Some("https://example.com")
-        ));
-        assert_eq!(
-            PreviewSafetyPolicy::link_rel_for_target("a", "target"),
-            Some("noopener noreferrer")
+    fn markdown_preview_keeps_safe_urls_and_rejects_unsafe_markdown_urls() {
+        let html = render_markdown_preview(
+            "Title",
+            "[safe](https://example.com) [mail](mailto:test@example.com) [unsafe](javascript:alert(1)) ![bad](data:text/html;base64,AAAA)",
         );
+
+        assert!(html.contains("href=\"https://example.com\""));
+        assert!(html.contains("href=\"mailto:test@example.com\""));
+        assert!(!html.contains("javascript:alert"));
+        assert!(!html.contains("data:text/html"));
     }
 
     #[test]

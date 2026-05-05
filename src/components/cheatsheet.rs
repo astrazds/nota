@@ -50,7 +50,7 @@ pub fn CheatsheetModal(show: RwSignal<bool>) -> impl IntoView {
     view! {
         <Show when=move || show.get()>
             <Modal
-                show=show
+                on_dismiss=move || show.set(false)
                 header=header_clone.clone()
                 footer=footer_clone.clone()
             >

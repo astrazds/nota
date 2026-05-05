@@ -30,10 +30,7 @@ pub fn ConfirmModal(
             </button>
             <button
                 on:click=move |_| {
-                    if let Some(id) = state.selected_id.get() {
-                        state.notes.update(|n| n.retain(|note| note.id != id));
-                        state.selected_id.set(state.notes.get_untracked().first().map(|n| n.id));
-                    }
+                    state.confirm_delete_selected_note();
                     show.set(false);
                 }
                 class="px-5 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition-colors"

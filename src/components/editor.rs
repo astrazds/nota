@@ -1,106 +1,9 @@
 use crate::components::CheatsheetModal;
-use crate::model::{format_text, parse_tags_input, utf16_range_to_byte_range, Note};
+use crate::markdown_editing::{apply_markdown_format, BrowserSelection};
+use crate::markdown_preview::render_markdown_preview;
+use crate::model::{parse_tags_input, Note};
 use crate::AppState;
-use chrono::Utc;
 use leptos::prelude::*;
-use pulldown_cmark::{html, Event, Options, Parser};
-use wasm_bindgen::JsCast;
-use web_sys::window;
-
-fn escape_html(input: &str) -> String {
-    input
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&#39;")
-}
-
-fn is_safe_preview_url(url: &str) -> bool {
-    let trimmed = url.trim();
-    if trimmed.is_empty() {
-        return true;
-    }
-
-    let normalised = trimmed.to_ascii_lowercase();
-    normalised.starts_with("http://")
-        || normalised.starts_with("https://")
-        || normalised.starts_with("mailto:")
-        || normalised.starts_with('#')
-        || normalised.starts_with('/')
-        || normalised.starts_with("./")
-        || normalised.starts_with("../")
-}
-
-fn sanitize_preview_html(raw_html: &str) -> String {
-    let Some(win) = window() else {
-        return raw_html.to_string();
-    };
-    let Some(doc) = win.document() else {
-        return raw_html.to_string();
-    };
-    let Ok(container) = doc.create_element("div") else {
-        return raw_html.to_string();
-    };
-
-    container.set_inner_html(raw_html);
-
-    if let Ok(nodes) = container.query_selector_all("*") {
-        for index in 0..nodes.length() {
-            let Some(node) = nodes.item(index) else {
-                continue;
-            };
-            let Ok(element) = node.dyn_into::<web_sys::Element>() else {
-                continue;
-            };
-
-            let tag = element.tag_name().to_ascii_lowercase();
-            if matches!(
-                tag.as_str(),
-                "script" | "style" | "iframe" | "object" | "embed" | "link" | "meta"
-            ) {
-                element.remove();
-                continue;
-            }
-
-            if tag == "input" && element.get_attribute("type").as_deref() != Some("checkbox") {
-                element.remove();
-                continue;
-            }
-
-            let attrs = element.get_attribute_names();
-            for attr_index in 0..attrs.length() {
-                let Some(attr_name) = attrs.get(attr_index).as_string() else {
-                    continue;
-                };
-                let attr_name_lower = attr_name.to_ascii_lowercase();
-
-                if attr_name_lower.starts_with("on")
-                    || attr_name_lower == "style"
-                    || attr_name_lower == "srcdoc"
-                {
-                    let _ = element.remove_attribute(&attr_name);
-                    continue;
-                }
-
-                if (attr_name_lower == "href" || attr_name_lower == "src")
-                    && element
-                        .get_attribute(&attr_name)
-                        .is_some_and(|value| !is_safe_preview_url(&value))
-                {
-                    let _ = element.remove_attribute(&attr_name);
-                    continue;
-                }
-
-                if tag == "a" && attr_name_lower == "target" {
-                    let _ = element.set_attribute("rel", "noopener noreferrer");
-                }
-            }
-        }
-    }
-
-    container.inner_html()
-}
 
 fn tags_to_input(tags: &[String]) -> String {
     tags.join(", ")
@@ -152,26 +55,12 @@ pub fn Editor() -> impl IntoView {
 
     let on_input_content = move |ev| {
         let value = event_target_value(&ev);
-        if let Some(id) = state.selected_id.get() {
-            state.notes.update(|notes| {
-                if let Some(note) = notes.iter_mut().find(|n| n.id == id) {
-                    note.content = value.clone();
-                    note.last_modified = Utc::now();
-                }
-            });
-        }
+        state.update_selected_content(value);
     };
 
     let on_input_title = move |ev| {
         let value = event_target_value(&ev);
-        if let Some(id) = state.selected_id.get() {
-            state.notes.update(|notes| {
-                if let Some(note) = notes.iter_mut().find(|n| n.id == id) {
-                    note.title = value.clone();
-                    note.last_modified = Utc::now();
-                }
-            });
-        }
+        state.update_selected_title(value);
     };
 
     let on_input_tags = move |ev| {
@@ -179,30 +68,14 @@ pub fn Editor() -> impl IntoView {
         tags_input_value.set(value.clone());
 
         let parsed_tags = parse_tags_input(&value);
-        if let Some(id) = state.selected_id.get() {
-            state.notes.update(|notes| {
-                if let Some(note) = notes.iter_mut().find(|n| n.id == id) {
-                    if note.tags != parsed_tags {
-                        note.tags = parsed_tags.clone();
-                        note.last_modified = Utc::now();
-                    }
-                }
-            });
-        }
+        state.update_selected_tags(parsed_tags);
     };
 
     let commit_tags_input = move || {
         let parsed_tags = parse_tags_input(&tags_input_value.get_untracked());
-        if let Some(id) = state.selected_id.get_untracked() {
+        if state.selected_id.get_untracked().is_some() {
             let normalised_input = tags_to_input(&parsed_tags);
-            state.notes.update(|notes| {
-                if let Some(note) = notes.iter_mut().find(|n| n.id == id) {
-                    if note.tags != parsed_tags {
-                        note.tags = parsed_tags.clone();
-                        note.last_modified = Utc::now();
-                    }
-                }
-            });
+            state.update_selected_tags(parsed_tags);
             tags_input_value.set(normalised_input);
         }
     };
@@ -218,55 +91,30 @@ pub fn Editor() -> impl IntoView {
             .map(|n: &Note| n.content.as_str())
             .unwrap_or_default();
 
-        let mut options = Options::empty();
-        options.insert(Options::ENABLE_TABLES);
-        options.insert(Options::ENABLE_FOOTNOTES);
-        options.insert(Options::ENABLE_STRIKETHROUGH);
-        options.insert(Options::ENABLE_TASKLISTS);
-
-        let safe_title = escape_html(&title);
-        let mut html_output = format!("<h1 class=\"text-3xl font-bold mb-4\">{safe_title}</h1>");
-        let parser = Parser::new_ext(content, options).map(|event| match event {
-            Event::Html(raw_html) | Event::InlineHtml(raw_html) => Event::Text(raw_html),
-            _ => event,
-        });
-        html::push_html(&mut html_output, parser);
-        sanitize_preview_html(&html_output)
+        render_markdown_preview(&title, content)
     });
 
     let apply_format = move |prefix: &str, suffix: &str| {
         if let Some(textarea) = content_area_ref.get() {
             let start_utf16 = textarea.selection_start().unwrap_or_default().unwrap_or(0);
             let end_utf16 = textarea.selection_end().unwrap_or_default().unwrap_or(0);
-            let (selection_start_utf16, selection_end_utf16) = if start_utf16 <= end_utf16 {
-                (start_utf16, end_utf16)
-            } else {
-                (end_utf16, start_utf16)
-            };
             let content = textarea.value();
-            let (start, end) = utf16_range_to_byte_range(
+            let formatted = apply_markdown_format(
                 &content,
-                selection_start_utf16 as usize,
-                selection_end_utf16 as usize,
+                BrowserSelection {
+                    start_utf16: start_utf16 as usize,
+                    end_utf16: end_utf16 as usize,
+                },
+                prefix,
+                suffix,
             );
 
-            let new_content = format_text(&content, start, end, prefix, suffix);
-
-            // Use the selected_note memo to get the current note ID without re-searching
-            if let Some(note) = selected_note.get_untracked() {
-                state.notes.update(|notes| {
-                    if let Some(n) = notes.iter_mut().find(|n| n.id == note.id) {
-                        n.content = new_content;
-                        n.last_modified = Utc::now();
-                    }
-                });
+            if selected_note.get_untracked().is_some() {
+                state.update_selected_content(formatted.content.clone());
             }
 
             let _ = textarea.focus();
-            let new_cursor_pos = selection_start_utf16
-                + prefix.encode_utf16().count() as u32
-                + (selection_end_utf16 - selection_start_utf16)
-                + suffix.encode_utf16().count() as u32;
+            let new_cursor_pos = formatted.caret_utf16 as u32;
             let _ = textarea.set_selection_start(Some(new_cursor_pos));
             let _ = textarea.set_selection_end(Some(new_cursor_pos));
         }
@@ -292,7 +140,7 @@ pub fn Editor() -> impl IntoView {
             <div class="p-2 px-4 flex justify-between items-center border-b sticky top-0 z-10 transition-colors bg-white border-apple-gray-200 dark:bg-apple-dark-bg dark:border-apple-dark-border">
                 <div class="flex items-center space-x-2">
                     <button
-                        on:click=move |_| state.is_sidebar_open.update(|v| *v = !*v)
+                        on:click=move |_| state.toggle_sidebar()
                         class="p-2 lg:hidden text-gray-500 hover:text-apple-yellow transition-colors"
                         title="Toggle Sidebar"
                         aria-label="Toggle sidebar"
@@ -303,7 +151,7 @@ pub fn Editor() -> impl IntoView {
                     </button>
                     <div class="flex space-x-1 border-r pr-4 border-gray-200 dark:border-apple-dark-border">
                         <button
-                            on:click=move |_| state.show_preview.update(|v| *v = !*v)
+                            on:click=move |_| state.toggle_preview()
                             title="Toggle Preview"
                             aria-label=move || if state.show_preview.get() { "Hide preview" } else { "Show preview" }
                             class=move || {
@@ -438,24 +286,5 @@ fn ToolbarButton(
         >
             {children()}
         </button>
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::is_safe_preview_url;
-
-    #[test]
-    fn should_allow_safe_preview_urls() {
-        assert!(is_safe_preview_url("https://example.com"));
-        assert!(is_safe_preview_url("mailto:test@example.com"));
-        assert!(is_safe_preview_url("/notes/123"));
-    }
-
-    #[test]
-    fn should_reject_unsafe_preview_urls() {
-        assert!(!is_safe_preview_url("javascript:alert(1)"));
-        assert!(!is_safe_preview_url("data:text/html;base64,AAAA"));
-        assert!(!is_safe_preview_url("vbscript:msgbox(1)"));
     }
 }

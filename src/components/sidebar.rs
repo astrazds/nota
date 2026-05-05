@@ -1,6 +1,5 @@
-use crate::model::{collect_note_tags, filter_and_sort_notes};
+use crate::note_discovery::{collect_note_tags, filter_and_sort_notes, highlight_segments};
 use crate::{AppState, SaveStatus};
-use chrono::Utc;
 use leptos::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -13,113 +12,11 @@ const SEARCH_DEBOUNCE_MS: i32 = 200;
 const SIDEBAR_BASE_CLASS: &str = "fixed inset-y-0 left-0 z-30 transform transition-all duration-300 ease-in-out lg:relative lg:translate-x-0 flex flex-col h-full border-r bg-apple-gray-100 border-apple-gray-300 dark:bg-apple-dark-sidebar dark:border-apple-dark-border";
 type TimeoutState = Rc<RefCell<Option<(i32, Closure<dyn FnMut()>)>>>;
 
-fn highlight_segments(text: &str, query: &str) -> Vec<(String, bool)> {
-    let match_ranges = find_case_insensitive_match_ranges(text, query);
-    if match_ranges.is_empty() {
-        return vec![(text.to_string(), false)];
-    }
-
-    let mut segments = Vec::with_capacity(match_ranges.len() * 2 + 1);
-    let mut last_end = 0;
-
-    for (start, end) in match_ranges {
-        if start > last_end {
-            segments.push((text[last_end..start].to_string(), false));
-        }
-        segments.push((text[start..end].to_string(), true));
-        last_end = end;
-    }
-
-    if last_end < text.len() {
-        segments.push((text[last_end..].to_string(), false));
-    }
-
-    segments
-}
-
-fn find_case_insensitive_match_ranges(text: &str, query: &str) -> Vec<(usize, usize)> {
-    if query.is_empty() {
-        return Vec::new();
-    }
-
-    if text.is_ascii() && query.is_ascii() {
-        let text_lower = text.to_ascii_lowercase();
-        let query_lower = query.to_ascii_lowercase();
-        let mut ranges = Vec::new();
-        let mut search_start = 0;
-
-        while let Some(pos) = text_lower[search_start..].find(&query_lower) {
-            let start = search_start + pos;
-            let end = start + query_lower.len();
-            ranges.push((start, end));
-            search_start = end;
-
-            if search_start >= text_lower.len() {
-                break;
-            }
-        }
-
-        return ranges;
-    }
-
-    find_case_insensitive_match_ranges_unicode(text, query)
-}
-
-fn find_case_insensitive_match_ranges_unicode(text: &str, query: &str) -> Vec<(usize, usize)> {
-    let query_lower = query.to_lowercase();
-    if query_lower.is_empty() {
-        return Vec::new();
-    }
-
-    let mut boundaries: Vec<usize> = text.char_indices().map(|(idx, _)| idx).collect();
-    boundaries.push(text.len());
-
-    let query_lower_len = query_lower.len();
-    let mut ranges = Vec::new();
-    let mut i = 0;
-
-    while i + 1 < boundaries.len() {
-        let start = boundaries[i];
-        let mut matched_end = None;
-
-        for &end in &boundaries[i + 1..] {
-            let candidate_lower = text[start..end].to_lowercase();
-            if candidate_lower.starts_with(&query_lower) {
-                matched_end = Some(end);
-                break;
-            }
-
-            if candidate_lower.len() >= query_lower_len {
-                break;
-            }
-        }
-
-        if let Some(end) = matched_end {
-            ranges.push((start, end));
-            if let Ok(next_index) = boundaries.binary_search(&end) {
-                i = next_index;
-            } else {
-                i += 1;
-            }
-        } else {
-            i += 1;
-        }
-    }
-
-    ranges
-}
-
 #[component]
 pub fn Sidebar() -> impl IntoView {
     let state = use_context::<AppState>().expect("state not found");
 
-    let add_note = move |_| {
-        let new_note = crate::model::Note::new("".to_string(), "".to_string());
-        let id = new_note.id;
-        state.notes.update(|n| n.insert(0, new_note));
-        state.selected_id.set(Some(id));
-        state.focus_title_request.set(true);
-    };
+    let add_note = move |_| state.create_note();
 
     let filtered_notes = Memo::new(move |_| {
         let query = state.search_query.get();
@@ -179,7 +76,7 @@ pub fn Sidebar() -> impl IntoView {
                     <div class="flex justify-between items-center">
                         <div class="flex items-center space-x-2">
                             <button
-                                on:click=move |_| state.is_dark_mode.update(|v| *v = !*v)
+                                on:click=move |_| state.toggle_dark_mode()
                                 class="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                                 title="Toggle Theme"
                                 aria-label=move || if state.is_dark_mode.get() { "Switch to light mode" } else { "Switch to dark mode" }
@@ -194,7 +91,7 @@ pub fn Sidebar() -> impl IntoView {
                         </div>
                         <div class="flex items-center space-x-1">
                             <button
-                                on:click=move |_| state.is_sidebar_open.update(|v| *v = !*v)
+                                on:click=move |_| state.toggle_sidebar()
                                 class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
                                 title=move || if state.is_sidebar_open.get() { "Collapse sidebar" } else { "Expand sidebar" }
                                 aria-label=move || if state.is_sidebar_open.get() { "Collapse sidebar" } else { "Expand sidebar" }
@@ -331,7 +228,7 @@ fn NoteItem(id: Uuid) -> impl IntoView {
     let is_selected = move || state.selected_id.get() == Some(id);
 
     let select = move |_| {
-        state.selected_id.set(Some(id));
+        state.select_note(id);
         if let Some(win) = window() {
             if win
                 .inner_width()
@@ -347,18 +244,12 @@ fn NoteItem(id: Uuid) -> impl IntoView {
 
     let toggle_pin = move |ev: leptos::web_sys::MouseEvent| {
         ev.stop_propagation();
-        state.notes.update(|notes| {
-            if let Some(note) = notes.iter_mut().find(|n| n.id == id) {
-                note.is_pinned = !note.is_pinned;
-                note.last_modified = Utc::now();
-            }
-        });
+        state.toggle_note_pin(id);
     };
 
     let delete_note = move |ev: leptos::web_sys::MouseEvent| {
         ev.stop_propagation();
-        state.selected_id.set(Some(id));
-        state.show_delete_confirm.set(true);
+        state.request_delete_note(id);
     };
 
     view! {
@@ -383,11 +274,11 @@ fn NoteItem(id: Uuid) -> impl IntoView {
                             let query = state.search_query.get();
                             highlight_segments(&title, &query)
                                 .into_iter()
-                                .map(|(segment, is_match)| {
-                                    if is_match {
-                                        view! { <mark class="bg-apple-yellow/30">{segment}</mark> }.into_any()
+                                .map(|segment| {
+                                    if segment.is_match {
+                                        view! { <mark class="bg-apple-yellow/30">{segment.text}</mark> }.into_any()
                                     } else {
-                                        view! { <span>{segment}</span> }.into_any()
+                                        view! { <span>{segment.text}</span> }.into_any()
                                     }
                                 })
                                 .collect_view()
@@ -434,12 +325,12 @@ fn NoteItem(id: Uuid) -> impl IntoView {
                         let query = state.search_query.get();
                         highlight_segments(&preview, &query)
                             .into_iter()
-                            .map(|(segment, is_match)| {
-                                if is_match {
-                                    view! { <mark class="bg-apple-yellow/30">{segment}</mark> }
+                            .map(|segment| {
+                                if segment.is_match {
+                                    view! { <mark class="bg-apple-yellow/30">{segment.text}</mark> }
                                         .into_any()
                                 } else {
-                                    view! { <span>{segment}</span> }.into_any()
+                                    view! { <span>{segment.text}</span> }.into_any()
                                 }
                             })
                             .collect_view()
@@ -473,34 +364,5 @@ fn NoteItem(id: Uuid) -> impl IntoView {
                 </div>
             </Show>
         </div>
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::highlight_segments;
-
-    #[test]
-    fn should_split_ascii_case_insensitive_matches() {
-        let highlighted = highlight_segments("Hello World", "world");
-        assert_eq!(
-            highlighted,
-            vec![("Hello ".to_string(), false), ("World".to_string(), true),]
-        );
-    }
-
-    #[test]
-    fn should_not_panic_on_unicode_case_mapping() {
-        let highlighted = std::panic::catch_unwind(|| highlight_segments("İstanbul", "i"));
-        assert!(highlighted.is_ok());
-    }
-
-    #[test]
-    fn should_highlight_unicode_case_folded_matches() {
-        let highlighted = highlight_segments("İstanbul", "i");
-        assert_eq!(
-            highlighted,
-            vec![("İ".to_string(), true), ("stanbul".to_string(), false)]
-        );
     }
 }

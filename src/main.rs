@@ -1,43 +1,23 @@
 mod components;
+mod markdown_editing;
+mod markdown_preview;
 mod model;
+mod note_collection;
+mod note_discovery;
 mod storage;
 
 use components::{ConfirmModal, Editor, Sidebar};
 
 use leptos::prelude::*;
 use model::Note;
-use std::cell::RefCell;
-use std::rc::Rc;
 use storage::{
-    load_dark_mode, load_notes, load_sidebar_open, save_dark_mode, save_notes, save_sidebar_open,
+    flush_pending_save, load_dark_mode, load_notes, load_sidebar_open, save_dark_mode,
+    save_sidebar_open, schedule_notes_save, SaveStatus, SaveTimeout,
 };
 use uuid::Uuid;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 use web_sys::window;
-
-const NOTES_SAVE_DEBOUNCE_MS: i32 = 300;
-type TimeoutState = Rc<RefCell<Option<(i32, Closure<dyn FnMut()>)>>>;
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum SaveStatus {
-    Saving,
-    Saved,
-}
-
-fn flush_pending_save(
-    timeout: &TimeoutState,
-    notes: RwSignal<Vec<Note>>,
-    status: RwSignal<SaveStatus>,
-) {
-    if let Some((id, _)) = timeout.borrow_mut().take() {
-        if let Some(win) = window() {
-            win.clear_timeout_with_handle(id);
-        }
-    }
-    save_notes(&notes.get_untracked());
-    status.set(SaveStatus::Saved);
-}
 
 #[derive(Clone, Copy)]
 pub struct AppState {
@@ -51,6 +31,81 @@ pub struct AppState {
     pub show_preview: RwSignal<bool>,
     pub focus_title_request: RwSignal<bool>,
     pub save_status: RwSignal<SaveStatus>,
+}
+
+impl AppState {
+    pub fn create_note(self) {
+        if let Some(created) = self
+            .notes
+            .try_update(note_collection::NoteCollection::create_note)
+        {
+            self.selected_id.set(created.selected_id);
+            self.focus_title_request.set(created.should_focus_title);
+        }
+    }
+
+    pub fn select_note(self, id: Uuid) {
+        self.selected_id.set(Some(id));
+    }
+
+    pub fn request_delete_note(self, id: Uuid) {
+        self.selected_id.set(Some(id));
+        self.show_delete_confirm.set(true);
+    }
+
+    pub fn confirm_delete_selected_note(self) {
+        if let Some(id) = self.selected_id.get_untracked() {
+            if let Some(next_selected) = self
+                .notes
+                .try_update(|notes| note_collection::NoteCollection::delete_note(notes, id))
+            {
+                self.selected_id.set(next_selected);
+            }
+        }
+        self.show_delete_confirm.set(false);
+    }
+
+    pub fn update_selected_title(self, title: String) {
+        if let Some(id) = self.selected_id.get_untracked() {
+            self.notes.update(|notes| {
+                note_collection::NoteCollection::update_title(notes, id, title.clone());
+            });
+        }
+    }
+
+    pub fn update_selected_content(self, content: String) {
+        if let Some(id) = self.selected_id.get_untracked() {
+            self.notes.update(|notes| {
+                note_collection::NoteCollection::update_content(notes, id, content.clone());
+            });
+        }
+    }
+
+    pub fn update_selected_tags(self, tags: Vec<String>) {
+        if let Some(id) = self.selected_id.get_untracked() {
+            self.notes.update(|notes| {
+                note_collection::NoteCollection::update_tags(notes, id, tags.clone());
+            });
+        }
+    }
+
+    pub fn toggle_note_pin(self, id: Uuid) {
+        self.notes.update(|notes| {
+            note_collection::NoteCollection::toggle_pin(notes, id);
+        });
+    }
+
+    pub fn toggle_dark_mode(self) {
+        self.is_dark_mode.update(|enabled| *enabled = !*enabled);
+    }
+
+    pub fn toggle_sidebar(self) {
+        self.is_sidebar_open.update(|open| *open = !*open);
+    }
+
+    pub fn toggle_preview(self) {
+        self.show_preview.update(|show| *show = !*show);
+    }
 }
 
 fn main() {
@@ -99,37 +154,11 @@ fn App() -> impl IntoView {
     });
 
     // Persist notes on change
-    let save_timeout: TimeoutState = Rc::new(RefCell::new(None));
+    let save_timeout: SaveTimeout = Default::default();
     let save_timeout_for_effect = save_timeout.clone();
     Effect::new(move |_| {
         let notes_to_save = state.notes.get();
-        let timeout_ref = save_timeout_for_effect.clone();
-        state.save_status.set(SaveStatus::Saving);
-
-        if let Some((id, _)) = timeout_ref.borrow_mut().take() {
-            if let Some(win) = window() {
-                win.clear_timeout_with_handle(id);
-            }
-        }
-
-        if let Some(win) = window() {
-            let save_status = state.save_status;
-            let closure = Closure::wrap(Box::new(move || {
-                save_notes(&notes_to_save);
-                save_status.set(SaveStatus::Saved);
-            }) as Box<dyn FnMut()>);
-
-            let id = win
-                .set_timeout_with_callback_and_timeout_and_arguments_0(
-                    closure.as_ref().unchecked_ref(),
-                    NOTES_SAVE_DEBOUNCE_MS,
-                )
-                .ok();
-
-            if let Some(id) = id {
-                *timeout_ref.borrow_mut() = Some((id, closure));
-            }
-        }
+        schedule_notes_save(&save_timeout_for_effect, notes_to_save, state.save_status);
     });
 
     if let Some(win) = window() {

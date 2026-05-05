@@ -17,9 +17,10 @@ pub fn CheatsheetModal(show: RwSignal<bool>) -> impl IntoView {
                         "text-gray-800"
                     };
                     format!("text-2xl font-bold {}", text_color)
-                }>"Cheatsheet"</h2>
+                }>"Markdown help"</h2>
                 <button
                     on:click=move |_| show.set(false)
+                    aria-label="Close markdown help"
                     class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -35,7 +36,7 @@ pub fn CheatsheetModal(show: RwSignal<bool>) -> impl IntoView {
         view! {
             <button
                 on:click=move |_| show.set(false)
-                class="px-6 py-2 bg-apple-yellow text-white font-semibold rounded-lg hover:bg-yellow-600 transition-colors shadow-md"
+                class="px-6 py-2 bg-apple-yellow text-white font-semibold rounded-md hover:bg-yellow-600 transition-colors shadow-sm"
             >
                 "Got it"
             </button>

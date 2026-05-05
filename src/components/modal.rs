@@ -10,7 +10,7 @@ pub fn Modal(
 ) -> impl IntoView {
     view! {
         <div
-            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm transition-opacity duration-200"
+            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/35 backdrop-blur-sm transition-opacity duration-200"
             on:click=move |ev| {
                 if ev.target() == ev.current_target() {
                     show.set(false);
@@ -19,9 +19,9 @@ pub fn Modal(
             role="dialog"
             aria-modal="true"
         >
-            <div class=move || format!("rounded-2xl shadow-2xl w-full {} overflow-hidden flex flex-col max-h-[80vh] transform transition-all duration-300 bg-white dark:bg-apple-dark-sidebar dark:border dark:border-apple-dark-border", max_width_class)>
+            <div class=move || format!("rounded-lg shadow-2xl w-full {} overflow-hidden flex flex-col max-h-[80vh] transform transition-all duration-300 bg-white border border-apple-gray-200 dark:bg-apple-dark-sidebar dark:border-apple-dark-border", max_width_class)>
                 {header.map(|h| view! {
-                    <div class="p-6 border-b bg-gray-50 border-gray-100 dark:bg-white/5 dark:border-apple-dark-border">
+                    <div class="p-6 border-b bg-apple-gray-100 border-apple-gray-200 dark:bg-white/5 dark:border-apple-dark-border">
                         {h()}
                     </div>
                 })}
@@ -31,7 +31,7 @@ pub fn Modal(
                 </div>
 
                 {footer.map(|f| view! {
-                    <div class="p-4 border-t flex justify-end gap-3 bg-gray-50 border-gray-100 dark:bg-white/5 dark:border-apple-dark-border">
+                    <div class="p-4 border-t flex justify-end gap-3 bg-apple-gray-100 border-apple-gray-200 dark:bg-white/5 dark:border-apple-dark-border">
                         {f()}
                     </div>
                 })}

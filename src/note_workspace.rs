@@ -5,9 +5,26 @@ use uuid::Uuid;
 #[derive(Debug, Default, Clone, Copy)]
 pub struct NoteWorkspace;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WorkspaceDisplayState {
+    EmptyCollection,
+    NoNoteSelected,
+    NoteSelected(Note),
+}
+
 impl NoteWorkspace {
     pub fn selected_note(notes: &[Note], selected_id: Option<Uuid>) -> Option<Note> {
         selected_id.and_then(|id| notes.iter().find(|note| note.id == id).cloned())
+    }
+
+    pub fn display_state(notes: &[Note], selected_id: Option<Uuid>) -> WorkspaceDisplayState {
+        if notes.is_empty() {
+            return WorkspaceDisplayState::EmptyCollection;
+        }
+
+        Self::selected_note(notes, selected_id)
+            .map(WorkspaceDisplayState::NoteSelected)
+            .unwrap_or(WorkspaceDisplayState::NoNoteSelected)
     }
 
     pub fn create_note(notes: &mut Vec<Note>) -> NoteCreation {
@@ -60,6 +77,10 @@ impl NoteWorkspace {
         *show_delete_confirm = false;
     }
 
+    pub fn delete_confirmation_title(notes: &[Note], selected_id: Option<Uuid>) -> Option<String> {
+        Self::selected_note(notes, selected_id).map(|note| note.display_title().to_string())
+    }
+
     pub fn confirm_delete(
         notes: &mut Vec<Note>,
         selected_id: &mut Option<Uuid>,
@@ -79,6 +100,22 @@ impl NoteWorkspace {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn distinguishes_empty_collection_from_missing_selection() {
+        let empty_notes = Vec::new();
+        assert_eq!(
+            NoteWorkspace::display_state(&empty_notes, None),
+            WorkspaceDisplayState::EmptyCollection
+        );
+
+        let note = Note::new("First".to_string(), String::new());
+        let notes = vec![note];
+        assert_eq!(
+            NoteWorkspace::display_state(&notes, None),
+            WorkspaceDisplayState::NoNoteSelected
+        );
+    }
 
     #[test]
     fn creates_selects_and_updates_the_selected_note() {
@@ -135,6 +172,18 @@ mod tests {
         assert!(!show_delete_confirm);
         assert_eq!(notes.len(), 1);
         assert_eq!(notes[0].id, second_id);
+    }
+
+    #[test]
+    fn delete_confirmation_identifies_the_selected_note() {
+        let note = Note::new("Delete me".to_string(), String::new());
+        let note_id = note.id;
+        let notes = vec![note];
+
+        assert_eq!(
+            NoteWorkspace::delete_confirmation_title(&notes, Some(note_id)),
+            Some("Delete me".to_string())
+        );
     }
 
     #[test]

@@ -1,5 +1,5 @@
+use crate::AppState;
 use crate::note_discovery::{NoteListItem, collect_note_tags, project_note_list};
-use crate::{AppState, SaveStatus};
 use leptos::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -66,7 +66,7 @@ pub fn Sidebar() -> impl IntoView {
         <div
             class=move || {
                 let state_class = if state.is_sidebar_open.get() {
-                    "translate-x-0 w-80"
+                    "translate-x-0 w-80 max-w-full"
                 } else {
                     "-translate-x-full w-0 overflow-hidden"
                 };
@@ -96,7 +96,7 @@ pub fn Sidebar() -> impl IntoView {
                         <div class="flex items-center space-x-1">
                             <button
                                 on:click=move |_| state.toggle_sidebar()
-                                class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                                class="p-2 lg:hidden text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
                                 title=move || if state.is_sidebar_open.get() { "Collapse sidebar" } else { "Expand sidebar" }
                                 aria-label=move || if state.is_sidebar_open.get() { "Collapse sidebar" } else { "Expand sidebar" }
                             >
@@ -133,50 +133,17 @@ pub fn Sidebar() -> impl IntoView {
                         />
                     </div>
 
-                    <Show when=move || !available_tags.get().is_empty()>
-                        <div class="flex flex-wrap gap-1.5">
+                    <Show when=move || state.active_tag.get().is_some() && !available_tags.get().is_empty()>
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="text-gray-500 dark:text-gray-400">"Filtered by"</span>
                             <button
-                                class=move || {
-                                    if state.active_tag.get().is_none() {
-                                        "px-2 py-0.5 text-xs rounded-full bg-apple-yellow text-white"
-                                    } else {
-                                        "px-2 py-0.5 text-xs rounded-full bg-black/5 text-gray-600 hover:bg-black/10 dark:bg-white/10 dark:text-gray-300 dark:hover:bg-white/20"
-                                    }
-                                }
+                                class="px-2 py-0.5 rounded-full bg-apple-yellow text-white"
                                 on:click=move |_| state.active_tag.set(None)
-                                title="Show all tags"
-                                aria-label="Show all tags"
+                                title="Clear tag filter"
+                                aria-label="Clear tag filter"
                             >
-                                "All"
+                                {move || state.active_tag.get().map(|tag| format!("#{tag}")).unwrap_or_else(|| "All".to_string())}
                             </button>
-                            <For each=move || available_tags.get() key=|tag| tag.clone() let:tag>
-                                <button
-                                    class={
-                                        let tag_for_class = tag.clone();
-                                        move || {
-                                            if state.active_tag.get().as_deref() == Some(tag_for_class.as_str()) {
-                                                "px-2 py-0.5 text-xs rounded-full bg-apple-yellow text-white"
-                                            } else {
-                                                "px-2 py-0.5 text-xs rounded-full bg-black/5 text-gray-600 hover:bg-black/10 dark:bg-white/10 dark:text-gray-300 dark:hover:bg-white/20"
-                                            }
-                                        }
-                                    }
-                                    on:click={
-                                        let tag_for_click = tag.clone();
-                                        move |_| state.active_tag.set(Some(tag_for_click.clone()))
-                                    }
-                                    title={
-                                        let tag_for_title = tag.clone();
-                                        move || format!("Filter by {tag_for_title}")
-                                    }
-                                    aria-label={
-                                        let tag_for_aria = tag.clone();
-                                        move || format!("Filter notes by tag {tag_for_aria}")
-                                    }
-                                >
-                                    {format!("#{tag}")}
-                                </button>
-                            </For>
                         </div>
                     </Show>
                 </div>
@@ -200,21 +167,8 @@ pub fn Sidebar() -> impl IntoView {
                         </div>
                     </Show>
                 </div>
-                <div class="h-16 px-4 border-t border-apple-gray-300 text-gray-400 dark:border-apple-dark-border dark:text-gray-500 flex items-center">
-                    <div class="w-full grid grid-cols-3 items-center text-xs">
-                        <span class="justify-self-start">{move || format!("{} notes", state.notes.get().len())}</span>
-                        <span
-                            class="justify-self-center text-center"
-                            class:text-apple-yellow=move || matches!(state.save_status.get(), SaveStatus::Saving)
-                            class:text-green-500=move || matches!(state.save_status.get(), SaveStatus::Saved)
-                        >
-                            {move || match state.save_status.get() {
-                                SaveStatus::Saving => "Saving...",
-                                SaveStatus::Saved => "Saved",
-                            }}
-                        </span>
-                        <span class="justify-self-end">{env!("CARGO_PKG_VERSION")}</span>
-                    </div>
+                <div class="h-12 px-4 border-t border-apple-gray-300 text-gray-400 dark:border-apple-dark-border dark:text-gray-500 flex items-center text-xs">
+                    <span>{move || format!("{} notes", state.notes.get().len())}</span>
                 </div>
             </Show>
         </div>
@@ -231,6 +185,7 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
     let tags = item.tags.clone();
     let tags_for_visibility = tags.clone();
     let is_pinned = item.is_pinned;
+    let action_menu_open = RwSignal::new(false);
 
     let is_selected = move || state.selected_id.get() == Some(id);
 
@@ -250,11 +205,13 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
 
     let toggle_pin = move |ev: leptos::web_sys::MouseEvent| {
         ev.stop_propagation();
+        action_menu_open.set(false);
         state.toggle_note_pin(id);
     };
 
     let delete_note = move |ev: leptos::web_sys::MouseEvent| {
         ev.stop_propagation();
+        action_menu_open.set(false);
         state.request_delete_note(id);
     };
 
@@ -263,9 +220,9 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
             on:click=select
             class=move || {
                 if is_selected() {
-                    "p-4 border-b border-apple-gray-200 dark:border-apple-dark-border cursor-pointer transition-all duration-200 ease-in-out group bg-apple-yellow/20 dark:bg-apple-yellow/30"
+                    "px-4 py-3 border-b border-apple-gray-200 dark:border-apple-dark-border cursor-pointer transition-all duration-200 ease-in-out group bg-apple-yellow/15 dark:bg-apple-yellow/20"
                 } else {
-                    "p-4 border-b border-apple-gray-200 dark:border-apple-dark-border cursor-pointer transition-all duration-200 ease-in-out group hover:bg-apple-gray-200 dark:hover:bg-white/5"
+                    "px-4 py-3 border-b border-apple-gray-200 dark:border-apple-dark-border cursor-pointer transition-all duration-200 ease-in-out group hover:bg-apple-gray-200 dark:hover:bg-white/5"
                 }
             }
         >
@@ -283,33 +240,44 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
                             .collect_view()}
                     </span>
                 </h3>
-                <div class="flex items-center space-x-1">
-                    <button
-                        on:click=toggle_pin
-                        class=move || {
-                            if is_pinned {
-                                "opacity-100 transition-opacity p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-apple-yellow"
-                            } else {
-                                "opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-gray-400"
-                            }
-                        }
-                        title=if is_pinned { "Unpin Note" } else { "Pin Note" }
-                        aria-label=if is_pinned { "Unpin note" } else { "Pin note" }
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill=if is_pinned { "currentColor" } else { "none" } viewBox="0 0 24 24" stroke="currentColor">
+                <div class="relative flex items-center gap-1">
+                    <Show when=move || is_pinned>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-apple-yellow" fill="currentColor" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                         </svg>
-                    </button>
+                    </Show>
                     <button
-                        on:click=delete_note
-                        class="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-gray-400 hover:text-red-500"
-                        title="Delete Note"
-                        aria-label="Delete note"
+                        on:click=move |ev: leptos::web_sys::MouseEvent| {
+                            ev.stop_propagation();
+                            action_menu_open.update(|open| *open = !*open);
+                        }
+                        class="p-1 rounded-full text-gray-400 hover:text-gray-700 hover:bg-black/10 dark:hover:text-gray-200 dark:hover:bg-white/10"
+                        title="Note actions"
+                        aria-label="Note actions"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.75h.01M12 12h.01M12 17.25h.01" />
                         </svg>
                     </button>
+                    <Show when=move || action_menu_open.get()>
+                        <div
+                            class="absolute right-0 top-7 z-20 w-36 overflow-hidden rounded-md border border-apple-gray-200 bg-white py-1 text-sm shadow-lg dark:border-apple-dark-border dark:bg-apple-dark-sidebar"
+                            on:click=move |ev| ev.stop_propagation()
+                        >
+                            <button
+                                on:click=toggle_pin
+                                class="block w-full px-3 py-2 text-left text-gray-700 hover:bg-black/5 dark:text-gray-200 dark:hover:bg-white/10"
+                            >
+                                {if is_pinned { "Unpin" } else { "Pin" }}
+                            </button>
+                            <button
+                                on:click=delete_note
+                                class="block w-full px-3 py-2 text-left text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
+                            >
+                                "Delete"
+                            </button>
+                        </div>
+                    </Show>
                 </div>
             </div>
             <div class="flex space-x-2 text-sm mt-1">
@@ -327,13 +295,13 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
                 </span>
             </div>
             <Show when=move || !tags_for_visibility.is_empty()>
-                <div class="mt-2 flex flex-wrap gap-1">
+                <div class="mt-1.5 flex flex-wrap gap-1">
                     {tags.iter()
                         .map(|tag| {
                             let tag_for_click = tag.clone();
                             view! {
                                 <button
-                                    class="px-2 py-0.5 text-xs rounded-full bg-black/5 text-gray-500 hover:bg-black/10 dark:bg-white/10 dark:text-gray-400 dark:hover:bg-white/20"
+                                    class="px-1.5 py-0.5 text-xs rounded-full bg-black/5 text-gray-500 hover:bg-black/10 dark:bg-white/10 dark:text-gray-400 dark:hover:bg-white/20"
                                     on:click=move |ev| {
                                         ev.stop_propagation();
                                         state.active_tag.set(Some(tag_for_click.clone()));

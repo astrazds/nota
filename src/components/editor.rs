@@ -1,8 +1,11 @@
 use crate::AppState;
 use crate::components::CheatsheetModal;
+use crate::editor_view::EditorViewMode;
 use crate::markdown_editing::{BrowserSelection, MarkdownCommand, apply_markdown_command};
 use crate::markdown_preview::render_markdown_preview;
 use crate::model::Note;
+use crate::note_workspace::WorkspaceDisplayState;
+use crate::storage::SaveStatus;
 use crate::tag_rules::{parse_tags_input, tags_to_input};
 use leptos::prelude::*;
 
@@ -17,6 +20,7 @@ pub fn Editor() -> impl IntoView {
     let is_editing_tags = RwSignal::new(false);
 
     let selected_note = Memo::new(move |_| state.selected_note());
+    let workspace_display_state = Memo::new(move |_| state.workspace_display_state());
 
     Effect::new(move |_| {
         if state.focus_title_request.get() {
@@ -117,21 +121,8 @@ pub fn Editor() -> impl IntoView {
         <div class="flex-1 flex flex-col h-full overflow-hidden relative transition-colors duration-300">
             <CheatsheetModal show=show_cheatsheet />
 
-            <Show when=move || !state.is_sidebar_open.get()>
-                <button
-                    on:click=move |_| state.is_sidebar_open.set(true)
-                    class="absolute left-0 top-1/2 -translate-y-1/2 z-20 p-2 bg-apple-yellow text-white rounded-r-lg shadow-lg hover:bg-yellow-600 transition-colors"
-                    title="Expand sidebar"
-                    aria-label="Expand sidebar"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                    </svg>
-                </button>
-            </Show>
-
-            <div class="p-2 px-4 flex justify-between items-center border-b sticky top-0 z-10 transition-colors bg-white border-apple-gray-200 dark:bg-apple-dark-bg dark:border-apple-dark-border">
-                <div class="flex items-center space-x-2">
+            <div class="min-h-14 p-2 px-3 md:px-4 flex justify-between items-center gap-3 border-b sticky top-0 z-10 transition-colors bg-white border-apple-gray-200 dark:bg-apple-dark-bg dark:border-apple-dark-border">
+                <div class="flex items-center gap-2 min-w-0">
                     <button
                         on:click=move |_| state.toggle_sidebar()
                         class="p-2 lg:hidden text-gray-500 hover:text-apple-yellow transition-colors"
@@ -142,23 +133,51 @@ pub fn Editor() -> impl IntoView {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                         </svg>
                     </button>
-                    <div class="flex space-x-1 border-r pr-4 border-gray-200 dark:border-apple-dark-border">
+                    <div class="flex space-x-1 border-r pr-3 border-gray-200 dark:border-apple-dark-border">
                         <button
-                            on:click=move |_| state.toggle_preview()
-                            title="Toggle Preview"
-                            aria-label=move || if state.show_preview.get() { "Hide preview" } else { "Show preview" }
+                            on:click=move |_| state.set_editor_view_mode(EditorViewMode::Write)
+                            title="Write"
+                            aria-label="Write mode"
+                            aria-pressed=move || state.editor_view_mode.get() == EditorViewMode::Write
                             class=move || {
-                                if state.show_preview.get() {
-                                    "px-3 py-1 text-sm rounded-md transition-all border bg-apple-yellow/10 border-apple-yellow text-apple-yellow"
+                                if state.editor_view_mode.get() == EditorViewMode::Write {
+                                    "px-2.5 py-1 text-sm rounded-md transition-all border bg-apple-yellow/10 border-apple-yellow text-apple-yellow"
                                 } else {
-                                    "px-3 py-1 text-sm rounded-md transition-all border bg-white border-gray-200 text-gray-500 hover:border-gray-300 dark:bg-white/5 dark:border-apple-dark-border dark:text-gray-400 dark:hover:border-gray-500"
+                                    "px-2.5 py-1 text-sm rounded-md transition-all border bg-white border-gray-200 text-gray-500 hover:border-gray-300 dark:bg-white/5 dark:border-apple-dark-border dark:text-gray-400 dark:hover:border-gray-500"
                                 }
                             }
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
+                            "Write"
+                        </button>
+                        <button
+                            on:click=move |_| state.set_editor_view_mode(EditorViewMode::Preview)
+                            title="Preview"
+                            aria-label="Preview mode"
+                            aria-pressed=move || state.editor_view_mode.get() == EditorViewMode::Preview
+                            class=move || {
+                                if state.editor_view_mode.get() == EditorViewMode::Preview {
+                                    "px-2.5 py-1 text-sm rounded-md transition-all border bg-apple-yellow/10 border-apple-yellow text-apple-yellow"
+                                } else {
+                                    "px-2.5 py-1 text-sm rounded-md transition-all border bg-white border-gray-200 text-gray-500 hover:border-gray-300 dark:bg-white/5 dark:border-apple-dark-border dark:text-gray-400 dark:hover:border-gray-500"
+                                }
+                            }
+                        >
+                            "Preview"
+                        </button>
+                        <button
+                            on:click=move |_| state.set_editor_view_mode(EditorViewMode::Split)
+                            title="Split"
+                            aria-label="Split mode"
+                            aria-pressed=move || state.editor_view_mode.get() == EditorViewMode::Split
+                            class=move || {
+                                if state.editor_view_mode.get() == EditorViewMode::Split {
+                                    "hidden md:inline-flex px-2.5 py-1 text-sm rounded-md transition-all border bg-apple-yellow/10 border-apple-yellow text-apple-yellow"
+                                } else {
+                                    "hidden md:inline-flex px-2.5 py-1 text-sm rounded-md transition-all border bg-white border-gray-200 text-gray-500 hover:border-gray-300 dark:bg-white/5 dark:border-apple-dark-border dark:text-gray-400 dark:hover:border-gray-500"
+                                }
+                            }
+                        >
+                            "Split"
                         </button>
                         <button
                             on:click=move |_| show_cheatsheet.set(true)
@@ -170,79 +189,110 @@ pub fn Editor() -> impl IntoView {
                         </button>
                     </div>
 
-                    <div class="flex items-center space-x-1">
-                        <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Bold) title="Bold" aria_label="Bold">
-                            <span class="font-bold">B</span>
-                        </ToolbarButton>
-                        <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Italic) title="Italic" aria_label="Italic">
-                            <span class="italic">I</span>
-                        </ToolbarButton>
-                        <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Strikethrough) title="Strikethrough" aria_label="Strikethrough">
-                            <span class="line-through">S</span>
-                        </ToolbarButton>
-                        <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::TaskList) title="Task List" aria_label="Task list">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h4v4H4V6zm0 8h4v4H4v-4zm0 8h4v-4H4v4zM12 7h8M12 15h8M12 19h8" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 7.5l1.2 1.2L7.8 7" />
-                            </svg>
-                        </ToolbarButton>
-                        <ToolbarButton
-                            on_click=move |_| apply_format(MarkdownCommand::Table)
-                            title="Insert Table"
-                            aria_label="Insert table"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6h18v12H3V6zM3 12h18M9 6v12M15 6v12" />
-                            </svg>
-                        </ToolbarButton>
-                    </div>
+                    <Show when=move || state.editor_view_mode.get() != EditorViewMode::Preview>
+                        <div class="hidden sm:flex items-center space-x-1">
+                            <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Bold) title="Bold" aria_label="Bold">
+                                <span class="font-bold">B</span>
+                            </ToolbarButton>
+                            <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Italic) title="Italic" aria_label="Italic">
+                                <span class="italic">I</span>
+                            </ToolbarButton>
+                            <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Strikethrough) title="Strikethrough" aria_label="Strikethrough">
+                                <span class="line-through">S</span>
+                            </ToolbarButton>
+                            <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::TaskList) title="Task List" aria_label="Task list">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h4v4H4V6zm0 8h4v4H4v-4zm0 8h4v-4H4v4zM12 7h8M12 15h8M12 19h8" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 7.5l1.2 1.2L7.8 7" />
+                                </svg>
+                            </ToolbarButton>
+                            <ToolbarButton
+                                on_click=move |_| apply_format(MarkdownCommand::Table)
+                                title="Insert Table"
+                                aria_label="Insert table"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6h18v12H3V6zM3 12h18M9 6v12M15 6v12" />
+                                </svg>
+                            </ToolbarButton>
+                        </div>
+                    </Show>
                 </div>
+                <span
+                    class="hidden sm:inline shrink-0 text-xs text-gray-500 dark:text-gray-400"
+                    class:text-apple-yellow=move || matches!(state.save_status.get(), SaveStatus::Saving)
+                    class:text-green-600=move || matches!(state.save_status.get(), SaveStatus::Saved)
+                >
+                    {move || match state.save_status.get() {
+                        SaveStatus::Saving => "Saving...",
+                        SaveStatus::Saved => "Saved",
+                    }}
+                </span>
             </div>
 
             <div class="flex-1 flex overflow-hidden">
-                {move || match selected_note.get() {
-                    Some(note) => view! {
+                {move || match workspace_display_state.get() {
+                    WorkspaceDisplayState::NoteSelected(_note) => view! {
                         <div class="flex-1 flex overflow-hidden divide-x divide-apple-gray-200 dark:divide-apple-dark-border">
-                            <div class="flex-1 flex flex-col overflow-hidden bg-white dark:bg-apple-dark-bg">
-                                <input
-                                    node_ref=title_input_ref
-                                    type="text"
-                                    class="p-8 pb-0 text-3xl font-bold focus:outline-none bg-transparent placeholder:text-gray-300 dark:placeholder:text-gray-600 dark:text-white"
-                                    placeholder="Note Title"
-                                    prop:value=note.title
-                                    on:input=on_input_title
-                                />
-                                <textarea
-                                    node_ref=content_area_ref
-                                    class="flex-1 p-8 pt-4 text-lg focus:outline-none resize-none bg-transparent selection:bg-apple-yellow/30 font-mono dark:text-gray-300"
-                                    placeholder="Start typing..."
-                                    prop:value=note.content
-                                    on:input=on_input_content
-                                ></textarea>
-                                <div class="h-16 px-8 border-t border-apple-gray-200 dark:border-apple-dark-border flex items-center">
-                                    <input
-                                        type="text"
-                                        class="w-full px-3 py-2 text-sm rounded-md focus:outline-none transition-colors bg-black/5 text-gray-700 placeholder-gray-400 focus:bg-black/10 dark:bg-white/10 dark:text-gray-200 dark:placeholder-gray-500 dark:focus:bg-white/20"
-                                        placeholder="Tags (comma separated)"
-                                        prop:value=move || tags_input_value.get()
-                                        on:focus=move |_| is_editing_tags.set(true)
-                                        on:input=on_input_tags
-                                        on:blur=move |_| {
-                                            is_editing_tags.set(false);
-                                            commit_tags_input();
-                                        }
-                                    />
+                            <Show when=move || state.editor_view_mode.get().surfaces().writing>
+                                <div class="flex-1 flex flex-col overflow-hidden bg-white dark:bg-apple-dark-bg">
+                                    <div class="px-6 pt-7 pb-3 md:px-8 md:pt-8 space-y-3 border-b border-transparent">
+                                        <input
+                                            node_ref=title_input_ref
+                                            type="text"
+                                            class="w-full min-w-0 text-2xl md:text-3xl font-bold leading-tight focus:outline-none bg-transparent placeholder:text-gray-300 dark:placeholder:text-gray-600 dark:text-white"
+                                            placeholder="Note Title"
+                                            prop:value=move || selected_note.get().map(|note| note.title).unwrap_or_default()
+                                            on:input=on_input_title
+                                        />
+                                        <input
+                                            type="text"
+                                            class="w-full max-w-xl px-0 py-1 text-sm focus:outline-none bg-transparent text-gray-500 placeholder-gray-400 dark:text-gray-400 dark:placeholder-gray-600"
+                                            placeholder="Tags"
+                                            prop:value=move || tags_input_value.get()
+                                            on:focus=move |_| is_editing_tags.set(true)
+                                            on:input=on_input_tags
+                                            on:blur=move |_| {
+                                                is_editing_tags.set(false);
+                                                commit_tags_input();
+                                            }
+                                        />
+                                    </div>
+                                    <textarea
+                                        node_ref=content_area_ref
+                                        class="flex-1 px-6 pb-8 pt-3 md:px-8 text-base md:text-lg leading-8 focus:outline-none resize-none bg-transparent selection:bg-apple-yellow/30 font-mono dark:text-gray-300"
+                                        placeholder="Start typing..."
+                                        prop:value=move || selected_note.get().map(|note| note.content).unwrap_or_default()
+                                        on:input=on_input_content
+                                    ></textarea>
                                 </div>
-                            </div>
+                            </Show>
 
-                            <Show when=move || state.show_preview.get()>
-                                <div class="hidden md:block flex-1 p-8 overflow-y-auto prose max-w-none break-words shadow-inner border-l transition-colors bg-gray-50 prose-yellow border-apple-gray-200 dark:bg-white/5 dark:prose-invert dark:border-apple-dark-border">
+                            <Show when=move || state.editor_view_mode.get().surfaces().preview>
+                                <div class="flex-1 p-6 md:p-8 overflow-y-auto prose max-w-none break-words shadow-inner border-l transition-colors bg-gray-50 prose-yellow border-apple-gray-200 dark:bg-white/5 dark:prose-invert dark:border-apple-dark-border">
                                     <div inner_html=markdown_html.get()></div>
                                 </div>
                             </Show>
                         </div>
                     }.into_any(),
-                    None => view! {
+                    WorkspaceDisplayState::EmptyCollection => view! {
+                        <div class="flex-1 flex items-center justify-center px-6 text-gray-500 dark:text-gray-400">
+                            <div class="text-center max-w-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-apple-yellow mb-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4" />
+                                </svg>
+                                <h2 class="text-2xl font-semibold text-gray-900 dark:text-white">"Create your first note"</h2>
+                                <p class="mt-2 text-sm leading-6">"Start with a title, then write in Markdown when you need it."</p>
+                                <button
+                                    on:click=move |_| state.create_note()
+                                    class="mt-6 inline-flex items-center rounded-md bg-apple-yellow px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-apple-yellow focus:ring-offset-2 dark:focus:ring-offset-apple-dark-bg"
+                                >
+                                    "New Note"
+                                </button>
+                            </div>
+                        </div>
+                    }.into_any(),
+                    WorkspaceDisplayState::NoNoteSelected => view! {
                         <div class="flex-1 flex items-center justify-center text-gray-300 dark:text-gray-700 select-none">
                             <div class="text-center">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 mx-auto opacity-20 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

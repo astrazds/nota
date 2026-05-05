@@ -1,4 +1,5 @@
 mod components;
+mod editor_view;
 mod markdown_editing;
 mod markdown_preview;
 mod model;
@@ -10,9 +11,10 @@ mod tag_rules;
 
 use components::{ConfirmModal, Editor, Sidebar};
 
+use editor_view::EditorViewMode;
 use leptos::prelude::*;
 use model::Note;
-use note_workspace::NoteWorkspace;
+use note_workspace::{NoteWorkspace, WorkspaceDisplayState};
 use storage::{
     SaveSession, SaveStatus, load_dark_mode, load_notes, load_sidebar_open, save_dark_mode,
     save_sidebar_open,
@@ -28,7 +30,7 @@ pub struct AppState {
     pub search_query: RwSignal<String>,
     pub active_tag: RwSignal<Option<String>>,
     pub show_delete_confirm: RwSignal<bool>,
-    pub show_preview: RwSignal<bool>,
+    pub editor_view_mode: RwSignal<EditorViewMode>,
     pub focus_title_request: RwSignal<bool>,
     pub save_status: RwSignal<SaveStatus>,
 }
@@ -36,6 +38,10 @@ pub struct AppState {
 impl AppState {
     pub fn selected_note(self) -> Option<Note> {
         NoteWorkspace::selected_note(&self.notes.get(), self.selected_id.get())
+    }
+
+    pub fn workspace_display_state(self) -> WorkspaceDisplayState {
+        NoteWorkspace::display_state(&self.notes.get(), self.selected_id.get())
     }
 
     pub fn create_note(self) {
@@ -55,6 +61,10 @@ impl AppState {
         NoteWorkspace::request_delete(&mut selected_id, &mut show_delete_confirm, id);
         self.selected_id.set(selected_id);
         self.show_delete_confirm.set(show_delete_confirm);
+    }
+
+    pub fn delete_confirmation_title(self) -> Option<String> {
+        NoteWorkspace::delete_confirmation_title(&self.notes.get(), self.selected_id.get())
     }
 
     pub fn cancel_delete_note(self) {
@@ -108,8 +118,8 @@ impl AppState {
         self.is_sidebar_open.update(|open| *open = !*open);
     }
 
-    pub fn toggle_preview(self) {
-        self.show_preview.update(|show| *show = !*show);
+    pub fn set_editor_view_mode(self, view_mode: EditorViewMode) {
+        self.editor_view_mode.set(view_mode);
     }
 }
 
@@ -126,11 +136,15 @@ fn App() -> impl IntoView {
     let notes = RwSignal::new(load_notes());
     let selected_id = RwSignal::new(notes.get_untracked().first().map(|n| n.id));
     let is_dark_mode = RwSignal::new(load_dark_mode());
-    let is_sidebar_open = RwSignal::new(load_sidebar_open());
+    let is_sidebar_open = RwSignal::new(if is_wide_viewport() {
+        true
+    } else {
+        load_sidebar_open()
+    });
     let search_query = RwSignal::new(String::new());
     let active_tag = RwSignal::new(None);
     let show_delete_confirm = RwSignal::new(false);
-    let show_preview = RwSignal::new(false);
+    let editor_view_mode = RwSignal::new(EditorViewMode::Write);
     let focus_title_request = RwSignal::new(false);
     let save_status = RwSignal::new(SaveStatus::Saved);
 
@@ -142,7 +156,7 @@ fn App() -> impl IntoView {
         search_query,
         active_tag,
         show_delete_confirm,
-        show_preview,
+        editor_view_mode,
         focus_title_request,
         save_status,
     };
@@ -169,7 +183,13 @@ fn App() -> impl IntoView {
 
     view! {
         <div
-            class="bg-white text-gray-900 dark:bg-apple-dark-bg dark:text-white flex h-screen overflow-hidden transition-colors duration-300"
+            class=move || {
+                if is_dark_mode.get() {
+                    "dark bg-apple-dark-bg text-white flex h-screen overflow-hidden transition-colors duration-300"
+                } else {
+                    "bg-white text-gray-900 flex h-screen overflow-hidden transition-colors duration-300"
+                }
+            }
             class:dark=move || is_dark_mode.get()
         >
             <Sidebar />
@@ -181,4 +201,11 @@ fn App() -> impl IntoView {
             />
         </div>
     }
+}
+
+fn is_wide_viewport() -> bool {
+    web_sys::window()
+        .and_then(|win| win.inner_width().ok())
+        .and_then(|width| width.as_f64())
+        .is_some_and(|width| width >= 1024.0)
 }

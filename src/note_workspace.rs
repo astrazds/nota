@@ -9,7 +9,7 @@ pub struct NoteWorkspace;
 pub enum WorkspaceDisplayState {
     EmptyCollection,
     NoNoteSelected,
-    NoteSelected(Note),
+    NoteSelected,
 }
 
 impl NoteWorkspace {
@@ -22,9 +22,11 @@ impl NoteWorkspace {
             return WorkspaceDisplayState::EmptyCollection;
         }
 
-        Self::selected_note(notes, selected_id)
-            .map(WorkspaceDisplayState::NoteSelected)
-            .unwrap_or(WorkspaceDisplayState::NoNoteSelected)
+        if Self::selected_note(notes, selected_id).is_some() {
+            WorkspaceDisplayState::NoteSelected
+        } else {
+            WorkspaceDisplayState::NoNoteSelected
+        }
     }
 
     pub fn create_note(notes: &mut Vec<Note>) -> NoteCreation {
@@ -115,6 +117,20 @@ mod tests {
             NoteWorkspace::display_state(&notes, None),
             WorkspaceDisplayState::NoNoteSelected
         );
+    }
+
+    #[test]
+    fn selected_display_state_does_not_change_when_selected_note_content_changes() {
+        let mut note = Note::new("First".to_string(), "Draft".to_string());
+        let selected_id = Some(note.id);
+        let before = NoteWorkspace::display_state(&[note.clone()], selected_id);
+
+        note.title = "Updated".to_string();
+        note.content = "Updated draft".to_string();
+        note.tags = vec!["work".to_string()];
+        let after = NoteWorkspace::display_state(&[note], selected_id);
+
+        assert_eq!(before, after);
     }
 
     #[test]

@@ -232,7 +232,7 @@ pub fn Editor() -> impl IntoView {
 
             <div class="flex-1 flex overflow-hidden">
                 {move || match workspace_display_state.get() {
-                    WorkspaceDisplayState::NoteSelected(_note) => view! {
+                    WorkspaceDisplayState::NoteSelected => view! {
                         <div class="flex-1 flex overflow-hidden divide-x divide-apple-gray-200 dark:divide-apple-dark-border">
                             <Show when=move || state.editor_view_mode.get().surfaces().writing>
                                 <div class="flex-1 flex flex-col overflow-hidden bg-white dark:bg-apple-dark-bg">

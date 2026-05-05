@@ -3,6 +3,13 @@ name = "noter"
 version = "0.2.0"
 edition = "2024"
 rust-version = "1.95"
+authors = ["Andrejs Strazds"]
+description = "A local-first Markdown note-taking web app built with Rust, Leptos, and Tailwind CSS."
+license = "MIT"
+repository = "https://github.com/astrazds/noter-leptos-md"
+readme = "README.md"
+keywords = ["notes", "markdown", "leptos", "wasm", "tailwindcss"]
+categories = ["wasm", "web-programming"]
 
 [dependencies]
 leptos = { version = "0.8.19", features = ["csr"] }

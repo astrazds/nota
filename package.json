@@ -1,4 +1,17 @@
 {
+  "name": "noter",
+  "version": "0.2.0",
+  "private": true,
+  "description": "A local-first Markdown note-taking web app built with Rust, Leptos, and Tailwind CSS.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/astrazds/noter-leptos-md.git"
+  },
+  "scripts": {
+    "dev": "trunk serve --open",
+    "build": "trunk build --release"
+  },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.19"
   }

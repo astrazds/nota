@@ -103,6 +103,10 @@ The app keeps high-leverage behaviour behind focused Rust Modules:
 - `markdown_editing`: named Markdown commands, cheatsheet sections, and Unicode-safe caret handling.
 - `markdown_preview`: supported Markdown preview rendering and preview safety policy.
 
+## License
+
+This project is licensed under the [MIT License](./LICENSE).
+
 ## Code Guidelines
 
 For AI agents and contributors, please refer to [AGENTS.md](./AGENTS.md) for detailed coding standards and project conventions.

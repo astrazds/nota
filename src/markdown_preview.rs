@@ -1,4 +1,6 @@
-use pulldown_cmark::{Event, Options, Parser, html};
+use std::collections::HashMap;
+
+use pulldown_cmark::{CowStr, Event, Options, Parser, Tag, TagEnd, html};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 #[cfg(target_arch = "wasm32")]
@@ -53,11 +55,8 @@ impl PreviewSafetyPolicy {
 pub fn render_markdown_preview(title: &str, content: &str) -> String {
     let safe_title = escape_html(title);
     let mut html_output = format!("<h1 class=\"text-3xl font-bold mb-4\">{safe_title}</h1>");
-    let parser = Parser::new_ext(content, markdown_preview_options()).map(|event| match event {
-        Event::Html(raw_html) | Event::InlineHtml(raw_html) => Event::Text(raw_html),
-        _ => event,
-    });
-    html::push_html(&mut html_output, parser);
+    let parser = Parser::new_ext(content, markdown_preview_options()).map(escape_raw_html_event);
+    html::push_html(&mut html_output, render_preview_events(parser).into_iter());
     sanitize_preview_html(&html_output)
 }
 
@@ -77,6 +76,104 @@ fn escape_html(input: &str) -> String {
         .replace('>', "&gt;")
         .replace('"', "&quot;")
         .replace('\'', "&#39;")
+}
+
+fn escape_raw_html_event(event: Event<'_>) -> Event<'_> {
+    match event {
+        Event::Html(raw_html) | Event::InlineHtml(raw_html) => Event::Text(raw_html),
+        _ => event,
+    }
+}
+
+fn render_preview_events<'a>(events: impl IntoIterator<Item = Event<'a>>) -> Vec<Event<'a>> {
+    let mut preview_events = Vec::new();
+    let mut footnote_events = Vec::new();
+    let mut current_footnote = Vec::new();
+    let mut footnote_numbers: HashMap<CowStr<'a>, (usize, usize)> = HashMap::new();
+
+    for event in events {
+        match event {
+            Event::Start(Tag::FootnoteDefinition(_)) => {
+                current_footnote.push(event);
+            }
+            Event::End(TagEnd::FootnoteDefinition) if !current_footnote.is_empty() => {
+                current_footnote.push(event);
+                footnote_events.push(std::mem::take(&mut current_footnote));
+            }
+            Event::FootnoteReference(name) => {
+                let next_number = footnote_numbers.len() + 1;
+                let (number, reference_count) = footnote_numbers
+                    .entry(name.clone())
+                    .or_insert((next_number, 0));
+                *reference_count += 1;
+
+                let reference = Event::Html(
+                    format!(
+                        "<sup class=\"footnote-reference\" id=\"fr-{name}-{reference_count}\"><a href=\"#fn-{name}\">[{number}]</a></sup>",
+                        name = escape_html(&name),
+                    )
+                    .into(),
+                );
+
+                if current_footnote.is_empty() {
+                    preview_events.push(reference);
+                } else {
+                    current_footnote.push(reference);
+                }
+            }
+            _ if !current_footnote.is_empty() => {
+                current_footnote.push(event);
+            }
+            _ => {
+                preview_events.push(event);
+            }
+        }
+    }
+
+    preview_events.extend(current_footnote);
+    append_footnotes(&mut preview_events, footnote_events, &footnote_numbers);
+    preview_events
+}
+
+fn append_footnotes<'a>(
+    preview_events: &mut Vec<Event<'a>>,
+    mut footnote_events: Vec<Vec<Event<'a>>>,
+    footnote_numbers: &HashMap<CowStr<'a>, (usize, usize)>,
+) {
+    footnote_events.retain(|events| match events.first() {
+        Some(Event::Start(Tag::FootnoteDefinition(name))) => footnote_numbers
+            .get(name)
+            .is_some_and(|(_, reference_count)| *reference_count > 0),
+        _ => false,
+    });
+    footnote_events.sort_by_key(|events| match events.first() {
+        Some(Event::Start(Tag::FootnoteDefinition(name))) => footnote_numbers
+            .get(name)
+            .map_or(usize::MAX, |(number, _)| *number),
+        _ => usize::MAX,
+    });
+
+    if footnote_events.is_empty() {
+        return;
+    }
+
+    preview_events.push(Event::Html("<hr><ol class=\"footnotes-list\">\n".into()));
+    for footnote in footnote_events {
+        for event in footnote {
+            match event {
+                Event::Start(Tag::FootnoteDefinition(name)) => {
+                    preview_events.push(Event::Html(
+                        format!("<li id=\"fn-{}\">", escape_html(&name)).into(),
+                    ));
+                }
+                Event::End(TagEnd::FootnoteDefinition) => {
+                    preview_events.push(Event::Html("</li>\n".into()));
+                }
+                _ => preview_events.push(event),
+            }
+        }
+    }
+    preview_events.push(Event::Html("</ol>\n".into()));
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -212,5 +309,16 @@ mod tests {
         assert!(html.contains("<table>"));
         assert!(html.contains("<del>done</del>"));
         assert!(html.contains("checkbox"));
+    }
+
+    #[test]
+    fn markdown_preview_renders_usable_footnotes() {
+        let html = render_markdown_preview("Title", "Footnote[^1]\n\n[^1]: Footnote text");
+
+        assert!(html.contains("class=\"footnote-reference\""));
+        assert!(html.contains("href=\"#fn-1\""));
+        assert!(html.contains("<ol class=\"footnotes-list\">"));
+        assert!(html.contains("<li id=\"fn-1\">"));
+        assert!(html.contains("Footnote text"));
     }
 }

@@ -151,7 +151,7 @@ pub fn Sidebar() -> impl IntoView {
                     <Show when=move || !note_projection.get().rows.is_empty()>
                         <For
                             each=move || note_projection.get().rows
-                            key=|item| item.id
+                            key=|item| item.render_key()
                             let:item
                         >
                             <NoteItem item=item />

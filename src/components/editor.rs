@@ -269,7 +269,15 @@ pub fn Editor() -> impl IntoView {
                             </Show>
 
                             <Show when=move || state.editor_view_mode.get().surfaces().preview>
-                                <div class="flex-1 p-6 md:p-8 overflow-y-auto prose max-w-none break-words shadow-inner border-l transition-colors bg-gray-50 prose-yellow border-apple-gray-200 dark:bg-white/5 dark:prose-invert dark:border-apple-dark-border">
+                                <div
+                                    class=move || {
+                                        if state.editor_view_mode.get() == EditorViewMode::Split {
+                                            "flex-1 px-6 pb-8 pt-7 md:px-8 md:pt-8 overflow-y-auto prose max-w-none break-words shadow-inner border-l transition-colors bg-gray-50 prose-yellow border-apple-gray-200 dark:bg-white/5 dark:prose-invert dark:border-apple-dark-border"
+                                        } else {
+                                            "flex-1 px-6 pb-8 pt-7 md:px-8 md:pt-8 overflow-y-auto prose max-w-none break-words transition-colors bg-white prose-yellow dark:bg-apple-dark-bg dark:prose-invert"
+                                        }
+                                    }
+                                >
                                     <div inner_html=markdown_html.get()></div>
                                 </div>
                             </Show>

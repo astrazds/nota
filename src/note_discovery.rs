@@ -4,10 +4,23 @@ use uuid::Uuid;
 
 pub use crate::tag_rules::collect_note_tags;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct HighlightSegment {
     pub text: String,
     pub is_match: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct NoteListRenderKey {
+    pub id: Uuid,
+    pub display_title: String,
+    pub display_date: String,
+    pub preview: String,
+    pub tags: Vec<String>,
+    pub is_pinned: bool,
+    pub is_selected: bool,
+    pub title_highlights: Vec<HighlightSegment>,
+    pub preview_highlights: Vec<HighlightSegment>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,6 +34,22 @@ pub struct NoteListItem {
     pub is_selected: bool,
     pub title_highlights: Vec<HighlightSegment>,
     pub preview_highlights: Vec<HighlightSegment>,
+}
+
+impl NoteListItem {
+    pub fn render_key(&self) -> NoteListRenderKey {
+        NoteListRenderKey {
+            id: self.id,
+            display_title: self.display_title.clone(),
+            display_date: self.display_date.clone(),
+            preview: self.preview.clone(),
+            tags: self.tags.clone(),
+            is_pinned: self.is_pinned,
+            is_selected: self.is_selected,
+            title_highlights: self.title_highlights.clone(),
+            preview_highlights: self.preview_highlights.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -297,6 +326,28 @@ mod tests {
                 .any(|segment| segment.is_match)
         );
         assert_eq!(projection.rows[1].id, newer_unpinned.id);
+    }
+
+    #[test]
+    fn row_render_key_changes_when_displayed_note_fields_change() {
+        let mut note = Note::new("Draft".to_string(), "Preview".to_string());
+        note.tags = vec!["work".to_string()];
+
+        let before = project_note_list(&[note.clone()], Some(note.id), "", None)
+            .rows
+            .remove(0)
+            .render_key();
+
+        note.title = "Published".to_string();
+        note.content = "Updated preview".to_string();
+        note.tags = vec!["personal".to_string()];
+
+        let after = project_note_list(&[note], None, "", None)
+            .rows
+            .remove(0)
+            .render_key();
+
+        assert_ne!(before, after);
     }
 
     #[test]

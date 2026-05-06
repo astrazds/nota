@@ -57,8 +57,13 @@ impl PreviewSafetyPolicy {
     }
 }
 
+#[cfg(test)]
 pub fn render_markdown_preview(title: &str, content: &str) -> String {
     PreviewPipeline.render(title, content)
+}
+
+pub fn render_markdown_preview_body(title: &str, content: &str) -> String {
+    PreviewPipeline.render_body(title, content)
 }
 
 pub fn markdown_preview_options() -> Options {
@@ -74,13 +79,21 @@ pub fn markdown_preview_options() -> Options {
 struct PreviewPipeline;
 
 impl PreviewPipeline {
+    #[cfg(test)]
     fn render(self, title: &str, content: &str) -> String {
+        let safe_title = escape_html(title);
+        let body = self.render_body(title, content);
+
+        format!("<h1 class=\"text-3xl font-bold mb-4\">{safe_title}</h1>{body}")
+    }
+
+    fn render_body(self, title: &str, content: &str) -> String {
         let events = Parser::new_ext(content, markdown_preview_options())
             .map(escape_user_raw_html)
             .map(neutralize_unsafe_markdown_urls);
         let events = suppress_matching_first_content_h1(title, events);
         let generated_events = render_preview_events(events);
-        let generated_html = render_generated_preview_html(title, generated_events);
+        let generated_html = render_generated_preview_body_html(generated_events);
 
         sanitize_preview_html(generated_html)
     }
@@ -101,12 +114,10 @@ impl GeneratedPreviewHtml {
     }
 }
 
-fn render_generated_preview_html<'a>(
-    title: &str,
+fn render_generated_preview_body_html<'a>(
     events: impl IntoIterator<Item = Event<'a>>,
 ) -> GeneratedPreviewHtml {
-    let safe_title = escape_html(title);
-    let mut html_output = format!("<h1 class=\"text-3xl font-bold mb-4\">{safe_title}</h1>");
+    let mut html_output = String::new();
     html::push_html(&mut html_output, events.into_iter());
     GeneratedPreviewHtml(html_output)
 }
@@ -417,6 +428,40 @@ mod tests {
 
         assert!(html.contains("<h1 class=\"text-3xl font-bold mb-4\">Markdown preview tour</h1>"));
         assert!(!html.contains("<h1>Markdown preview tour</h1>"));
+        assert!(html.contains("<p>Body content</p>"));
+    }
+
+    #[test]
+    fn markdown_preview_body_omits_generated_title_but_keeps_title_suppression() {
+        let html = render_markdown_preview_body(
+            "Markdown preview tour",
+            "# Markdown preview tour\n\nBody content",
+        );
+
+        assert!(!html.contains("text-3xl font-bold"));
+        assert!(!html.contains("<h1>Markdown preview tour</h1>"));
+        assert!(html.contains("<p>Body content</p>"));
+    }
+
+    #[test]
+    fn markdown_preview_body_keeps_safety_policy_on_the_app_render_path() {
+        let html = render_markdown_preview_body(
+            "Title",
+            "<script>alert(1)</script>\n\n[safe](https://example.com) [unsafe](javascript:alert(1))",
+        );
+
+        assert!(html.contains("&lt;script&gt;alert(1)&lt;/script&gt;"));
+        assert!(html.contains("href=\"https://example.com\""));
+        assert!(!html.contains("<script>alert(1)</script>"));
+        assert!(!html.contains("javascript:alert"));
+    }
+
+    #[test]
+    fn markdown_preview_body_preserves_non_matching_content_h1() {
+        let html = render_markdown_preview_body("Roadmap", "# Release notes\n\nBody content");
+
+        assert!(!html.contains("text-3xl font-bold"));
+        assert!(html.contains("<h1>Release notes</h1>"));
         assert!(html.contains("<p>Body content</p>"));
     }
 

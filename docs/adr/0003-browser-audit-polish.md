@@ -10,7 +10,13 @@ Accepted decisions:
 - Show scoped Search syntax as a focus-time Search Hint instead of permanent sidebar content.
 - Move Backup Controls to one compact horizontal row in the sidebar footer.
 - Present Tags as read-only Note Metadata chips until the user chooses to edit them, then show one tag input rather than duplicating chips and input text.
-- Show read-only Tags in Preview and Split view so Note Metadata remains visible outside the Writing Surface.
+- Show read-only Tags under the Note Title in Preview and Split view so Note Metadata remains visible outside the Writing Surface and matches the editor header order.
 - Preserve mobile layout integrity with a full-width Note List, touch-sized editor controls, wrapped Note Titles, and truncated long Note List titles.
+
+Implementation notes:
+
+- The Leptos preview pane owns the generated Note Title and read-only Tags.
+- `markdown_preview` renders the sanitized Markdown body and still suppresses a first content `h1` that duplicates the Note Title.
+- Coverage for this split lives on the body renderer path used by the app, including duplicate-heading behavior and preview safety policy.
 
 This keeps Noter aligned with the domain model in `CONTEXT.md`: Search and the Note List remain primary, Tags stay lightweight, Backup remains a secondary local utility, and Preview is a View Mode for the same Note rather than a separate document frame.

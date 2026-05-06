@@ -2,7 +2,7 @@ use crate::AppState;
 use crate::components::CheatsheetModal;
 use crate::editor_view::EditorViewMode;
 use crate::markdown_editing::{BrowserSelection, MarkdownCommand, apply_markdown_command};
-use crate::markdown_preview::render_markdown_preview;
+use crate::markdown_preview::render_markdown_preview_body;
 use crate::model::Note;
 use crate::note_workspace::{FocusIntent, WorkspaceDisplayState};
 use crate::storage::SaveStatus;
@@ -113,7 +113,15 @@ pub fn Editor() -> impl IntoView {
         }
     };
 
-    let markdown_html = Memo::new(move |_| {
+    let preview_title = Memo::new(move |_| {
+        selected_note
+            .get()
+            .as_ref()
+            .map(|note| note.display_title().to_string())
+            .unwrap_or_default()
+    });
+
+    let markdown_body_html = Memo::new(move |_| {
         let note = selected_note.get();
         let title = note
             .as_ref()
@@ -124,7 +132,7 @@ pub fn Editor() -> impl IntoView {
             .map(|n: &Note| n.content.as_str())
             .unwrap_or_default();
 
-        render_markdown_preview(&title, content)
+        render_markdown_preview_body(&title, content)
     });
 
     let apply_format = move |command: MarkdownCommand| {
@@ -375,8 +383,9 @@ pub fn Editor() -> impl IntoView {
                                         preview_pane_classes(state.editor_view_mode.get() == EditorViewMode::Split)
                                     }
                                 >
+                                    <h1 class="text-3xl font-bold mb-4">{move || preview_title.get()}</h1>
                                     <PreviewTagList selected_note=selected_note />
-                                    <div inner_html=markdown_html.get()></div>
+                                    <div inner_html=markdown_body_html.get()></div>
                                 </div>
                             </Show>
                         </div>

@@ -12,10 +12,11 @@ Current app version: **0.5.0**.
   - Raw HTML in notes is rendered as text for safety.
   - Use 2 spaces at line-end for hard line breaks.
   - Preview suppresses a duplicate first content heading when it matches the Note Title.
+  - Preview renders the Note Title and read-only Tags before the Markdown body, matching the editor header order.
 - **Organisation Tools**:
   - **Search**: Real-time search bar (with debounce) to filter notes by title, content, or tags with text highlighting.
   - **Scoped Search**: Optional syntax for quoted phrases, `title:`, `tag:`, and `is:pinned` filters, shown as a focus-time hint while keeping Search focused on Notes.
-  - **Tags**: Lightweight Note Metadata with autocomplete, normalization, removable Tag pills, preview visibility, and reviewed cleanup for secondary filtering without folders or notebooks.
+  - **Tags**: Lightweight Note Metadata with autocomplete, normalization, removable Tag pills, preview visibility beneath the Note Title, and reviewed cleanup for secondary filtering without folders or notebooks.
   - **Pinning**: Pin important notes to the top of your list.
 - **Local Persistence**: Automatically persists notes to your browser's `LocalStorage` with debounced saves while typing.
 - **Backup & Restore**: Export a versioned Flat Collection backup and safely merge-import backups from the sidebar footer without destructive replacement.
@@ -103,8 +104,10 @@ Tests cover core domain logic including:
 - **Tags**: Parsing, display formatting, autocomplete suggestions, normalization, individual removal, cleanup planning, case-insensitive matching, collection, and sorting.
 - **Persistence**: Save lifecycle and save session behaviour for debounced LocalStorage saves.
 - **Starter Notes**: Debug-only sample notes cover pinning, tags, rich Markdown, preview safety, long previews, and responsive editing checks.
-- **Preview Safety**: Raw HTML escaping, safe URL policy, and supported Markdown preview dialect.
+- **Preview Rendering & Safety**: Title/body separation, duplicate heading suppression, raw HTML escaping, safe URL policy, and supported Markdown preview dialect on the same body-rendering path used by the app.
 - **Unicode Support**: Proper handling of multi-byte characters in character counting, preview truncation, formatting, and search highlighting.
+
+Coverage sweeps should follow the repo's TDD convention: add or tighten one behavior-focused test for each uncovered risk, run it, then run the full pre-merge verification gates. Numeric coverage is not currently part of the local toolchain; `cargo llvm-cov` and `cargo tarpaulin` are not installed by default.
 
 ## Architecture Notes
 
@@ -118,7 +121,7 @@ The app keeps high-leverage behaviour behind focused Rust Modules:
 - `editor_view`: explicit Write, Preview, and Split view modes with viewport-aware behaviour.
 - `storage`: debounced save session, save lifecycle, LocalStorage persistence, and page lifecycle flushing.
 - `markdown_editing`: named Markdown commands, cheatsheet sections, and Unicode-safe caret handling.
-- `markdown_preview`: supported Markdown preview rendering, duplicate title suppression, and preview safety policy.
+- `markdown_preview`: supported Markdown body rendering, duplicate title suppression, and preview safety policy. The Leptos preview pane owns the Note Title and read-only Tags so Preview and Split match the editor header order.
 
 ## Domain Docs
 

@@ -21,7 +21,7 @@ The product's quiet visual identity: familiar note-app structure, warm accents, 
 _Avoid_: Apple Notes clone
 
 **Preview**:
-A rendered view of a Note's Markdown content.
+A rendered view of a Note that shows the Note Title, read-only Note Metadata, and Markdown body.
 _Avoid_: Output pane
 
 **Writing Surface**:
@@ -108,7 +108,7 @@ _Avoid_: Replace import by default
 - A **Note** exposes **Note Actions** through a stable control.
 - A **Note** should be named in its **Delete Confirmation**.
 - A **Note** shows **Note Metadata** near its header or details surface.
-- A **Preview** may show read-only **Note Metadata** so Preview and Split view keep Tags visible.
+- A **Preview** shows the **Note Title**, then read-only **Note Metadata**, then the Markdown body so Preview and Split view match the Writing Surface header order.
 - A **Note** has a **Save Status** while it is being edited.
 - A **Markdown Note App** prioritises creating, writing, finding, and organising **Notes** over exposing Markdown tooling.
 - A **Flat Collection** contains all **Notes** without folders or notebooks.
@@ -164,7 +164,7 @@ _Avoid_: Replace import by default
 > **Domain expert:** "No — **Note Metadata** belongs near the **Note** header or details, not below the writing area."
 >
 > **Dev:** "Should tags disappear when previewing?"
-> **Domain expert:** "No — show read-only **Note Metadata** in **Preview** and Split view so organising context stays visible."
+> **Domain expert:** "No — show read-only **Note Metadata** under the **Note Title** in **Preview** and Split view so organising context stays visible and matches the **Writing Surface**."
 >
 > **Dev:** "Should Search syntax be permanently visible below Search?"
 > **Domain expert:** "No — use a **Search Hint** while Search is focused, then give the space back to the **Note List**."
@@ -206,7 +206,7 @@ _Avoid_: Replace import by default
 - "Version" was treated as primary sidebar content — resolved: **Product Metadata** belongs outside the main note workflow.
 - "Search" could imply global commands — resolved: **Search** is scoped to discovering **Notes**.
 - "Tags input" was placed as a bottom bar — resolved: Tags are **Note Metadata** and belong near the Note header or details surface.
-- "Tags" were visible only while writing — resolved: read-only **Note Metadata** should also appear in **Preview** and Split view.
+- "Tags" were visible only while writing — resolved: read-only **Note Metadata** should also appear under the **Note Title** in **Preview** and Split view.
 - "Search syntax" was persistent sidebar content — resolved: use a focus-time **Search Hint**.
 - "Backup dropdown" added extra interaction for a utility feature — resolved: use compact sidebar-footer **Backup Controls**.
 - "Note rows" were drifting toward card-like metadata blocks — resolved: the **Note List** should be dense and scannable.

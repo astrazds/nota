@@ -5,7 +5,7 @@ Noter is a local-first Markdown note app focused on writing, finding, and organi
 ## Language
 
 **Note**:
-A personal Markdown document that can be written, found, organised, pinned, previewed, and deleted.
+A personal Markdown document that can be quickly captured, written, found, organised, pinned, previewed, and deleted.
 _Avoid_: Document, file
 
 **Note Title**:
@@ -48,9 +48,17 @@ _Avoid_: Folders, notebooks
 The explicit controls for secondary Note operations such as pinning or deleting.
 _Avoid_: Hover-only row controls
 
+**Quick Capture**:
+A fast creation path that starts a new Note, selects it, and focuses the Note Title without making the user manage navigation first.
+_Avoid_: New document wizard
+
 **Delete Confirmation**:
-A note-specific confirmation that names the Note before it is permanently deleted.
+A note-specific confirmation that names the Note before it moves to Recently Deleted.
 _Avoid_: Generic destructive modal
+
+**Recently Deleted**:
+A recoverable holding area for Notes deleted from the Flat Collection, with explicit Restore and Clear actions.
+_Avoid_: Hidden undo state, Trash as primary navigation
 
 **Note Metadata**:
 Lightweight descriptive information about a Note, such as its Tags.
@@ -92,9 +100,17 @@ _Avoid_: Floating expand handle
 A versioned local export of the Flat Collection that preserves Notes and can be stored outside the browser.
 _Avoid_: Sync, cloud backup
 
+**Backup Health**:
+Lightweight metadata about the last successful Backup export, used to show whether the user has a recent local recovery point.
+_Avoid_: Sync status
+
 **Backup Controls**:
 Compact Export and Import actions for Backup, placed in the sidebar footer as a secondary utility row.
 _Avoid_: Backup dropdown
+
+**Backup Import Preview**:
+A confirmation step that validates a Backup and shows how many Notes a Merge Import will add or replace before applying it.
+_Avoid_: Blind import
 
 **Merge Import**:
 The safe restore behaviour that adds Notes from a Backup and replaces same-identity Notes without destructively clearing the current Flat Collection.
@@ -107,10 +123,12 @@ _Avoid_: Replace import by default
 - A **Note** can have zero or more **Tags**.
 - A **Note** exposes **Note Actions** through a stable control.
 - A **Note** should be named in its **Delete Confirmation**.
+- A **Note** can move to **Recently Deleted** before it is explicitly cleared.
 - A **Note** shows **Note Metadata** near its header or details surface.
 - A **Preview** shows the **Note Title**, then read-only **Note Metadata**, then the Markdown body so Preview and Split view match the Writing Surface header order.
 - A **Note** has a **Save Status** while it is being edited.
 - A **Markdown Note App** prioritises creating, writing, finding, and organising **Notes** over exposing Markdown tooling.
+- **Quick Capture** creates a **Note** and returns the user to the **Writing Surface**.
 - A **Flat Collection** contains all **Notes** without folders or notebooks.
 - A **Local-First Note Identity** can borrow familiar note-app structure without copying Apple Notes exactly.
 - A **Writing Surface** is the default **View Mode** for a **Note**.
@@ -125,7 +143,9 @@ _Avoid_: Replace import by default
 - Each **Theme** needs coherent surface, text, border, selection, and accent treatment.
 - **Responsive Navigation** keeps the **Note List** available without interrupting the **Writing Surface**.
 - A **Backup** preserves the **Flat Collection** outside browser storage.
+- **Backup Health** describes the recency of the user's last successful **Backup** export without implying sync.
 - **Backup Controls** belong in the sidebar footer as secondary utilities, not in primary navigation.
+- A **Backup Import Preview** should appear before a **Merge Import** changes the **Flat Collection**.
 - A **Merge Import** restores Notes from a **Backup** without destructively replacing the current **Flat Collection**.
 
 ## Example dialogue
@@ -144,6 +164,9 @@ _Avoid_: Replace import by default
 >
 > **Dev:** "Should pin and delete only appear when hovering over a note row?"
 > **Domain expert:** "No — **Note Actions** need a stable control so touch and keyboard users can discover them."
+>
+> **Dev:** "Should creating a note leave mobile users in the Note List?"
+> **Domain expert:** "No — **Quick Capture** should create the **Note**, select it, and return to the **Writing Surface** with the **Note Title** ready."
 >
 > **Dev:** "Should the UI copy Apple Notes as closely as possible?"
 > **Domain expert:** "No — use a **Local-First Note Identity** that feels familiar but belongs to Noter."
@@ -182,7 +205,7 @@ _Avoid_: Replace import by default
 > **Domain expert:** "No — sidebar collapse is **Responsive Navigation**, so mobile should use normal top-bar navigation."
 >
 > **Dev:** "Is 'Delete Note?' enough confirmation?"
-> **Domain expert:** "No — the **Delete Confirmation** should name the **Note** so the user can verify what is being deleted."
+> **Domain expert:** "No — the **Delete Confirmation** should name the **Note** so the user can verify what is moving to **Recently Deleted**."
 >
 > **Dev:** "Should the title be inferred from the first Markdown heading?"
 > **Domain expert:** "No — keep a **Note Title** as a distinct name, but present it as part of the **Note** rather than a form field."
@@ -192,6 +215,12 @@ _Avoid_: Replace import by default
 >
 > **Dev:** "Should importing a backup replace the current collection by default?"
 > **Domain expert:** "No — use **Merge Import** for the first backup flow so restore remains safe by default."
+>
+> **Dev:** "Should Backup import apply as soon as a file is selected?"
+> **Domain expert:** "No — show a **Backup Import Preview** first so the user can confirm the add/replace impact."
+>
+> **Dev:** "Should Backup Health behave like sync status?"
+> **Domain expert:** "No — **Backup Health** only reflects the last successful local export recovery point."
 
 ## Flagged ambiguities
 
@@ -200,6 +229,7 @@ _Avoid_: Replace import by default
 - "Tag navigation" implied a primary organising model — resolved: a **Tag** is secondary filtering metadata.
 - "No Note Selected" was used for both no selection and no notes — resolved: no notes is an **Empty Collection** with a creation path.
 - "Hover controls" hid secondary operations — resolved: **Note Actions** should be exposed through a stable control.
+- "New note" behaved like a generic creation action — resolved: **Quick Capture** should start a selected Note and focus the Note Title.
 - "Apple Notes clone" was too restrictive as a design target — resolved: use a **Local-First Note Identity**.
 - "Saved" was treated as sidebar metadata — resolved: **Save Status** belongs with the active editing context.
 - "Toolbar" implied primary app chrome — resolved: **Formatting Tools** are contextual writing affordances.
@@ -212,7 +242,10 @@ _Avoid_: Replace import by default
 - "Note rows" were drifting toward card-like metadata blocks — resolved: the **Note List** should be dense and scannable.
 - "Dark mode" was treated as inverted light styling — resolved: dark mode is a separately tuned **Theme**.
 - "Collapsed sidebar" looked like a desktop feature — resolved: sidebar behaviour is **Responsive Navigation**.
-- "Delete Note?" was generic — resolved: **Delete Confirmation** should identify the target **Note**.
+- "Delete Note?" was generic — resolved: **Delete Confirmation** should identify the target **Note** and clarify that it moves to **Recently Deleted**.
+- "Deleted" implied immediate permanent loss — resolved: deleted Notes move to **Recently Deleted** until restored or explicitly cleared.
 - "Title" could be confused with the first Markdown heading — resolved: **Note Title** is a distinct Note property.
 - "Folders" and "notebooks" imply a new primary organisation model — resolved: Noter uses a **Flat Collection** for now.
 - "Backup import" could imply destructive replacement — resolved: backup v1 uses **Merge Import** and leaves replace import out of scope until a clear workflow needs it.
+- "Backup import" could feel blind — resolved: use **Backup Import Preview** to confirm add/replace impact before applying a **Merge Import**.
+- "Backup status" could imply cloud sync — resolved: **Backup Health** only tracks last successful local export metadata.

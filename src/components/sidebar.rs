@@ -1,4 +1,5 @@
 use crate::AppState;
+use crate::backup::BackupImportPreview;
 use crate::note_discovery::NoteListItem;
 use crate::note_list_interaction::{NoteListDisplayState, SEARCH_DEBOUNCE_MS};
 use crate::theme::{ThemeAccent, ThemeState, ThemeSurface, ThemeText};
@@ -56,15 +57,20 @@ pub fn Sidebar() -> impl IntoView {
 
     let note_projection = Memo::new(move |_| state.note_list_projection());
     let available_tags = Memo::new(move |_| state.available_tags());
+    let recently_deleted_notes = Memo::new(move |_| state.recently_deleted_notes());
 
     let search_input_value = RwSignal::new(state.note_search_input());
     let search_hint_open = RwSignal::new(false);
     let backup_status = RwSignal::new(String::new());
+    let pending_backup_import = RwSignal::new(None::<(String, BackupImportPreview)>);
     let debounce_timeout: TimeoutState = Rc::new(RefCell::new(None));
 
     let export_backup = move |_| match state.export_backup_json() {
         Ok(backup_json) => match download_backup(&state.backup_file_name(), &backup_json) {
-            Ok(()) => backup_status.set("Backup exported".to_string()),
+            Ok(()) => {
+                state.record_backup_exported();
+                backup_status.set("Backup exported".to_string());
+            }
             Err(message) => backup_status.set(message),
         },
         Err(_) => backup_status.set("Backup export failed".to_string()),
@@ -76,7 +82,7 @@ pub fn Sidebar() -> impl IntoView {
             return;
         };
 
-        backup_status.set("Importing backup...".to_string());
+        backup_status.set("Reading backup...".to_string());
         let Ok(reader) = FileReader::new() else {
             backup_status.set("Backup import failed".to_string());
             input.set_value("");
@@ -84,6 +90,7 @@ pub fn Sidebar() -> impl IntoView {
         };
         let reader_for_load = reader.clone();
         let backup_status_for_load = backup_status;
+        let pending_backup_import_for_load = pending_backup_import;
         let on_load = Closure::wrap(Box::new(move |_ev: web_sys::ProgressEvent| {
             let Some(backup_json) = reader_for_load
                 .result()
@@ -94,8 +101,11 @@ pub fn Sidebar() -> impl IntoView {
                 return;
             };
 
-            match state.import_backup_json(&backup_json) {
-                Ok(()) => backup_status_for_load.set("Backup imported".to_string()),
+            match state.preview_backup_import_json(&backup_json) {
+                Ok(preview) => {
+                    pending_backup_import_for_load.set(Some((backup_json, preview)));
+                    backup_status_for_load.set("Backup ready".to_string());
+                }
                 Err(_) => backup_status_for_load.set("Backup import failed".to_string()),
             }
         }) as Box<dyn FnMut(_)>);
@@ -106,6 +116,25 @@ pub fn Sidebar() -> impl IntoView {
         }
         on_load.forget();
         input.set_value("");
+    };
+
+    let confirm_backup_import = move |_| {
+        let Some((backup_json, _preview)) = pending_backup_import.get_untracked() else {
+            return;
+        };
+
+        match state.import_backup_json(&backup_json) {
+            Ok(()) => {
+                pending_backup_import.set(None);
+                backup_status.set("Backup imported".to_string());
+            }
+            Err(_) => backup_status.set("Backup import failed".to_string()),
+        }
+    };
+
+    let cancel_backup_import = move |_| {
+        pending_backup_import.set(None);
+        backup_status.set("Backup import cancelled".to_string());
     };
 
     Effect::new(move |_| {
@@ -258,9 +287,46 @@ pub fn Sidebar() -> impl IntoView {
                             <p class="text-sm mt-1">Try a different search term</p>
                         </div>
                     </Show>
+                    <Show when=move || !recently_deleted_notes.get().is_empty()>
+                        <details class="mx-4 mt-4 rounded-md border border-apple-gray-300 text-sm dark:border-apple-dark-border">
+                            <summary class=move || format!("cursor-pointer px-3 py-2 font-medium {}", ThemeText::Primary.classes())>
+                                {move || format!("Recently Deleted ({})", recently_deleted_notes.get().len())}
+                            </summary>
+                            <div class="divide-y divide-apple-gray-200 dark:divide-apple-dark-border">
+                                <For
+                                    each=move || recently_deleted_notes.get()
+                                    key=|note| note.id
+                                    let:note
+                                >
+                                    <div class="flex min-w-0 items-center gap-2 px-3 py-2">
+                                        <span class=move || format!("min-w-0 flex-1 truncate {}", ThemeText::Subtle.classes())>
+                                            {note.display_title().to_string()}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            class=backup_footer_button_classes
+                                            on:click=move |_| state.restore_recently_deleted_note(note.id)
+                                        >
+                                            "Restore"
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class=backup_footer_button_classes
+                                            on:click=move |_| state.permanently_clear_recently_deleted_note(note.id)
+                                        >
+                                            "Clear"
+                                        </button>
+                                    </div>
+                                </For>
+                            </div>
+                        </details>
+                    </Show>
                 </div>
                 <div class=sidebar_footer_classes>
-                    <span>{move || format!("{} notes", state.note_count())}</span>
+                    <div class="min-w-0">
+                        <div>{move || format!("{} notes", state.note_count())}</div>
+                        <div class="max-w-36 truncate">{move || state.backup_health_summary()}</div>
+                    </div>
                     <div class="ml-auto flex min-w-0 items-center gap-2">
                         <Show when=move || !backup_status.get().is_empty()>
                             <span class=move || format!("max-w-24 truncate {}", ThemeText::Subtle.classes())>{move || backup_status.get()}</span>
@@ -283,6 +349,42 @@ pub fn Sidebar() -> impl IntoView {
                         </label>
                     </div>
                 </div>
+                <Show when=move || pending_backup_import.get().is_some()>
+                    <div class=move || format!("border-t border-apple-gray-300 px-4 py-3 text-xs dark:border-apple-dark-border {}", ThemeSurface::EditorChrome.classes())>
+                        {move || {
+                            pending_backup_import
+                                .get()
+                                .map(|(_, preview)| {
+                                    view! {
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <span class=move || ThemeText::Primary.classes()>
+                                                {format!(
+                                                    "Import {} notes: {} new, {} replace",
+                                                    preview.total_imported_notes,
+                                                    preview.notes_to_add,
+                                                    preview.notes_to_replace
+                                                )}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                class=backup_footer_button_classes
+                                                on:click=confirm_backup_import
+                                            >
+                                                "Import"
+                                            </button>
+                                            <button
+                                                type="button"
+                                                class=backup_footer_button_classes
+                                                on:click=cancel_backup_import
+                                            >
+                                                "Cancel"
+                                            </button>
+                                        </div>
+                                    }
+                                })
+                        }}
+                    </div>
+                </Show>
             </Show>
         </div>
     }

@@ -76,9 +76,11 @@ impl NoteCollection {
         Self::update_note(notes, id, |note| note.is_pinned = !note.is_pinned)
     }
 
-    pub fn delete_note(notes: &mut Vec<Note>, id: Uuid) -> Option<Uuid> {
-        notes.retain(|note| note.id != id);
-        notes.first().map(|note| note.id)
+    pub fn remove_note(notes: &mut Vec<Note>, id: Uuid) -> Option<(Note, Option<Uuid>)> {
+        let index = notes.iter().position(|note| note.id == id)?;
+        let removed = notes.remove(index);
+        let next_selected_id = notes.first().map(|note| note.id);
+        Some((removed, next_selected_id))
     }
 
     fn update_note(notes: &mut [Note], id: Uuid, update: impl FnOnce(&mut Note)) -> bool {
@@ -222,15 +224,16 @@ mod tests {
     }
 
     #[test]
-    fn deleting_a_note_returns_next_selection() {
+    fn removing_a_note_returns_the_note_and_next_selection() {
         let first = Note::new("First".to_string(), "".to_string());
         let second = Note::new("Second".to_string(), "".to_string());
         let deleted_id = first.id;
         let expected_next = second.id;
         let mut notes = vec![first, second];
 
-        let next_selected = NoteCollection::delete_note(&mut notes, deleted_id);
+        let (removed, next_selected) = NoteCollection::remove_note(&mut notes, deleted_id).unwrap();
 
+        assert_eq!(removed.id, deleted_id);
         assert_eq!(next_selected, Some(expected_next));
         assert_eq!(notes.len(), 1);
         assert_eq!(notes[0].id, expected_next);

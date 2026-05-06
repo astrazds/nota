@@ -1,3 +1,4 @@
+use crate::backup::BackupHealthRecord;
 use crate::model::Note;
 use crate::sample_notes::debug_starter_notes;
 use gloo_storage::errors::StorageError;
@@ -11,6 +12,8 @@ use wasm_bindgen::prelude::Closure;
 use web_sys::console;
 
 const STORAGE_KEY: &str = "noter-notes";
+const RECENTLY_DELETED_STORAGE_KEY: &str = "noter-recently-deleted-notes";
+const BACKUP_HEALTH_KEY: &str = "noter-backup-health";
 const DARK_MODE_KEY: &str = "noter-dark-mode";
 const SIDEBAR_OPEN_KEY: &str = "noter-sidebar-open";
 const DOCUMENT_PAGE_FLUSH_EVENTS: &[&str] = &["visibilitychange"];
@@ -160,6 +163,16 @@ pub fn load_notes() -> Vec<Note> {
     decision.into_notes()
 }
 
+pub fn load_recently_deleted_notes() -> Vec<Note> {
+    let adapter = BrowserNotesStorage;
+    decide_recently_deleted_startup(adapter.load_recently_deleted_notes_json().as_deref())
+}
+
+pub fn load_backup_health_record() -> Option<BackupHealthRecord> {
+    let adapter = BrowserNotesStorage;
+    decide_backup_health_startup(adapter.load_backup_health_json().as_deref())
+}
+
 fn decide_notes_startup(saved_json: Option<&str>, starter_notes: Vec<Note>) -> StartupDecision {
     let Some(saved_json) = saved_json else {
         return if starter_notes.is_empty() {
@@ -174,6 +187,16 @@ fn decide_notes_startup(saved_json: Option<&str>, starter_notes: Vec<Note>) -> S
         Ok(notes) => StartupDecision::SavedCollection(notes),
         Err(_) => StartupDecision::CorruptSavedData,
     }
+}
+
+fn decide_recently_deleted_startup(saved_json: Option<&str>) -> Vec<Note> {
+    saved_json
+        .and_then(|json| serde_json::from_str::<Vec<Note>>(json).ok())
+        .unwrap_or_default()
+}
+
+fn decide_backup_health_startup(saved_json: Option<&str>) -> Option<BackupHealthRecord> {
+    saved_json.and_then(|json| serde_json::from_str::<BackupHealthRecord>(json).ok())
 }
 
 struct BrowserNotesStorage;
@@ -205,10 +228,78 @@ impl BrowserNotesStorage {
             log_browser_storage_error("save", STORAGE_KEY, &error);
         }
     }
+
+    fn load_recently_deleted_notes_json(&self) -> Option<String> {
+        web_sys::window()
+            .and_then(|window| window.local_storage().ok().flatten())
+            .and_then(
+                |storage| match storage.get_item(RECENTLY_DELETED_STORAGE_KEY) {
+                    Ok(value) => value,
+                    Err(error) => {
+                        log_browser_storage_error("load", RECENTLY_DELETED_STORAGE_KEY, &error);
+                        None
+                    }
+                },
+            )
+    }
+
+    fn save_recently_deleted_notes(&self, notes: &[Note]) {
+        let Ok(notes_json) = serde_json::to_string(notes) else {
+            let message = format!(
+                "Storage error (save {RECENTLY_DELETED_STORAGE_KEY}): could not serialise Notes"
+            );
+            console::error_1(&message.into());
+            return;
+        };
+
+        if let Some(storage) =
+            web_sys::window().and_then(|window| window.local_storage().ok().flatten())
+            && let Err(error) = storage.set_item(RECENTLY_DELETED_STORAGE_KEY, &notes_json)
+        {
+            log_browser_storage_error("save", RECENTLY_DELETED_STORAGE_KEY, &error);
+        }
+    }
+
+    fn load_backup_health_json(&self) -> Option<String> {
+        web_sys::window()
+            .and_then(|window| window.local_storage().ok().flatten())
+            .and_then(|storage| match storage.get_item(BACKUP_HEALTH_KEY) {
+                Ok(value) => value,
+                Err(error) => {
+                    log_browser_storage_error("load", BACKUP_HEALTH_KEY, &error);
+                    None
+                }
+            })
+    }
+
+    fn save_backup_health_record(&self, record: BackupHealthRecord) {
+        let Ok(record_json) = serde_json::to_string(&record) else {
+            let message = format!(
+                "Storage error (save {BACKUP_HEALTH_KEY}): could not serialise Backup health"
+            );
+            console::error_1(&message.into());
+            return;
+        };
+
+        if let Some(storage) =
+            web_sys::window().and_then(|window| window.local_storage().ok().flatten())
+            && let Err(error) = storage.set_item(BACKUP_HEALTH_KEY, &record_json)
+        {
+            log_browser_storage_error("save", BACKUP_HEALTH_KEY, &error);
+        }
+    }
 }
 
 pub fn save_notes(notes: &[Note]) {
     BrowserNotesStorage.save_notes(notes);
+}
+
+pub fn save_recently_deleted_notes(notes: &[Note]) {
+    BrowserNotesStorage.save_recently_deleted_notes(notes);
+}
+
+pub fn save_backup_health_record(record: BackupHealthRecord) {
+    BrowserNotesStorage.save_backup_health_record(record);
 }
 
 fn flush_pending_save(
@@ -385,6 +476,37 @@ mod tests {
 
         assert_eq!(decision, StartupDecision::CorruptSavedData);
         assert_eq!(decision.into_notes(), Vec::new());
+    }
+
+    #[test]
+    fn recently_deleted_startup_uses_empty_collection_for_missing_or_corrupt_storage() {
+        let deleted_note = Note::new("Deleted".to_string(), "Recover me".to_string());
+        let saved_json = serde_json::to_string(&vec![deleted_note.clone()]).unwrap();
+
+        assert_eq!(decide_recently_deleted_startup(None), Vec::<Note>::new());
+        assert_eq!(
+            decide_recently_deleted_startup(Some(&saved_json)),
+            vec![deleted_note]
+        );
+        assert_eq!(
+            decide_recently_deleted_startup(Some("{not valid json")),
+            Vec::<Note>::new()
+        );
+    }
+
+    #[test]
+    fn backup_health_startup_treats_missing_or_malformed_storage_as_absent() {
+        let record = BackupHealthRecord {
+            last_successful_export_at: chrono::Utc::now(),
+        };
+        let saved_json = serde_json::to_string(&record).unwrap();
+
+        assert_eq!(decide_backup_health_startup(None), None);
+        assert_eq!(
+            decide_backup_health_startup(Some(&saved_json)),
+            Some(record)
+        );
+        assert_eq!(decide_backup_health_startup(Some("{not valid json")), None);
     }
 
     #[test]

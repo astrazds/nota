@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 const BACKUP_VERSION: u32 = 1;
 const BACKUP_KIND: &str = "noter.flat_collection";
+const BACKUP_HEALTH_STALE_AFTER_DAYS: i64 = 14;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct FlatCollectionBackup {
@@ -35,23 +36,95 @@ pub fn backup_file_name(now: DateTime<Utc>) -> String {
     format!("noter-backup-{}.json", now.format("%Y-%m-%d"))
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BackupHealthRecord {
+    pub last_successful_export_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BackupHealth {
+    Missing,
+    Recent {
+        last_successful_export_at: DateTime<Utc>,
+    },
+    Stale {
+        last_successful_export_at: DateTime<Utc>,
+    },
+}
+
+pub fn assess_backup_health(
+    record: Option<BackupHealthRecord>,
+    now: DateTime<Utc>,
+) -> BackupHealth {
+    let Some(record) = record else {
+        return BackupHealth::Missing;
+    };
+
+    if now.signed_duration_since(record.last_successful_export_at)
+        > chrono::Duration::days(BACKUP_HEALTH_STALE_AFTER_DAYS)
+    {
+        BackupHealth::Stale {
+            last_successful_export_at: record.last_successful_export_at,
+        }
+    } else {
+        BackupHealth::Recent {
+            last_successful_export_at: record.last_successful_export_at,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BackupImport {
     pub selected_id: Option<uuid::Uuid>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BackupImportPreview {
+    pub notes_to_add: usize,
+    pub notes_to_replace: usize,
+    pub total_imported_notes: usize,
+    pub selected_id: Option<uuid::Uuid>,
+}
+
+pub fn preview_flat_collection_backup(
+    notes: &[Note],
+    backup_json: &str,
+) -> Result<BackupImportPreview, BackupError> {
+    let backup = parse_flat_collection_backup(backup_json)?;
+    Ok(import_preview(notes, &backup.notes))
 }
 
 pub fn import_flat_collection_backup(
     notes: &mut Vec<Note>,
     backup_json: &str,
 ) -> Result<BackupImport, BackupError> {
-    let backup: FlatCollectionBackup =
-        serde_json::from_str(backup_json).map_err(BackupError::Deserialize)?;
-    validate_backup(&backup)?;
+    let backup = parse_flat_collection_backup(backup_json)?;
 
     let selected_id = backup.notes.first().map(|note| note.id);
     merge_notes(notes, backup.notes);
 
     Ok(BackupImport { selected_id })
+}
+
+fn parse_flat_collection_backup(backup_json: &str) -> Result<FlatCollectionBackup, BackupError> {
+    let backup: FlatCollectionBackup =
+        serde_json::from_str(backup_json).map_err(BackupError::Deserialize)?;
+    validate_backup(&backup)?;
+    Ok(backup)
+}
+
+fn import_preview(notes: &[Note], backup_notes: &[Note]) -> BackupImportPreview {
+    let notes_to_replace = backup_notes
+        .iter()
+        .filter(|backup_note| notes.iter().any(|note| note.id == backup_note.id))
+        .count();
+    let total_imported_notes = backup_notes.len();
+    BackupImportPreview {
+        notes_to_add: total_imported_notes.saturating_sub(notes_to_replace),
+        notes_to_replace,
+        total_imported_notes,
+        selected_id: backup_notes.first().map(|note| note.id),
+    }
 }
 
 fn merge_notes(notes: &mut Vec<Note>, backup_notes: Vec<Note>) {
@@ -146,6 +219,33 @@ mod tests {
     }
 
     #[test]
+    fn backup_health_distinguishes_missing_recent_and_stale_exports() {
+        let now = Utc.with_ymd_and_hms(2026, 5, 6, 9, 30, 0).unwrap();
+
+        assert_eq!(assess_backup_health(None, now), BackupHealth::Missing);
+
+        let recent_record = BackupHealthRecord {
+            last_successful_export_at: now - chrono::Duration::days(3),
+        };
+        assert_eq!(
+            assess_backup_health(Some(recent_record), now),
+            BackupHealth::Recent {
+                last_successful_export_at: recent_record.last_successful_export_at
+            }
+        );
+
+        let stale_record = BackupHealthRecord {
+            last_successful_export_at: now - chrono::Duration::days(30),
+        };
+        assert_eq!(
+            assess_backup_health(Some(stale_record), now),
+            BackupHealth::Stale {
+                last_successful_export_at: stale_record.last_successful_export_at
+            }
+        );
+    }
+
+    #[test]
     fn imports_into_an_empty_collection_and_preserves_note_fields() {
         let original_note = note_with_fields();
         let backup_json =
@@ -192,6 +292,34 @@ mod tests {
 
         assert_eq!(imported.selected_id, Some(replacement_note.id));
         assert_eq!(notes, vec![replacement_note, existing_only, imported_only]);
+    }
+
+    #[test]
+    fn previews_merge_import_impact_without_mutating_current_notes() {
+        let original_note = note_with_fields();
+        let mut replacement_note = original_note.clone();
+        replacement_note.title = "Imported replacement".to_string();
+        let imported_only = Note {
+            id: Uuid::parse_str("33333333-3333-3333-3333-333333333333").unwrap(),
+            title: "Imported only".to_string(),
+            content: "New imported content".to_string(),
+            tags: vec!["new".to_string()],
+            is_pinned: false,
+            created: Utc.with_ymd_and_hms(2026, 5, 1, 9, 0, 0).unwrap(),
+            last_modified: Utc.with_ymd_and_hms(2026, 5, 2, 9, 0, 0).unwrap(),
+        };
+        let backup_json =
+            export_flat_collection_backup(&[replacement_note.clone(), imported_only.clone()])
+                .unwrap();
+        let notes = vec![original_note.clone()];
+
+        let preview = preview_flat_collection_backup(&notes, &backup_json).unwrap();
+
+        assert_eq!(preview.notes_to_add, 1);
+        assert_eq!(preview.notes_to_replace, 1);
+        assert_eq!(preview.total_imported_notes, 2);
+        assert_eq!(preview.selected_id, Some(replacement_note.id));
+        assert_eq!(notes, vec![original_note]);
     }
 
     #[test]

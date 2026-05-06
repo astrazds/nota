@@ -2,7 +2,7 @@
 
 A local-first Markdown note-taking web app built with **Rust**, **Leptos**, and **Tailwind CSS**.
 
-Current app version: **0.5.0**.
+Current app version: **0.6.0**.
 
 ## Features
 
@@ -19,7 +19,9 @@ Current app version: **0.5.0**.
   - **Tags**: Lightweight Note Metadata with autocomplete, normalization, removable Tag pills, preview visibility beneath the Note Title, and reviewed cleanup for secondary filtering without folders or notebooks.
   - **Pinning**: Pin important notes to the top of your list.
 - **Local Persistence**: Automatically persists notes to your browser's `LocalStorage` with debounced saves while typing.
-- **Backup & Restore**: Export a versioned Flat Collection backup and safely merge-import backups from the sidebar footer without destructive replacement.
+- **Quick Capture**: Create a new Note from the sidebar, empty state, or `Ctrl/Cmd+N`; compact viewports return directly to the Writing Surface with the Note Title focused.
+- **Recoverable Delete**: Deleted Notes move to Recently Deleted so accidental deletes can be restored or explicitly cleared.
+- **Backup & Restore**: Export a versioned Flat Collection backup, track the last successful export, and preview add/replace impact before safely merge-importing backups from the sidebar footer.
 - **Debug Starter Notes**: Debug builds seed three representative notes when the browser has no saved notes yet, giving manual testing coverage for pinning, tags, rich Markdown, preview safety, search, and responsive editing.
 - **Tuned Themes**: Supports Light and Dark themes with coherent surfaces, borders, selection states, and accents.
 - **Responsive Design**: Optimised for desktop and mobile, with top-bar navigation between the Note List and Writing Surface.
@@ -31,7 +33,7 @@ Current app version: **0.5.0**.
   - Markdown help modal
   - Save status near the active editing context
 - **Stable Note Actions**: Pin/unpin and delete are available from a note action menu instead of hover-only controls.
-- **Delete Confirmation**: Modal confirmation names the target note before deleting it.
+- **Delete Confirmation**: Modal confirmation names the target Note before moving it to Recently Deleted.
 - **Accessibility**: ARIA labels on interactive elements.
 
 ## Technology Stack
@@ -96,13 +98,13 @@ cargo doc --workspace --no-deps
 ```
 
 Tests cover core domain logic including:
-- **Backup & Restore**: Versioned Flat Collection backup export, validation, merge import, duplicate identity handling, and all-or-nothing failure behavior.
+- **Backup & Restore**: Versioned Flat Collection backup export, validation, import preview, merge import, duplicate identity handling, backup health, and all-or-nothing failure behavior.
 - **Filtering & Sorting**: Real-time search, scoped query parsing, quoted phrase matching, text highlighting, render-ready note list projection, active tag filtering, and note pinning logic.
 - **Browser Visual Regressions**: Mobile sidebar width, long Note Title wrapping/truncation, editor/preview text scale parity, search hint placement, footer backup controls, and Tag visibility across writing and previewing.
 - **Formatting**: Named Markdown commands and UTF-16/UTF-8-safe selection handling.
-- **Note Logic**: Workspace behaviours for note creation, selected note editing, delete confirmation, title extraction, date formatting, preview truncation, and deserialisation.
+- **Note Logic**: Workspace behaviours for quick capture, note creation, selected note editing, recoverable delete/restore/clear, delete confirmation, title extraction, date formatting, preview truncation, and deserialisation.
 - **Tags**: Parsing, display formatting, autocomplete suggestions, normalization, individual removal, cleanup planning, case-insensitive matching, collection, and sorting.
-- **Persistence**: Save lifecycle and save session behaviour for debounced LocalStorage saves.
+- **Persistence**: Save lifecycle and save session behaviour for debounced LocalStorage saves, Recently Deleted storage, and Backup Health metadata.
 - **Starter Notes**: Debug-only sample notes cover pinning, tags, rich Markdown, preview safety, long previews, and responsive editing checks.
 - **Preview Rendering & Safety**: Title/body separation, duplicate heading suppression, raw HTML escaping, safe URL policy, and supported Markdown preview dialect on the same body-rendering path used by the app.
 - **Unicode Support**: Proper handling of multi-byte characters in character counting, preview truncation, formatting, and search highlighting.
@@ -114,12 +116,12 @@ Coverage sweeps should follow the repo's TDD convention: add or tighten one beha
 The app keeps high-leverage behaviour behind focused Rust Modules:
 
 - `tag_rules`: tag parsing, display formatting, collection, sorting, and case-insensitive matching.
-- `backup`: versioned Flat Collection backup export/import, validation, and merge behavior.
+- `backup`: versioned Flat Collection backup export/import, import preview, backup health assessment, validation, and merge behavior.
 - `search_query`: scoped Search parsing and Note matching for quoted phrases, `title:`, `tag:`, and `is:pinned`.
-- `note_workspace`: selected note lookup, empty collection display state, note creation, selected note editing, delete confirmation target naming, and pinning behaviours.
+- `note_workspace`: selected note lookup, empty collection display state, note creation, selected note editing, recoverable delete/restore/clear, delete confirmation target naming, and pinning behaviours.
 - `note_discovery`: note list projection, Search integration, active tag filtering, ordering, display fields, and highlight segments.
 - `editor_view`: explicit Write, Preview, and Split view modes with viewport-aware behaviour.
-- `storage`: debounced save session, save lifecycle, LocalStorage persistence, and page lifecycle flushing.
+- `storage`: debounced save session, save lifecycle, active Notes persistence, Recently Deleted persistence, Backup Health metadata, and page lifecycle flushing.
 - `markdown_editing`: named Markdown commands, cheatsheet sections, and Unicode-safe caret handling.
 - `markdown_preview`: supported Markdown body rendering, duplicate title suppression, and preview safety policy. The Leptos preview pane owns the Note Title and read-only Tags so Preview and Split match the editor header order.
 

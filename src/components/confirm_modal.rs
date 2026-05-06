@@ -15,7 +15,7 @@ pub fn ConfirmModal(title: &'static str, message: &'static str) -> impl IntoView
                     {move || {
                         state
                             .delete_confirmation_title()
-                            .map(|note_title| format!("\"{note_title}\" will be permanently deleted."))
+                            .map(delete_confirmation_message)
                             .unwrap_or_else(|| message.to_string())
                     }}
                 </p>
@@ -58,5 +58,22 @@ pub fn ConfirmModal(title: &'static str, message: &'static str) -> impl IntoView
                 <div class="p-6"></div>
             </Modal>
         </Show>
+    }
+}
+
+fn delete_confirmation_message(note_title: String) -> String {
+    format!("\"{note_title}\" will move to Recently Deleted.")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn delete_confirmation_copy_matches_recoverable_delete_behavior() {
+        assert_eq!(
+            delete_confirmation_message("Draft".to_string()),
+            "\"Draft\" will move to Recently Deleted."
+        );
     }
 }

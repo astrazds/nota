@@ -17,7 +17,10 @@ mod theme;
 
 use components::{ConfirmModal, Editor, Sidebar};
 
-use backup::{BackupError, backup_file_name, export_flat_collection_backup};
+use backup::{
+    BackupError, BackupHealth, BackupHealthRecord, BackupImportPreview, assess_backup_health,
+    backup_file_name, export_flat_collection_backup, preview_flat_collection_backup,
+};
 use chrono::Utc;
 use editor_view::EditorViewMode;
 use leptos::prelude::*;
@@ -32,8 +35,9 @@ use responsive_navigation::{
     normalize_view_mode,
 };
 use storage::{
-    SaveSession, SaveStatus, load_dark_mode, load_notes, load_sidebar_open, save_dark_mode,
-    save_sidebar_open,
+    SaveSession, SaveStatus, load_backup_health_record, load_dark_mode, load_notes,
+    load_recently_deleted_notes, load_sidebar_open, save_backup_health_record, save_dark_mode,
+    save_recently_deleted_notes, save_sidebar_open,
 };
 use tag_rules::{TagCleanupPlan, TagSuggestion, collect_note_tags, suggest_existing_tags};
 use theme::ThemeSurface;
@@ -50,6 +54,7 @@ pub struct AppState {
     pub note_list_interaction: RwSignal<NoteListInteraction>,
     pub editor_view_mode: RwSignal<EditorViewMode>,
     pub save_status: RwSignal<SaveStatus>,
+    pub backup_health_record: RwSignal<Option<BackupHealthRecord>>,
 }
 
 impl AppState {
@@ -59,6 +64,17 @@ impl AppState {
 
     pub fn notes_untracked(self) -> Vec<Note> {
         self.workspace.get_untracked().notes().to_vec()
+    }
+
+    pub fn recently_deleted_notes(self) -> Vec<Note> {
+        self.workspace.get().recently_deleted_notes().to_vec()
+    }
+
+    pub fn recently_deleted_notes_untracked(self) -> Vec<Note> {
+        self.workspace
+            .get_untracked()
+            .recently_deleted_notes()
+            .to_vec()
     }
 
     pub fn note_count(self) -> usize {
@@ -157,7 +173,12 @@ impl AppState {
     }
 
     pub fn create_note(self) {
+        self.quick_capture_note();
+    }
+
+    pub fn quick_capture_note(self) {
         self.workspace.update(NoteWorkspace::create_note);
+        self.note_selected();
         self.mark_notes_changed();
     }
 
@@ -198,6 +219,27 @@ impl AppState {
             .try_update(NoteWorkspace::confirm_delete)
             .unwrap_or(false);
         if deleted {
+            self.mark_notes_changed();
+        }
+    }
+
+    pub fn restore_recently_deleted_note(self, id: Uuid) {
+        let restored = self
+            .workspace
+            .try_update(|workspace| workspace.restore_recently_deleted(id))
+            .unwrap_or(false);
+        if restored {
+            self.note_selected();
+            self.mark_notes_changed();
+        }
+    }
+
+    pub fn permanently_clear_recently_deleted_note(self, id: Uuid) {
+        let cleared = self
+            .workspace
+            .try_update(|workspace| workspace.permanently_clear_recently_deleted(id))
+            .unwrap_or(false);
+        if cleared {
             self.mark_notes_changed();
         }
     }
@@ -264,6 +306,36 @@ impl AppState {
         backup_file_name(Utc::now())
     }
 
+    pub fn backup_health(self) -> BackupHealth {
+        assess_backup_health(self.backup_health_record.get(), Utc::now())
+    }
+
+    pub fn backup_health_summary(self) -> String {
+        match self.backup_health() {
+            BackupHealth::Missing => "No backup yet".to_string(),
+            BackupHealth::Recent {
+                last_successful_export_at,
+            } => format!(
+                "Last backup {}",
+                last_successful_export_at.format("%d/%m/%Y")
+            ),
+            BackupHealth::Stale {
+                last_successful_export_at,
+            } => format!(
+                "Backup stale since {}",
+                last_successful_export_at.format("%d/%m/%Y")
+            ),
+        }
+    }
+
+    pub fn record_backup_exported(self) {
+        let record = BackupHealthRecord {
+            last_successful_export_at: Utc::now(),
+        };
+        self.backup_health_record.set(Some(record));
+        save_backup_health_record(record);
+    }
+
     pub fn import_backup_json(self, backup_json: &str) -> Result<(), BackupError> {
         self.workspace
             .try_update(|workspace| workspace.import_flat_collection_backup(backup_json))
@@ -274,6 +346,13 @@ impl AppState {
             })?;
         self.mark_notes_changed();
         Ok(())
+    }
+
+    pub fn preview_backup_import_json(
+        self,
+        backup_json: &str,
+    ) -> Result<BackupImportPreview, BackupError> {
+        preview_flat_collection_backup(&self.notes_untracked(), backup_json)
     }
 
     pub fn toggle_note_pin(self, id: Uuid) {
@@ -342,7 +421,10 @@ fn main() {
 
 #[component]
 fn App() -> impl IntoView {
-    let workspace = RwSignal::new(NoteWorkspace::new(load_notes()));
+    let workspace = RwSignal::new(NoteWorkspace::new_with_recently_deleted(
+        load_notes(),
+        load_recently_deleted_notes(),
+    ));
     let notes_save_revision = RwSignal::new(0);
     let is_dark_mode = RwSignal::new(load_dark_mode());
     let viewport_class = RwSignal::new(current_viewport_class());
@@ -354,6 +436,7 @@ fn App() -> impl IntoView {
     let note_list_interaction = RwSignal::new(NoteListInteraction::default());
     let editor_view_mode = RwSignal::new(EditorViewMode::Write);
     let save_status = RwSignal::new(SaveStatus::Saved);
+    let backup_health_record = RwSignal::new(load_backup_health_record());
 
     let state = AppState {
         workspace,
@@ -364,9 +447,11 @@ fn App() -> impl IntoView {
         note_list_interaction,
         editor_view_mode,
         save_status,
+        backup_health_record,
     };
     provide_context(state);
     install_viewport_listener(state);
+    install_quick_capture_shortcut(state);
 
     // Persist dark mode on change
     Effect::new(move |_| {
@@ -387,9 +472,19 @@ fn App() -> impl IntoView {
     Effect::new(move |_| {
         let _ = state.notes_save_revision.get();
         let notes_to_save = state.notes_untracked();
+        let recently_deleted_to_save = state.recently_deleted_notes_untracked();
         save_session_for_effect.schedule_notes_save(notes_to_save, state.save_status);
+        save_recently_deleted_notes(&recently_deleted_to_save);
     });
-    save_session.install_page_flush_listeners(move || state.notes_untracked(), state.save_status);
+    save_session.install_page_flush_listeners(
+        move || {
+            let notes = state.notes_untracked();
+            let recently_deleted = state.recently_deleted_notes_untracked();
+            save_recently_deleted_notes(&recently_deleted);
+            notes
+        },
+        state.save_status,
+    );
 
     view! {
         <div
@@ -402,7 +497,7 @@ fn App() -> impl IntoView {
             <Editor />
             <ConfirmModal
                 title="Delete Note?"
-                message="This cannot be undone."
+                message="This can be restored from Recently Deleted."
             />
         </div>
     }
@@ -442,6 +537,41 @@ fn install_viewport_listener(state: AppState) {
     resize_listener.forget();
 }
 
+fn install_quick_capture_shortcut(state: AppState) {
+    let Some(win) = web_sys::window() else {
+        return;
+    };
+
+    let keydown_listener = Closure::wrap(Box::new(move |ev: web_sys::KeyboardEvent| {
+        if !is_quick_capture_shortcut(
+            &ev.key(),
+            ev.ctrl_key(),
+            ev.meta_key(),
+            ev.alt_key(),
+            ev.shift_key(),
+        ) {
+            return;
+        }
+
+        ev.prevent_default();
+        state.quick_capture_note();
+    }) as Box<dyn FnMut(_)>);
+
+    let _ =
+        win.add_event_listener_with_callback("keydown", keydown_listener.as_ref().unchecked_ref());
+    keydown_listener.forget();
+}
+
+fn is_quick_capture_shortcut(
+    key: &str,
+    ctrl_key: bool,
+    meta_key: bool,
+    alt_key: bool,
+    shift_key: bool,
+) -> bool {
+    key.eq_ignore_ascii_case("n") && (ctrl_key || meta_key) && !alt_key && !shift_key
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -462,6 +592,7 @@ mod tests {
                 note_list_interaction: RwSignal::new(NoteListInteraction::default()),
                 editor_view_mode: RwSignal::new(EditorViewMode::Write),
                 save_status: RwSignal::new(SaveStatus::Saved),
+                backup_health_record: RwSignal::new(None),
             };
 
             test(state)
@@ -479,6 +610,25 @@ mod tests {
 
             assert_eq!(state.selected_id(), Some(second_id));
             assert!(!state.is_sidebar_open.get_untracked());
+        });
+    }
+
+    #[test]
+    fn quick_capture_creates_focuses_and_reveals_a_new_note() {
+        let existing = Note::new("Existing".to_string(), String::new());
+        let existing_id = existing.id;
+
+        with_test_state(vec![existing], ViewportClass::Compact, true, |state| {
+            state.quick_capture_note();
+
+            let notes = state.notes_untracked();
+            assert_eq!(notes.len(), 2);
+            assert_ne!(notes[0].id, existing_id);
+            assert_eq!(state.selected_id(), Some(notes[0].id));
+            assert_eq!(state.focus_intent(), FocusIntent::NoteTitle);
+            assert!(!state.is_sidebar_open.get_untracked());
+            assert_eq!(notes[1].id, existing_id);
+            assert_eq!(state.notes_save_revision.get_untracked(), 1);
         });
     }
 
@@ -502,6 +652,35 @@ mod tests {
                 state.delete_confirmation_title().as_deref(),
                 Some("Action target")
             );
+        });
+    }
+
+    #[test]
+    fn recently_deleted_restore_and_clear_mark_notes_changed() {
+        let note = Note::new("Recoverable".to_string(), String::new());
+        let note_id = note.id;
+
+        with_test_state(vec![note.clone()], ViewportClass::Wide, true, |state| {
+            state.request_delete_note(note_id);
+            state.confirm_delete_selected_note();
+
+            assert!(state.notes_untracked().is_empty());
+            assert_eq!(state.recently_deleted_notes_untracked(), vec![note.clone()]);
+            assert_eq!(state.notes_save_revision.get_untracked(), 1);
+
+            state.restore_recently_deleted_note(note_id);
+
+            assert_eq!(state.notes_untracked(), vec![note.clone()]);
+            assert!(state.recently_deleted_notes_untracked().is_empty());
+            assert_eq!(state.selected_id(), Some(note_id));
+            assert_eq!(state.notes_save_revision.get_untracked(), 2);
+
+            state.request_delete_note(note_id);
+            state.confirm_delete_selected_note();
+            state.permanently_clear_recently_deleted_note(note_id);
+
+            assert!(state.recently_deleted_notes_untracked().is_empty());
+            assert_eq!(state.notes_save_revision.get_untracked(), 4);
         });
     }
 
@@ -589,5 +768,16 @@ mod tests {
                 assert_eq!(state.notes_save_revision.get_untracked(), 0);
             },
         );
+    }
+
+    #[test]
+    fn quick_capture_shortcut_uses_primary_modifier_and_plain_n() {
+        assert!(is_quick_capture_shortcut("n", true, false, false, false));
+        assert!(is_quick_capture_shortcut("N", false, true, false, false));
+
+        assert!(!is_quick_capture_shortcut("n", false, false, false, false));
+        assert!(!is_quick_capture_shortcut("n", true, false, true, false));
+        assert!(!is_quick_capture_shortcut("n", true, false, false, true));
+        assert!(!is_quick_capture_shortcut("m", true, false, false, false));
     }
 }

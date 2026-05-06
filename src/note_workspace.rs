@@ -8,6 +8,7 @@ use uuid::Uuid;
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct NoteWorkspace {
     notes: Vec<Note>,
+    recently_deleted_notes: Vec<Note>,
     selected_id: Option<Uuid>,
     focus_intent: FocusIntent,
     delete_confirmation: Option<DeleteConfirmation>,
@@ -38,6 +39,18 @@ impl NoteWorkspace {
         let selected_id = notes.first().map(|note| note.id);
         Self {
             notes,
+            recently_deleted_notes: Vec::new(),
+            selected_id,
+            focus_intent: FocusIntent::None,
+            delete_confirmation: None,
+        }
+    }
+
+    pub fn new_with_recently_deleted(notes: Vec<Note>, recently_deleted_notes: Vec<Note>) -> Self {
+        let selected_id = notes.first().map(|note| note.id);
+        Self {
+            notes,
+            recently_deleted_notes,
             selected_id,
             focus_intent: FocusIntent::None,
             delete_confirmation: None,
@@ -46,6 +59,10 @@ impl NoteWorkspace {
 
     pub fn notes(&self) -> &[Note] {
         &self.notes
+    }
+
+    pub fn recently_deleted_notes(&self) -> &[Note] {
+        &self.recently_deleted_notes
     }
 
     pub fn selected_id(&self) -> Option<Uuid> {
@@ -166,12 +183,43 @@ impl NoteWorkspace {
             return false;
         };
 
-        if self.notes.iter().any(|note| note.id == confirmation.id) {
-            self.selected_id = NoteCollection::delete_note(&mut self.notes, confirmation.id);
+        if let Some((deleted_note, next_selected_id)) =
+            NoteCollection::remove_note(&mut self.notes, confirmation.id)
+        {
+            self.selected_id = next_selected_id;
+            self.recently_deleted_notes.insert(0, deleted_note);
             true
         } else {
             false
         }
+    }
+
+    pub fn restore_recently_deleted(&mut self, id: Uuid) -> bool {
+        let Some(index) = self
+            .recently_deleted_notes
+            .iter()
+            .position(|note| note.id == id)
+        else {
+            return false;
+        };
+
+        let note = self.recently_deleted_notes.remove(index);
+        self.selected_id = Some(note.id);
+        self.notes.insert(0, note);
+        true
+    }
+
+    pub fn permanently_clear_recently_deleted(&mut self, id: Uuid) -> bool {
+        let Some(index) = self
+            .recently_deleted_notes
+            .iter()
+            .position(|note| note.id == id)
+        else {
+            return false;
+        };
+
+        self.recently_deleted_notes.remove(index);
+        true
     }
 
     pub fn toggle_pin(&mut self, id: Uuid) -> bool {
@@ -337,6 +385,49 @@ mod tests {
         assert_eq!(imported.selected_id, Some(imported_note.id));
         assert_eq!(workspace.selected_id(), Some(imported_note.id));
         assert_eq!(workspace.notes(), &[imported_note]);
+    }
+
+    #[test]
+    fn confirmed_delete_moves_note_to_recently_deleted_and_restores_it() {
+        let mut deleted_note = Note::new("Deleted".to_string(), "Recoverable".to_string());
+        deleted_note.tags = vec!["work".to_string()];
+        deleted_note.is_pinned = true;
+        let deleted_id = deleted_note.id;
+        let survivor = Note::new("Survivor".to_string(), String::new());
+        let survivor_id = survivor.id;
+        let mut workspace = NoteWorkspace::new(vec![deleted_note.clone(), survivor]);
+
+        workspace.request_delete(deleted_id);
+        assert!(workspace.confirm_delete());
+
+        assert_eq!(workspace.notes().len(), 1);
+        assert_eq!(workspace.notes()[0].id, survivor_id);
+        assert_eq!(workspace.selected_id(), Some(survivor_id));
+        assert_eq!(workspace.recently_deleted_notes(), &[deleted_note.clone()]);
+        assert!(!workspace.select_note(deleted_id));
+
+        assert!(workspace.restore_recently_deleted(deleted_id));
+
+        assert_eq!(workspace.recently_deleted_notes(), &[]);
+        assert_eq!(workspace.selected_id(), Some(deleted_id));
+        assert_eq!(workspace.notes()[0], deleted_note);
+    }
+
+    #[test]
+    fn recently_deleted_notes_can_be_permanently_cleared() {
+        let deleted_note = Note::new("Deleted".to_string(), "Clear me".to_string());
+        let deleted_id = deleted_note.id;
+        let active_note = Note::new("Active".to_string(), String::new());
+        let active_id = active_note.id;
+        let mut workspace =
+            NoteWorkspace::new_with_recently_deleted(vec![active_note], vec![deleted_note]);
+
+        assert!(workspace.permanently_clear_recently_deleted(deleted_id));
+
+        assert!(workspace.recently_deleted_notes().is_empty());
+        assert_eq!(workspace.notes()[0].id, active_id);
+        assert_eq!(workspace.selected_id(), Some(active_id));
+        assert!(!workspace.permanently_clear_recently_deleted(deleted_id));
     }
 
     #[test]

@@ -1,4 +1,6 @@
+mod app_runtime;
 pub mod backup;
+mod backup_controls;
 mod components;
 mod editor_view;
 mod markdown_editing;
@@ -14,7 +16,10 @@ mod search_query;
 mod storage;
 mod tag_rules;
 mod theme;
+mod ui_recipes;
+mod writing_surface;
 
+use app_runtime::{AppRuntimeStartup, install_runtime_persistence};
 use components::{ConfirmModal, Editor, GlobalNotificationOutlet, Sidebar};
 
 use backup::{
@@ -31,13 +36,11 @@ use note_list_interaction::{
 };
 use note_workspace::{FocusIntent, NoteWorkspace, WorkspaceDisplayState};
 use responsive_navigation::{
-    NoteListPersistence, ResponsiveNavigation, StoredNoteListState, ViewportClass,
-    normalize_view_mode,
+    ResponsiveNavigation, StoredNoteListState, ViewportClass, normalize_view_mode,
 };
 use storage::{
-    SaveSession, SaveStatus, load_backup_health_record, load_dark_mode, load_notes,
-    load_recently_deleted_notes, load_sidebar_open, save_backup_health_record, save_dark_mode,
-    save_recently_deleted_notes, save_sidebar_open,
+    SaveStatus, load_backup_health_record, load_dark_mode, load_notes, load_recently_deleted_notes,
+    load_sidebar_open, save_backup_health_record,
 };
 use tag_rules::{TagCleanupPlan, TagSuggestion, collect_note_tags, suggest_existing_tags};
 use theme::ThemeSurface;
@@ -343,7 +346,7 @@ impl AppState {
     }
 
     pub fn export_backup_json(self) -> Result<String, BackupError> {
-        export_flat_collection_backup(self.workspace.get().notes())
+        export_flat_collection_backup(self.workspace.get_untracked().notes())
     }
 
     pub fn backup_file_name(self) -> String {
@@ -373,8 +376,12 @@ impl AppState {
     }
 
     pub fn record_backup_exported(self) {
+        self.record_backup_exported_at(Utc::now());
+    }
+
+    pub fn record_backup_exported_at(self, last_successful_export_at: chrono::DateTime<Utc>) {
         let record = BackupHealthRecord {
-            last_successful_export_at: Utc::now(),
+            last_successful_export_at,
         };
         self.backup_health_record.set(Some(record));
         save_backup_health_record(record);
@@ -488,81 +495,25 @@ fn main() {
 
 #[component]
 fn App() -> impl IntoView {
-    let workspace = RwSignal::new(NoteWorkspace::new_with_recently_deleted(
-        load_notes(),
-        load_recently_deleted_notes(),
-    ));
-    let notes_save_revision = RwSignal::new(0);
-    let is_dark_mode = RwSignal::new(load_dark_mode());
-    let viewport_class = RwSignal::new(current_viewport_class());
-    let initial_navigation = ResponsiveNavigation::initial(
-        viewport_class.get_untracked(),
-        StoredNoteListState::from_is_open(load_sidebar_open()),
-    );
-    let is_sidebar_open = RwSignal::new(initial_navigation.is_note_list_visible());
-    let note_list_interaction = RwSignal::new(NoteListInteraction::default());
-    let editor_view_mode = RwSignal::new(EditorViewMode::Write);
-    let save_status = RwSignal::new(SaveStatus::Saved);
-    let backup_health_record = RwSignal::new(load_backup_health_record());
-    let notification = RwSignal::new(None);
-    let notification_sequence = RwSignal::new(0);
-
-    let state = AppState {
-        workspace,
-        notes_save_revision,
-        is_dark_mode,
-        viewport_class,
-        is_sidebar_open,
-        note_list_interaction,
-        editor_view_mode,
-        save_status,
-        backup_health_record,
-        notification,
-        notification_sequence,
-    };
+    let state = AppState::from_startup(AppRuntimeStartup {
+        notes: load_notes(),
+        recently_deleted_notes: load_recently_deleted_notes(),
+        is_dark_mode: load_dark_mode(),
+        viewport_class: current_viewport_class(),
+        stored_note_list_state: StoredNoteListState::from_is_open(load_sidebar_open()),
+        backup_health_record: load_backup_health_record(),
+    });
     provide_context(state);
     install_viewport_listener(state);
     install_quick_capture_shortcut(state);
-
-    // Persist dark mode on change
-    Effect::new(move |_| {
-        save_dark_mode(is_dark_mode.get());
-    });
-
-    // Persist sidebar state on change
-    Effect::new(move |_| {
-        let navigation = ResponsiveNavigation::current(viewport_class.get(), is_sidebar_open.get());
-        if let NoteListPersistence::Persist(stored_state) = navigation.persistence() {
-            save_sidebar_open(stored_state.is_open());
-        }
-    });
-
-    // Persist notes on change
-    let save_session = SaveSession::default();
-    let save_session_for_effect = save_session.clone();
-    Effect::new(move |_| {
-        let _ = state.notes_save_revision.get();
-        let notes_to_save = state.notes_untracked();
-        let recently_deleted_to_save = state.recently_deleted_notes_untracked();
-        save_session_for_effect.schedule_notes_save(notes_to_save, state.save_status);
-        save_recently_deleted_notes(&recently_deleted_to_save);
-    });
-    save_session.install_page_flush_listeners(
-        move || {
-            let notes = state.notes_untracked();
-            let recently_deleted = state.recently_deleted_notes_untracked();
-            save_recently_deleted_notes(&recently_deleted);
-            notes
-        },
-        state.save_status,
-    );
+    let _save_session = install_runtime_persistence(state);
 
     view! {
         <div
             class=move || {
                 format!("{} flex h-screen overflow-hidden", ThemeSurface::RootApp.classes())
             }
-            class:dark=move || is_dark_mode.get()
+            class:dark=move || state.is_dark_mode.get()
         >
             <Sidebar />
             <Editor />
@@ -590,18 +541,7 @@ fn install_viewport_listener(state: AppState) {
 
     let resize_listener = Closure::wrap(Box::new(move |_ev: web_sys::Event| {
         let next_viewport_class = current_viewport_class();
-        if state.viewport_class.get_untracked() == next_viewport_class {
-            return;
-        }
-
-        let mut navigation = state.responsive_navigation_untracked();
-        navigation.reclassify_viewport(next_viewport_class);
-
-        state.viewport_class.set(next_viewport_class);
-        state.is_sidebar_open.set(navigation.is_note_list_visible());
-        state.editor_view_mode.update(|view_mode| {
-            *view_mode = normalize_view_mode(next_viewport_class, *view_mode);
-        });
+        state.reclassify_viewport(next_viewport_class);
     }) as Box<dyn FnMut(_)>);
 
     let _ =
@@ -655,19 +595,14 @@ mod tests {
         test: impl FnOnce(AppState) -> T,
     ) -> T {
         Owner::new().with(|| {
-            let state = AppState {
-                workspace: RwSignal::new(NoteWorkspace::new(notes)),
-                notes_save_revision: RwSignal::new(0),
-                is_dark_mode: RwSignal::new(false),
-                viewport_class: RwSignal::new(viewport_class),
-                is_sidebar_open: RwSignal::new(is_sidebar_open),
-                note_list_interaction: RwSignal::new(NoteListInteraction::default()),
-                editor_view_mode: RwSignal::new(EditorViewMode::Write),
-                save_status: RwSignal::new(SaveStatus::Saved),
-                backup_health_record: RwSignal::new(None),
-                notification: RwSignal::new(None),
-                notification_sequence: RwSignal::new(0),
-            };
+            let state = AppState::from_startup(AppRuntimeStartup {
+                notes,
+                recently_deleted_notes: Vec::new(),
+                is_dark_mode: false,
+                viewport_class,
+                stored_note_list_state: StoredNoteListState::from_is_open(is_sidebar_open),
+                backup_health_record: None,
+            });
 
             test(state)
         })
@@ -679,22 +614,14 @@ mod tests {
         test: impl FnOnce(AppState) -> T,
     ) -> T {
         Owner::new().with(|| {
-            let state = AppState {
-                workspace: RwSignal::new(NoteWorkspace::new_with_recently_deleted(
-                    notes,
-                    recently_deleted_notes,
-                )),
-                notes_save_revision: RwSignal::new(0),
-                is_dark_mode: RwSignal::new(false),
-                viewport_class: RwSignal::new(ViewportClass::Wide),
-                is_sidebar_open: RwSignal::new(true),
-                note_list_interaction: RwSignal::new(NoteListInteraction::default()),
-                editor_view_mode: RwSignal::new(EditorViewMode::Write),
-                save_status: RwSignal::new(SaveStatus::Saved),
-                backup_health_record: RwSignal::new(None),
-                notification: RwSignal::new(None),
-                notification_sequence: RwSignal::new(0),
-            };
+            let state = AppState::from_startup(AppRuntimeStartup {
+                notes,
+                recently_deleted_notes,
+                is_dark_mode: false,
+                viewport_class: ViewportClass::Wide,
+                stored_note_list_state: StoredNoteListState::Open,
+                backup_health_record: None,
+            });
 
             test(state)
         })

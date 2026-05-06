@@ -133,15 +133,6 @@ fn selected_note_visibility(
     }
 }
 
-#[allow(
-    dead_code,
-    reason = "kept as the note discovery public test boundary and legacy module interface"
-)]
-pub fn filter_and_sort_notes(notes: &[Note], query: &str, active_tag: Option<&str>) -> Vec<Uuid> {
-    let search_query = SearchQuery::parse(query);
-    filter_and_sort_notes_with_query(notes, &search_query, active_tag)
-}
-
 fn filter_and_sort_notes_with_query(
     notes: &[Note],
     query: &SearchQuery,
@@ -167,15 +158,6 @@ fn filter_and_sort_notes_with_query(
     });
 
     filtered.into_iter().map(|note| note.id).collect()
-}
-
-#[allow(
-    dead_code,
-    reason = "kept as the note discovery public test boundary and legacy module interface"
-)]
-pub fn highlight_segments(text: &str, query: &str) -> Vec<HighlightSegment> {
-    let query = SearchQuery::parse(query);
-    highlight_segments_for_terms(text, &query.title_highlight_terms())
 }
 
 fn highlight_segments_for_terms(text: &str, terms: &[&str]) -> Vec<HighlightSegment> {
@@ -315,6 +297,14 @@ mod tests {
     use super::*;
     use chrono::Utc;
 
+    fn projected_ids(notes: &[Note], query: &str, active_tag: Option<&str>) -> Vec<Uuid> {
+        project_note_list(notes, None, query, active_tag)
+            .rows
+            .into_iter()
+            .map(|row| row.id)
+            .collect()
+    }
+
     #[test]
     fn discovers_notes_with_filter_order_and_highlights_using_one_query() {
         let mut older_pinned = Note::new("Rust Work".to_string(), "Pinned note".to_string());
@@ -328,13 +318,15 @@ mod tests {
 
         let notes = vec![newer_unpinned.clone(), older_pinned.clone()];
 
-        let ids = filter_and_sort_notes(&notes, "rust", Some("work"));
-        assert_eq!(ids, vec![older_pinned.id, newer_unpinned.id]);
-
-        let highlighted = highlight_segments("Rust Work", "rust");
+        let projection = project_note_list(&notes, None, "rust", Some("work"));
         assert_eq!(
-            highlighted,
-            vec![
+            projection.rows.iter().map(|row| row.id).collect::<Vec<_>>(),
+            vec![older_pinned.id, newer_unpinned.id]
+        );
+        let highlighted = &projection.rows[0].title_highlights;
+        assert_eq!(
+            highlighted.as_slice(),
+            &[
                 HighlightSegment {
                     text: "Rust".to_string(),
                     is_match: true,
@@ -358,7 +350,7 @@ mod tests {
             "The launch notes live elsewhere".to_string(),
         );
 
-        let ids = filter_and_sort_notes(&[matching.clone(), other], "\"migration risks\"", None);
+        let ids = projected_ids(&[matching.clone(), other], "\"migration risks\"", None);
 
         assert_eq!(ids, vec![matching.id]);
     }
@@ -374,7 +366,7 @@ mod tests {
             "Risks are tracked before launch".to_string(),
         );
 
-        let ids = filter_and_sort_notes(&[matching.clone(), words_apart], "migration risks", None);
+        let ids = projected_ids(&[matching.clone(), words_apart], "migration risks", None);
 
         assert_eq!(ids, vec![matching.id]);
     }
@@ -386,7 +378,7 @@ mod tests {
             "Capture migration risks before launch".to_string(),
         );
 
-        let ids = filter_and_sort_notes(std::slice::from_ref(&matching), "\"migration risks", None);
+        let ids = projected_ids(std::slice::from_ref(&matching), "\"migration risks", None);
 
         assert_eq!(ids, vec![matching.id]);
     }
@@ -495,7 +487,7 @@ mod tests {
         unpinned.tags = vec!["Work".to_string()];
         unpinned.last_modified = newer_pinned.last_modified + chrono::Duration::seconds(10);
 
-        let ids = filter_and_sort_notes(
+        let ids = projected_ids(
             &[unpinned, older_pinned.clone(), newer_pinned.clone()],
             "is:pinned title:launch tag:work migration",
             None,
@@ -508,7 +500,7 @@ mod tests {
     fn invalid_is_filter_does_not_block_plain_search_terms() {
         let matching = Note::new("Rust Launch Plan".to_string(), String::new());
 
-        let ids = filter_and_sort_notes(std::slice::from_ref(&matching), "is:archived rust", None);
+        let ids = projected_ids(std::slice::from_ref(&matching), "is:archived rust", None);
 
         assert_eq!(ids, vec![matching.id]);
     }
@@ -599,9 +591,17 @@ mod tests {
 
     #[test]
     fn highlights_unicode_case_folded_matches() {
-        let highlighted = highlight_segments("İstanbul", "i");
+        let row = project_note_list(
+            &[Note::new("İstanbul".to_string(), String::new())],
+            None,
+            "i",
+            None,
+        )
+        .rows
+        .remove(0);
+
         assert_eq!(
-            highlighted,
+            row.title_highlights,
             vec![
                 HighlightSegment {
                     text: "İ".to_string(),

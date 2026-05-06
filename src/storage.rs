@@ -272,6 +272,7 @@ impl BrowserNotesStorage {
             })
     }
 
+    #[cfg(target_arch = "wasm32")]
     fn save_backup_health_record(&self, record: BackupHealthRecord) {
         let Ok(record_json) = serde_json::to_string(&record) else {
             let message = format!(
@@ -281,6 +282,12 @@ impl BrowserNotesStorage {
             return;
         };
 
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let _ = record_json;
+        }
+
+        #[cfg(target_arch = "wasm32")]
         if let Some(storage) =
             web_sys::window().and_then(|window| window.local_storage().ok().flatten())
             && let Err(error) = storage.set_item(BACKUP_HEALTH_KEY, &record_json)
@@ -299,6 +306,10 @@ pub fn save_recently_deleted_notes(notes: &[Note]) {
 }
 
 pub fn save_backup_health_record(record: BackupHealthRecord) {
+    #[cfg(not(target_arch = "wasm32"))]
+    let _ = record;
+
+    #[cfg(target_arch = "wasm32")]
     BrowserNotesStorage.save_backup_health_record(record);
 }
 

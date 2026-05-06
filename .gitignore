@@ -5,3 +5,5 @@
 /.agents
 /.scratch
 /.playwright-cli
+/test-results
+/playwright-report

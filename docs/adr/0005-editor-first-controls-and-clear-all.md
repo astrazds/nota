@@ -21,6 +21,6 @@ Implementation notes:
 - The shared confirmation modal handles both note-specific delete and count-specific Recently Deleted clearing.
 - The sidebar still owns Note List, Recently Deleted, and Backup Controls; the editor-area footer owns only View Mode Controls.
 - The shared footer height is enforced with the local `noter-footer-height` utility because the build pipeline did not emit the Tailwind `min-h-12` utility reliably.
-- Browser verification should cover Write, Preview, Split, compact navigation, Light/Dark contrast, floating notifications, and the Clear All confirmation/cancel/confirm flow.
+- Browser verification should cover Write, Preview, Split, compact navigation, Light/Dark contrast, floating notifications, footer rhythm, Search Hint readability, Backup Controls placement, and the Clear All confirmation/cancel/confirm flow.
 
 This keeps Noter aligned with the domain model in `CONTEXT.md`: Formatting Tools are contextual writing aids, View Mode Controls belong with the editor area, and Recently Deleted remains recoverable until the user explicitly confirms permanent removal.

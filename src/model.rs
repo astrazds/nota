@@ -72,11 +72,19 @@ mod tests {
     use crate::markdown_editing::{
         format_text, utf16_index_to_byte_index, utf16_range_to_byte_range,
     };
-    use crate::note_discovery::filter_and_sort_notes;
+    use crate::note_discovery::project_note_list;
     use crate::tag_rules::parse_tags_input;
 
+    fn projected_ids(notes: &[Note], query: &str, active_tag: Option<&str>) -> Vec<Uuid> {
+        project_note_list(notes, None, query, active_tag)
+            .rows
+            .into_iter()
+            .map(|row| row.id)
+            .collect()
+    }
+
     #[test]
-    fn should_filter_and_sort_notes_correctly() {
+    fn should_project_and_sort_notes_correctly() {
         let mut n1 = Note::new("Apple".to_string(), "Fruit".to_string());
         let mut n2 = Note::new("Banana".to_string(), "Yellow".to_string());
         let mut n3 = Note::new("Cherry".to_string(), "Red".to_string());
@@ -89,18 +97,18 @@ mod tests {
         let notes = vec![n1.clone(), n2.clone(), n3.clone()];
 
         // Default sort (newest first)
-        let result = filter_and_sort_notes(&notes, "", None);
+        let result = projected_ids(&notes, "", None);
         assert_eq!(result[0], n3.id);
         assert_eq!(result[1], n2.id);
         assert_eq!(result[2], n1.id);
 
         // Search filter
-        let result = filter_and_sort_notes(&notes, "ba", None);
+        let result = projected_ids(&notes, "ba", None);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], n2.id);
 
         // Search content
-        let result = filter_and_sort_notes(&notes, "red", None);
+        let result = projected_ids(&notes, "red", None);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], n3.id);
 
@@ -108,7 +116,7 @@ mod tests {
         let mut pinned_n1 = n1.clone();
         pinned_n1.is_pinned = true;
         let notes_with_pin = vec![pinned_n1.clone(), n2.clone(), n3.clone()];
-        let result = filter_and_sort_notes(&notes_with_pin, "", None);
+        let result = projected_ids(&notes_with_pin, "", None);
         assert_eq!(result[0], pinned_n1.id); // Pinned is first even if older
         assert_eq!(result[1], n3.id);
     }
@@ -297,7 +305,7 @@ mod tests {
             Note::new("日本語".to_string(), "内容".to_string()),
             Note::new("Hello".to_string(), "World".to_string()),
         ];
-        let result = filter_and_sort_notes(&notes, "日本", None);
+        let result = projected_ids(&notes, "日本", None);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], notes[0].id);
     }
@@ -305,32 +313,32 @@ mod tests {
     #[test]
     fn should_filter_empty_notes() {
         let notes = vec![Note::new("".to_string(), "".to_string())];
-        let result = filter_and_sort_notes(&notes, "", None);
+        let result = projected_ids(&notes, "", None);
         assert_eq!(result.len(), 1);
     }
 
     #[test]
     fn should_handle_special_characters_in_search() {
         let notes = vec![Note::new("Test @#$%".to_string(), "Content".to_string())];
-        let result = filter_and_sort_notes(&notes, "@#$", None);
+        let result = projected_ids(&notes, "@#$", None);
         assert_eq!(result.len(), 1);
     }
 
     #[test]
     fn should_handle_empty_notes_vector() {
         let notes: Vec<Note> = vec![];
-        let result = filter_and_sort_notes(&notes, "anything", None);
+        let result = projected_ids(&notes, "anything", None);
         assert_eq!(result.len(), 0);
     }
 
     #[test]
     fn should_search_case_insensitive() {
         let notes = vec![Note::new("HELLO world".to_string(), "Content".to_string())];
-        let result = filter_and_sort_notes(&notes, "hello", None);
+        let result = projected_ids(&notes, "hello", None);
         assert_eq!(result.len(), 1);
-        let result = filter_and_sort_notes(&notes, "HELLO", None);
+        let result = projected_ids(&notes, "HELLO", None);
         assert_eq!(result.len(), 1);
-        let result = filter_and_sort_notes(&notes, "HeLLo", None);
+        let result = projected_ids(&notes, "HeLLo", None);
         assert_eq!(result.len(), 1);
     }
 
@@ -356,10 +364,10 @@ mod tests {
         n2.tags = vec!["Personal".to_string()];
 
         let notes = vec![n1.clone(), n2.clone()];
-        let result = filter_and_sort_notes(&notes, "", Some("work"));
+        let result = projected_ids(&notes, "", Some("work"));
         assert_eq!(result, vec![n1.id]);
 
-        let result = filter_and_sort_notes(&notes, "", Some("PERSONAL"));
+        let result = projected_ids(&notes, "", Some("PERSONAL"));
         assert_eq!(result, vec![n2.id]);
     }
 
@@ -371,7 +379,7 @@ mod tests {
         let n2 = Note::new("Two".to_string(), "Second".to_string());
 
         let notes = vec![n1.clone(), n2];
-        let result = filter_and_sort_notes(&notes, "pro", None);
+        let result = projected_ids(&notes, "pro", None);
         assert_eq!(result, vec![n1.id]);
     }
 

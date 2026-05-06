@@ -2,13 +2,16 @@ use crate::AppState;
 use crate::NotificationTone;
 use crate::components::CheatsheetModal;
 use crate::editor_view::EditorViewMode;
-use crate::markdown_editing::{BrowserSelection, MarkdownCommand, apply_markdown_command};
-use crate::markdown_preview::render_markdown_preview_body;
 use crate::model::Note;
 use crate::note_workspace::{FocusIntent, WorkspaceDisplayState};
 use crate::storage::SaveStatus;
 use crate::tag_rules::{parse_tags_input, tags_to_input};
 use crate::theme::{ThemeAccent, ThemeState, ThemeSurface, ThemeText};
+use crate::ui_recipes;
+use crate::writing_surface::{
+    HIDDEN_BY_FILTER_MESSAGE, MarkdownCommand, WritingSurfaceModel, WritingSurfaceSelection,
+    apply_formatting_command,
+};
 use leptos::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -32,6 +35,30 @@ pub fn Editor() -> impl IntoView {
     let workspace_display_state = Memo::new(move |_| state.workspace_display_state());
     let selected_note_is_hidden_by_filter =
         Memo::new(move |_| state.selected_note_is_hidden_by_filter());
+    let writing_surface_model = Memo::new(move |_| {
+        selected_note.get().as_ref().map(|note| {
+            WritingSurfaceModel::from_note(
+                note,
+                state.editor_view_mode.get(),
+                selected_note_is_hidden_by_filter.get(),
+            )
+        })
+    });
+    let writing_model =
+        Memo::new(move |_| writing_surface_model.get().and_then(|model| model.writing));
+    let preview_model =
+        Memo::new(move |_| writing_surface_model.get().and_then(|model| model.preview));
+    let preview_tags = Memo::new(move |_| {
+        preview_model
+            .get()
+            .map(|preview| preview.tags)
+            .unwrap_or_default()
+    });
+    let hidden_by_filter_message = Memo::new(move |_| {
+        writing_surface_model
+            .get()
+            .and_then(|model| model.hidden_by_filter_message)
+    });
     let previous_save_status = RwSignal::new(state.save_status.get_untracked());
 
     Effect::new(move |_| {
@@ -139,36 +166,14 @@ pub fn Editor() -> impl IntoView {
         }
     };
 
-    let preview_title = Memo::new(move |_| {
-        selected_note
-            .get()
-            .as_ref()
-            .map(|note| note.display_title().to_string())
-            .unwrap_or_default()
-    });
-
-    let markdown_body_html = Memo::new(move |_| {
-        let note = selected_note.get();
-        let title = note
-            .as_ref()
-            .map(|n: &Note| n.display_title().to_string())
-            .unwrap_or_default();
-        let content = note
-            .as_ref()
-            .map(|n: &Note| n.content.as_str())
-            .unwrap_or_default();
-
-        render_markdown_preview_body(&title, content)
-    });
-
     let apply_format = move |command: MarkdownCommand| {
         if let Some(textarea) = content_area_ref.get() {
             let start_utf16 = textarea.selection_start().unwrap_or_default().unwrap_or(0);
             let end_utf16 = textarea.selection_end().unwrap_or_default().unwrap_or(0);
             let content = textarea.value();
-            let formatted = apply_markdown_command(
+            let formatted = apply_formatting_command(
                 &content,
-                BrowserSelection {
+                WritingSurfaceSelection {
                     start_utf16: start_utf16 as usize,
                     end_utf16: end_utf16 as usize,
                 },
@@ -209,10 +214,10 @@ pub fn Editor() -> impl IntoView {
                         <div class="flex-1 flex overflow-hidden divide-x divide-apple-gray-200 dark:divide-apple-dark-border">
                             <Show when=move || state.editor_view_mode.get().surfaces().writing>
                                 <div class=move || format!("flex-1 flex flex-col overflow-hidden {}", ThemeSurface::WritingSurface.classes())>
-                                    <Show when=move || selected_note_is_hidden_by_filter.get()>
+                                    <Show when=move || hidden_by_filter_message.get().is_some()>
                                         <div class=move || format!("mx-6 mt-5 rounded-md border px-3 py-2 text-sm md:mx-8 {}", ThemeSurface::EditorChrome.classes())>
                                             <p class=move || ThemeText::Muted.classes()>
-                                                "This note is outside the current Search or Tag filter. Clear the filter in the Note List to show it there again."
+                                                {move || hidden_by_filter_message.get().unwrap_or(HIDDEN_BY_FILTER_MESSAGE)}
                                             </p>
                                         </div>
                                     </Show>
@@ -222,10 +227,10 @@ pub fn Editor() -> impl IntoView {
                                             rows="1"
                                             class=note_title_textarea_classes
                                             placeholder="Note Title"
-                                            prop:value=move || selected_note.get().map(|note| note.title).unwrap_or_default()
+                                            prop:value=move || writing_model.get().map(|note| note.title).unwrap_or_default()
                                             on:input=on_input_title
                                         ></textarea>
-                                        <Show when=move || is_editing_tags.get() || selected_note.get().is_none_or(|note| note.tags.is_empty())>
+                                        <Show when=move || is_editing_tags.get() || writing_model.get().is_none_or(|note| note.tags.is_empty())>
                                             <input
                                                 node_ref=tags_input_ref
                                                 type="text"
@@ -241,7 +246,7 @@ pub fn Editor() -> impl IntoView {
                                                 }
                                             />
                                         </Show>
-                                        <Show when=move || !is_editing_tags.get() && selected_note.get().is_some_and(|note| !note.tags.is_empty())>
+                                        <Show when=move || !is_editing_tags.get() && writing_model.get().is_some_and(|note| !note.tags.is_empty())>
                                             <EditableTagList selected_note=selected_note on_edit=start_editing_tags />
                                         </Show>
                                         <Show when=move || !tag_suggestions.get().is_empty()>
@@ -306,37 +311,39 @@ pub fn Editor() -> impl IntoView {
                                             </details>
                                         </Show>
                                     </div>
-                                    <div class=formatting_tools_classes>
-                                        <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Bold) title="Bold" aria_label="Bold">
-                                            <span class="font-bold">B</span>
-                                        </ToolbarButton>
-                                        <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Italic) title="Italic" aria_label="Italic">
-                                            <span class="italic">I</span>
-                                        </ToolbarButton>
-                                        <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Strikethrough) title="Strikethrough" aria_label="Strikethrough">
-                                            <span class="line-through">S</span>
-                                        </ToolbarButton>
-                                        <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::TaskList) title="Task List" aria_label="Task list">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h4v4H4V6zm0 8h4v4H4v-4zm0 8h4v-4H4v4zM12 7h8M12 15h8M12 19h8" />
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 7.5l1.2 1.2L7.8 7" />
-                                            </svg>
-                                        </ToolbarButton>
-                                        <ToolbarButton
-                                            on_click=move |_| apply_format(MarkdownCommand::Table)
-                                            title="Insert Table"
-                                            aria_label="Insert table"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6h18v12H3V6zM3 12h18M9 6v12M15 6v12" />
-                                            </svg>
-                                        </ToolbarButton>
-                                    </div>
+                                    <Show when=move || writing_model.get().is_some_and(|note| note.formatting_tools_visible)>
+                                        <div class=formatting_tools_classes>
+                                            <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Bold) title="Bold" aria_label="Bold">
+                                                <span class="font-bold">B</span>
+                                            </ToolbarButton>
+                                            <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Italic) title="Italic" aria_label="Italic">
+                                                <span class="italic">I</span>
+                                            </ToolbarButton>
+                                            <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Strikethrough) title="Strikethrough" aria_label="Strikethrough">
+                                                <span class="line-through">S</span>
+                                            </ToolbarButton>
+                                            <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::TaskList) title="Task List" aria_label="Task list">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h4v4H4V6zm0 8h4v4H4v-4zm0 8h4v-4H4v4zM12 7h8M12 15h8M12 19h8" />
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 7.5l1.2 1.2L7.8 7" />
+                                                </svg>
+                                            </ToolbarButton>
+                                            <ToolbarButton
+                                                on_click=move |_| apply_format(MarkdownCommand::Table)
+                                                title="Insert Table"
+                                                aria_label="Insert table"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6h18v12H3V6zM3 12h18M9 6v12M15 6v12" />
+                                                </svg>
+                                            </ToolbarButton>
+                                        </div>
+                                    </Show>
                                     <textarea
                                         node_ref=content_area_ref
                                         class=editor_body_textarea_classes
                                         placeholder="Start typing..."
-                                        prop:value=move || selected_note.get().map(|note| note.content).unwrap_or_default()
+                                        prop:value=move || writing_model.get().map(|note| note.content).unwrap_or_default()
                                         on:input=on_input_content
                                     ></textarea>
                                 </div>
@@ -348,9 +355,9 @@ pub fn Editor() -> impl IntoView {
                                         preview_pane_classes(state.editor_view_mode.get() == EditorViewMode::Split)
                                     }
                                 >
-                                    <h1 class="text-3xl font-bold mb-4">{move || preview_title.get()}</h1>
-                                    <PreviewTagList selected_note=selected_note />
-                                    <div inner_html=markdown_body_html.get()></div>
+                                    <h1 class="text-3xl font-bold mb-4">{move || preview_model.get().map(|preview| preview.title).unwrap_or_default()}</h1>
+                                    <PreviewTagList tags=preview_tags />
+                                    <div inner_html=move || preview_model.get().map(|preview| preview.body_html).unwrap_or_default()></div>
                                 </div>
                             </Show>
                         </div>
@@ -511,20 +518,7 @@ fn notification_classes(tone: NotificationTone) -> String {
 }
 
 fn editor_view_button_classes(is_active: bool, is_split: bool) -> String {
-    let visibility = if is_split {
-        "hidden lg:inline-flex"
-    } else {
-        "inline-flex"
-    };
-    let state_classes = if is_active {
-        ThemeState::SegmentedActive.classes()
-    } else {
-        ThemeState::SegmentedIdle.classes()
-    };
-
-    format!(
-        "{visibility} items-center justify-center rounded-md px-1.5 py-0.5 text-[11px] transition-all {state_classes}"
-    )
+    ui_recipes::compact_segmented_button(is_active, is_split)
 }
 
 fn sidebar_toggle_button_classes() -> String {
@@ -536,14 +530,11 @@ fn sidebar_toggle_button_classes() -> String {
 }
 
 fn editor_area_footer_classes() -> String {
-    format!(
-        "noter-footer-height shrink-0 gap-x-2 gap-y-1 border-t border-apple-gray-300 px-3 py-1.5 text-[11px] leading-4 dark:border-apple-dark-border flex flex-wrap items-center justify-center {}",
-        ThemeSurface::EditorChrome.classes()
-    )
+    ui_recipes::editor_footer()
 }
 
 fn editor_view_controls_classes() -> &'static str {
-    "flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1"
+    ui_recipes::compact_controls()
 }
 
 fn formatting_tools_classes() -> String {
@@ -558,10 +549,7 @@ fn formatting_tool_button_classes() -> String {
 }
 
 fn markdown_help_button_classes() -> String {
-    format!(
-        "inline-flex items-center justify-center rounded-md px-1.5 py-0.5 text-[11px] transition-colors {}",
-        ThemeState::SegmentedIdle.classes()
-    )
+    ui_recipes::compact_help_button()
 }
 
 fn note_title_textarea_classes() -> String {
@@ -617,7 +605,7 @@ fn EditableTagList(
                         .map(|tag| {
                             let tag_for_remove = tag.clone();
                             view! {
-                                <span class=move || format!("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs {}", ThemeState::TagPill.classes())>
+                                <span class=move || format!("inline-flex items-center gap-1 {}", ui_recipes::tag_pill())>
                                     {format!("#{tag}")}
                                     <button
                                         type="button"
@@ -648,24 +636,21 @@ fn EditableTagList(
 }
 
 #[component]
-fn PreviewTagList(selected_note: Memo<Option<Note>>) -> impl IntoView {
+fn PreviewTagList(tags: Memo<Vec<String>>) -> impl IntoView {
     view! {
-        <Show when=move || selected_note.get().is_some_and(|note| !note.tags.is_empty())>
+        <Show when=move || !tags.get().is_empty()>
             <div class="not-prose mb-5 flex flex-wrap gap-1.5">
-                {move || selected_note
+                {move || tags
                     .get()
-                    .map(|note| {
-                        note.tags
-                            .into_iter()
-                            .map(|tag| {
-                                view! {
-                                    <span class=move || format!("inline-flex items-center rounded-full px-2 py-0.5 text-xs {}", ThemeState::TagPill.classes())>
-                                        {format!("#{tag}")}
-                                    </span>
-                                }
-                            })
-                            .collect_view()
+                    .into_iter()
+                    .map(|tag| {
+                        view! {
+                            <span class=move || format!("inline-flex items-center {}", ui_recipes::tag_pill())>
+                                {format!("#{tag}")}
+                            </span>
+                        }
                     })
+                    .collect_view()
                 }
             </div>
         </Show>

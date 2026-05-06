@@ -2,7 +2,7 @@
 
 A local-first Markdown note-taking web app built with **Rust**, **Leptos**, and **Tailwind CSS**.
 
-Current app version: **0.7.0**.
+Current app version: **0.8.0**.
 
 ## Features
 
@@ -63,13 +63,14 @@ Current app version: **0.7.0**.
 2. Install dependencies:
    ```bash
    npm install
+   npx playwright install chromium
    ```
 
 ### Running the App
 
 Start the development server:
 ```bash
-trunk serve --open
+npm run dev
 ```
 The app will be available at `http://localhost:8080`.
 
@@ -95,12 +96,14 @@ cargo check --target wasm32-unknown-unknown --all-features
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo fmt --check
 cargo doc --workspace --no-deps
+npm run build
+npm run test:browser
 ```
 
 Tests cover core domain logic including:
 - **Backup & Restore**: Versioned Flat Collection backup export, validation, import preview, merge import, duplicate identity handling, backup health, and all-or-nothing failure behavior.
 - **Filtering & Sorting**: Real-time search, scoped query parsing, quoted phrase matching, text highlighting, render-ready note list projection, active tag filtering, and note pinning logic.
-- **Browser Visual Regressions**: Mobile sidebar width, long Note Title wrapping/truncation, editor/preview text scale parity, search hint placement/readability, selected Note state, editor/sidebar footer height parity, compact footer controls, floating global notifications, modal body consistency, and Tag visibility across writing and previewing.
+- **Browser Visual Regressions**: Playwright coverage verifies Light/Dark Theme readability, Search Hint contrast, selected Note state, editor/sidebar footer height parity, compact footer controls, Preview/Split Note Title and Note Metadata ordering, Backup Controls placement, and floating Global Notification layering.
 - **Formatting**: Named Markdown commands and UTF-16/UTF-8-safe selection handling.
 - **Note Logic**: Workspace behaviours for quick capture, note creation, selected note editing, recoverable delete/restore/individual clear/count-confirmed Clear All, delete confirmation, title extraction, date formatting, preview truncation, and deserialisation.
 - **Tags**: Parsing, display formatting, autocomplete suggestions, normalization, individual removal, cleanup planning, case-insensitive matching, collection, and sorting.
@@ -117,11 +120,15 @@ The app keeps high-leverage behaviour behind focused Rust Modules:
 
 - `tag_rules`: tag parsing, display formatting, collection, sorting, and case-insensitive matching.
 - `backup`: versioned Flat Collection backup export/import, import preview, backup health assessment, validation, and merge behavior.
+- `backup_controls`: sidebar Backup Controls, browser download/FileReader adapters, pending import preview state, and Backup Global Notification outcomes.
 - `search_query`: scoped Search parsing and Note matching for quoted phrases, `title:`, `tag:`, and `is:pinned`.
 - `note_workspace`: selected note lookup, empty collection display state, note creation, selected note editing, recoverable delete/restore/individual clear/count-confirmed Clear All, delete confirmation target naming, and pinning behaviours.
-- `note_discovery`: note list projection, Search integration, active tag filtering, ordering, display fields, and highlight segments.
+- `note_discovery`: the primary Note List projection Interface for Search integration, active Tag filtering, selected Note visibility, ordering, display fields, render keys, and highlight segments.
+- `app_runtime`: startup construction, runtime persistence orchestration, save snapshots, Theme/sidebar persistence, page flush wiring, and viewport reclassification.
 - `editor_view`: explicit Write, Preview, and Split view modes with viewport-aware behaviour.
 - `storage`: debounced save session, save lifecycle, active Notes persistence, Recently Deleted persistence, Backup Health metadata, and page lifecycle flushing.
+- `ui_recipes`: load-bearing visual recipes for shared footer rhythm, compact controls, Search Hint, Tag pills, selected Note rows, and Backup Controls while keeping `theme` semantic.
+- `writing_surface`: render-ready Writing Surface model, Preview Note Title/Note Metadata/body ordering, hidden-by-filter messaging, and formatting command application behind a selection-safe Interface.
 - `markdown_editing`: named Markdown commands, cheatsheet sections, and Unicode-safe caret handling.
 - `markdown_preview`: supported Markdown body rendering, duplicate title suppression, and preview safety policy. The Leptos preview pane owns the Note Title and read-only Tags so Preview and Split match the editor header order.
 

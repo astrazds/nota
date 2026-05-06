@@ -7,7 +7,7 @@ Current app version: **0.7.0**.
 ## Features
 
 - **Local-First Note Identity**: Quiet note-app structure with a scannable sidebar, calm writing surface, and warm accents.
-- **Markdown Support**: Markdown writing with explicit Write, Preview, and desktop Split view modes in a stable editor-area footer.
+- **Markdown Support**: Markdown writing with explicit Write, Preview, and desktop Split view modes in a stable editor-area footer that matches the sidebar footer height and compact control rhythm.
   - Supports CommonMark plus tables, footnotes, strikethrough, and task lists.
   - Raw HTML in notes is rendered as text for safety.
   - Use 2 spaces at line-end for hard line breaks.
@@ -100,7 +100,7 @@ cargo doc --workspace --no-deps
 Tests cover core domain logic including:
 - **Backup & Restore**: Versioned Flat Collection backup export, validation, import preview, merge import, duplicate identity handling, backup health, and all-or-nothing failure behavior.
 - **Filtering & Sorting**: Real-time search, scoped query parsing, quoted phrase matching, text highlighting, render-ready note list projection, active tag filtering, and note pinning logic.
-- **Browser Visual Regressions**: Mobile sidebar width, long Note Title wrapping/truncation, editor/preview text scale parity, search hint placement/readability, selected Note state, editor-area footer controls, footer backup controls, floating global notifications, modal body consistency, and Tag visibility across writing and previewing.
+- **Browser Visual Regressions**: Mobile sidebar width, long Note Title wrapping/truncation, editor/preview text scale parity, search hint placement/readability, selected Note state, editor/sidebar footer height parity, compact footer controls, floating global notifications, modal body consistency, and Tag visibility across writing and previewing.
 - **Formatting**: Named Markdown commands and UTF-16/UTF-8-safe selection handling.
 - **Note Logic**: Workspace behaviours for quick capture, note creation, selected note editing, recoverable delete/restore/individual clear/count-confirmed Clear All, delete confirmation, title extraction, date formatting, preview truncation, and deserialisation.
 - **Tags**: Parsing, display formatting, autocomplete suggestions, normalization, individual removal, cleanup planning, case-insensitive matching, collection, and sorting.

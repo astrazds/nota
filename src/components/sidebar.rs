@@ -32,7 +32,7 @@ fn search_syntax_hint_classes() -> String {
 
 fn sidebar_footer_classes() -> String {
     format!(
-        "min-h-12 gap-x-2 gap-y-1 px-3 py-1.5 border-t border-apple-gray-300 dark:border-apple-dark-border flex flex-wrap items-center text-[11px] leading-4 {}",
+        "noter-footer-height gap-x-2 gap-y-1 px-3 py-1.5 border-t border-apple-gray-300 dark:border-apple-dark-border flex flex-wrap items-center text-[11px] leading-4 {}",
         ThemeText::Subtle.classes()
     )
 }
@@ -630,7 +630,7 @@ mod tests {
         let footer = sidebar_footer_classes();
         let button = backup_footer_button_classes();
 
-        assert!(footer.contains("min-h-12"));
+        assert!(footer.contains("noter-footer-height"));
         assert!(footer.contains("flex"));
         assert!(footer.contains("flex-wrap"));
         assert!(footer.contains("items-center"));

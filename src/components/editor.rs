@@ -523,7 +523,7 @@ fn editor_view_button_classes(is_active: bool, is_split: bool) -> String {
     };
 
     format!(
-        "{visibility} min-h-11 min-w-[4rem] items-center justify-center rounded-md px-3 text-sm transition-all {state_classes}"
+        "{visibility} items-center justify-center rounded-md px-1.5 py-0.5 text-[11px] transition-all {state_classes}"
     )
 }
 
@@ -537,13 +537,13 @@ fn sidebar_toggle_button_classes() -> String {
 
 fn editor_area_footer_classes() -> String {
     format!(
-        "min-h-14 shrink-0 border-t px-3 py-1.5 flex items-center justify-center {}",
+        "noter-footer-height shrink-0 gap-x-2 gap-y-1 border-t border-apple-gray-300 px-3 py-1.5 text-[11px] leading-4 dark:border-apple-dark-border flex flex-wrap items-center justify-center {}",
         ThemeSurface::EditorChrome.classes()
     )
 }
 
 fn editor_view_controls_classes() -> &'static str {
-    "flex min-w-0 items-center justify-center space-x-1"
+    "flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1"
 }
 
 fn formatting_tools_classes() -> String {
@@ -559,7 +559,7 @@ fn formatting_tool_button_classes() -> String {
 
 fn markdown_help_button_classes() -> String {
     format!(
-        "inline-flex h-11 w-11 items-center justify-center rounded-md text-sm transition-colors {}",
+        "inline-flex items-center justify-center rounded-md px-1.5 py-0.5 text-[11px] transition-colors {}",
         ThemeState::SegmentedIdle.classes()
     )
 }
@@ -704,21 +704,30 @@ mod tests {
         let preview = editor_view_button_classes(true, false);
         let help = markdown_help_button_classes();
 
-        assert!(footer.contains("min-h-14"));
+        assert!(footer.contains("noter-footer-height"));
+        assert!(footer.contains("px-3"));
+        assert!(footer.contains("py-1.5"));
+        assert!(footer.contains("text-[11px]"));
+        assert!(footer.contains("leading-4"));
         assert!(footer.contains("border-t"));
+        assert!(footer.contains("border-apple-gray-300"));
         assert!(footer.contains("justify-center"));
         assert!(controls.contains("flex"));
-        assert!(controls.contains("space-x-1"));
+        assert!(controls.contains("gap-x-2"));
+        assert!(controls.contains("gap-y-1"));
         assert!(sidebar.contains("h-11"));
         assert!(sidebar.contains("w-11"));
         assert!(sidebar.contains("lg:hidden"));
         assert!(write.contains("inline-flex"));
-        assert!(write.contains("min-h-11"));
-        assert!(write.contains("min-w-[4rem]"));
-        assert!(preview.contains("min-h-11"));
-        assert!(preview.contains("min-w-[4rem]"));
-        assert!(help.contains("h-11"));
-        assert!(help.contains("w-11"));
+        assert!(write.contains("px-1.5"));
+        assert!(write.contains("py-0.5"));
+        assert!(write.contains("text-[11px]"));
+        assert!(preview.contains("px-1.5"));
+        assert!(preview.contains("py-0.5"));
+        assert!(preview.contains("text-[11px]"));
+        assert!(help.contains("px-1.5"));
+        assert!(help.contains("py-0.5"));
+        assert!(help.contains("text-[11px]"));
     }
 
     #[test]

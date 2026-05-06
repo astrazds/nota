@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use pulldown_cmark::{CowStr, Event, LinkType, Options, Parser, Tag, TagEnd, html};
+use pulldown_cmark::{CowStr, Event, HeadingLevel, LinkType, Options, Parser, Tag, TagEnd, html};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 #[cfg(target_arch = "wasm32")]
@@ -78,6 +78,7 @@ impl PreviewPipeline {
         let events = Parser::new_ext(content, markdown_preview_options())
             .map(escape_user_raw_html)
             .map(neutralize_unsafe_markdown_urls);
+        let events = suppress_matching_first_content_h1(title, events);
         let generated_events = render_preview_events(events);
         let generated_html = render_generated_preview_html(title, generated_events);
 
@@ -156,6 +157,45 @@ fn neutralize_unsafe_markdown_urls(event: Event<'_>) -> Event<'_> {
         }
         _ => event,
     }
+}
+
+fn suppress_matching_first_content_h1<'a>(
+    title: &str,
+    events: impl IntoIterator<Item = Event<'a>>,
+) -> Vec<Event<'a>> {
+    let events: Vec<_> = events.into_iter().collect();
+    let Some(Event::Start(Tag::Heading {
+        level: HeadingLevel::H1,
+        ..
+    })) = events.first()
+    else {
+        return events;
+    };
+
+    let Some(heading_end_index) = events
+        .iter()
+        .position(|event| matches!(event, Event::End(TagEnd::Heading(HeadingLevel::H1))))
+    else {
+        return events;
+    };
+
+    let heading_text = events[1..heading_end_index]
+        .iter()
+        .filter_map(|event| match event {
+            Event::Text(text) | Event::Code(text) => Some(text.as_ref()),
+            _ => None,
+        })
+        .collect::<String>();
+
+    if heading_text.trim() != title.trim() {
+        return events;
+    }
+
+    events
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, event)| (index > heading_end_index).then_some(event))
+        .collect()
 }
 
 fn render_preview_events<'a>(events: impl IntoIterator<Item = Event<'a>>) -> Vec<Event<'a>> {
@@ -366,5 +406,26 @@ mod tests {
         assert!(html.contains("<ol class=\"footnotes-list\">"));
         assert!(html.contains("<li id=\"fn-1\">"));
         assert!(html.contains("Footnote text"));
+    }
+
+    #[test]
+    fn markdown_preview_suppresses_matching_first_content_h1() {
+        let html = render_markdown_preview(
+            "Markdown preview tour",
+            "# Markdown preview tour\n\nBody content",
+        );
+
+        assert!(html.contains("<h1 class=\"text-3xl font-bold mb-4\">Markdown preview tour</h1>"));
+        assert!(!html.contains("<h1>Markdown preview tour</h1>"));
+        assert!(html.contains("<p>Body content</p>"));
+    }
+
+    #[test]
+    fn markdown_preview_preserves_non_matching_first_content_h1() {
+        let html = render_markdown_preview("Roadmap", "# Release notes\n\nBody content");
+
+        assert!(html.contains("<h1 class=\"text-3xl font-bold mb-4\">Roadmap</h1>"));
+        assert!(html.contains("<h1>Release notes</h1>"));
+        assert!(html.contains("<p>Body content</p>"));
     }
 }

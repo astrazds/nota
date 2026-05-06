@@ -12,6 +12,42 @@ use web_sys::{FileReader, HtmlAnchorElement, HtmlInputElement, window};
 const SIDEBAR_BASE_CLASS: &str = "fixed inset-y-0 left-0 z-30 transform transition-all duration-300 ease-in-out lg:relative lg:translate-x-0 flex flex-col h-full border-r";
 type TimeoutState = Rc<RefCell<Option<(i32, Closure<dyn FnMut()>)>>>;
 
+fn sidebar_state_class(is_open: bool) -> &'static str {
+    if is_open {
+        "translate-x-0 w-full max-w-full lg:w-80"
+    } else {
+        "-translate-x-full w-0 overflow-hidden"
+    }
+}
+
+fn search_syntax_hint_classes() -> String {
+    format!(
+        "absolute left-0 right-0 top-full z-30 mt-2 rounded-md border p-3 text-xs shadow-lg {}",
+        ThemeSurface::EditorChrome.classes()
+    )
+}
+
+fn sidebar_footer_classes() -> String {
+    format!(
+        "h-12 gap-2 px-4 border-t border-apple-gray-300 dark:border-apple-dark-border flex items-center text-xs {}",
+        ThemeText::Subtle.classes()
+    )
+}
+
+fn backup_footer_button_classes() -> String {
+    format!(
+        "cursor-pointer rounded-md px-2 py-1 text-xs {}",
+        ThemeState::SegmentedIdle.classes()
+    )
+}
+
+fn note_list_title_classes() -> String {
+    format!(
+        "min-w-0 flex-1 truncate pr-2 font-semibold {}",
+        ThemeText::Primary.classes()
+    )
+}
+
 #[component]
 pub fn Sidebar() -> impl IntoView {
     let state = use_context::<AppState>().expect("state not found");
@@ -22,6 +58,7 @@ pub fn Sidebar() -> impl IntoView {
     let available_tags = Memo::new(move |_| state.available_tags());
 
     let search_input_value = RwSignal::new(state.note_search_input());
+    let search_hint_open = RwSignal::new(false);
     let backup_status = RwSignal::new(String::new());
     let debounce_timeout: TimeoutState = Rc::new(RefCell::new(None));
 
@@ -102,11 +139,7 @@ pub fn Sidebar() -> impl IntoView {
     view! {
         <div
             class=move || {
-                let state_class = if state.is_sidebar_open.get() {
-                    "translate-x-0 w-80 max-w-full"
-                } else {
-                    "-translate-x-full w-0 overflow-hidden"
-                };
+                let state_class = sidebar_state_class(state.is_sidebar_open.get());
                 format!("{SIDEBAR_BASE_CLASS} {} {state_class}", ThemeSurface::Sidebar.classes())
             }
             role="navigation"
@@ -164,51 +197,33 @@ pub fn Sidebar() -> impl IntoView {
                             type="text"
                             placeholder="Search"
                             aria-label="Search notes"
+                            aria-describedby="search-syntax-hint"
                             class="w-full pl-10 pr-4 py-1.5 text-sm rounded-lg focus:outline-none transition-colors bg-black/5 text-gray-900 placeholder-gray-400 focus:bg-black/10 dark:bg-white/10 dark:text-white dark:placeholder-gray-500 dark:focus:bg-white/20"
                             prop:value=move || search_input_value.get()
+                            on:focus=move |_| search_hint_open.set(true)
+                            on:blur=move |_| search_hint_open.set(false)
                             on:input=move |ev| {
                                 let value = event_target_value(&ev);
                                 state.edit_note_search(value.clone());
                                 search_input_value.set(value);
                             }
                         />
-                        <details class=move || format!("mt-1 text-xs {}", ThemeText::Subtle.classes())>
-                            <summary class="inline cursor-pointer select-none hover:underline">
-                                "Search syntax"
-                            </summary>
-                            <div class="mt-1 flex flex-wrap gap-1.5" aria-label="Supported search syntax">
-                                <code class="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">"\"exact phrase\""</code>
-                                <code class="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">"title:plan"</code>
-                                <code class="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">"tag:work"</code>
-                                <code class="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">"is:pinned"</code>
-                            </div>
-                        </details>
-                    </div>
-
-                    <details class=move || format!("rounded-md border border-black/10 p-2 text-xs dark:border-white/10 {}", ThemeText::Subtle.classes())>
-                        <summary class="cursor-pointer select-none font-medium">"Backup"</summary>
-                        <div class="mt-2 flex flex-wrap gap-2">
-                            <button
-                                type="button"
-                                class=move || format!("rounded-md px-2 py-1 text-xs {}", ThemeState::SegmentedIdle.classes())
-                                on:click=export_backup
+                        <Show when=move || search_hint_open.get()>
+                            <div
+                                id="search-syntax-hint"
+                                class=search_syntax_hint_classes
+                                role="status"
                             >
-                                "Export"
-                            </button>
-                            <label class=move || format!("cursor-pointer rounded-md px-2 py-1 text-xs {}", ThemeState::SegmentedIdle.classes())>
-                                "Import"
-                                <input
-                                    type="file"
-                                    accept="application/json,.json"
-                                    class="sr-only"
-                                    on:change=import_backup
-                                />
-                            </label>
-                        </div>
-                        <Show when=move || !backup_status.get().is_empty()>
-                            <p class="mt-2">{move || backup_status.get()}</p>
+                                <div class="mb-1 font-medium">"Search syntax"</div>
+                                <div class="flex flex-wrap gap-1.5" aria-label="Supported search syntax">
+                                    <code class="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">"\"exact phrase\""</code>
+                                    <code class="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">"title:plan"</code>
+                                    <code class="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">"tag:work"</code>
+                                    <code class="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">"is:pinned"</code>
+                                </div>
+                            </div>
                         </Show>
-                    </details>
+                    </div>
 
                     <Show when=move || state.active_tag().is_some() && !available_tags.get().is_empty()>
                         <div class="flex items-center gap-2 text-xs">
@@ -244,8 +259,29 @@ pub fn Sidebar() -> impl IntoView {
                         </div>
                     </Show>
                 </div>
-                <div class=move || format!("h-12 px-4 border-t border-apple-gray-300 dark:border-apple-dark-border flex items-center text-xs {}", ThemeText::Subtle.classes())>
+                <div class=sidebar_footer_classes>
                     <span>{move || format!("{} notes", state.note_count())}</span>
+                    <div class="ml-auto flex min-w-0 items-center gap-2">
+                        <Show when=move || !backup_status.get().is_empty()>
+                            <span class=move || format!("max-w-24 truncate {}", ThemeText::Subtle.classes())>{move || backup_status.get()}</span>
+                        </Show>
+                        <button
+                            type="button"
+                            class=backup_footer_button_classes
+                            on:click=export_backup
+                        >
+                            "Export"
+                        </button>
+                        <label class=backup_footer_button_classes>
+                            "Import"
+                            <input
+                                type="file"
+                                accept="application/json,.json"
+                                class="sr-only"
+                                on:change=import_backup
+                            />
+                        </label>
+                    </div>
                 </div>
             </Show>
         </div>
@@ -297,8 +333,8 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
                 }
             }
         >
-            <div class="flex justify-between items-start">
-                <h3 class=move || format!("font-semibold truncate pr-2 flex-1 {}", ThemeText::Primary.classes())>
+            <div class="flex min-w-0 justify-between items-start">
+                <h3 class=note_list_title_classes>
                     <span class="block truncate">
                         {title_highlights.iter().cloned()
                             .map(|segment| {
@@ -427,7 +463,10 @@ fn percent_encode_data_url(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::percent_encode_data_url;
+    use super::{
+        backup_footer_button_classes, note_list_title_classes, percent_encode_data_url,
+        search_syntax_hint_classes, sidebar_footer_classes, sidebar_state_class,
+    };
 
     #[test]
     fn backup_download_data_url_percent_encodes_json_content() {
@@ -435,5 +474,44 @@ mod tests {
             percent_encode_data_url("{\"title\":\"日本語 note\"}"),
             "%7B%22title%22%3A%22%E6%97%A5%E6%9C%AC%E8%AA%9E%20note%22%7D"
         );
+    }
+
+    #[test]
+    fn compact_open_note_list_uses_the_full_viewport_width_before_desktop() {
+        let class = sidebar_state_class(true);
+
+        assert!(class.contains("w-full"));
+        assert!(class.contains("lg:w-80"));
+    }
+
+    #[test]
+    fn search_syntax_hint_is_a_popup_layer_not_permanent_sidebar_content() {
+        let class = search_syntax_hint_classes();
+
+        assert!(class.contains("absolute"));
+        assert!(class.contains("top-full"));
+        assert!(class.contains("z-30"));
+        assert!(class.contains("shadow-lg"));
+    }
+
+    #[test]
+    fn backup_controls_live_in_a_single_sidebar_footer_row() {
+        let footer = sidebar_footer_classes();
+        let button = backup_footer_button_classes();
+
+        assert!(footer.contains("h-12"));
+        assert!(footer.contains("flex"));
+        assert!(footer.contains("items-center"));
+        assert!(button.contains("rounded-md"));
+        assert!(!footer.contains("details"));
+    }
+
+    #[test]
+    fn note_list_titles_can_truncate_inside_mobile_flex_rows() {
+        let title = note_list_title_classes();
+
+        assert!(title.contains("min-w-0"));
+        assert!(title.contains("flex-1"));
+        assert!(title.contains("truncate"));
     }
 }

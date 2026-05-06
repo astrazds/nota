@@ -15,7 +15,7 @@ pub fn Editor() -> impl IntoView {
     let state = use_context::<AppState>().expect("state not found");
     let show_cheatsheet = RwSignal::new(false);
 
-    let title_input_ref = NodeRef::<leptos::html::Input>::new();
+    let title_input_ref = NodeRef::<leptos::html::Textarea>::new();
     let tags_input_ref = NodeRef::<leptos::html::Input>::new();
     let content_area_ref = NodeRef::<leptos::html::Textarea>::new();
     let tags_input_value = RwSignal::new(String::new());
@@ -23,6 +23,8 @@ pub fn Editor() -> impl IntoView {
 
     let selected_note = Memo::new(move |_| state.selected_note());
     let workspace_display_state = Memo::new(move |_| state.workspace_display_state());
+    let selected_note_is_hidden_by_filter =
+        Memo::new(move |_| state.selected_note_is_hidden_by_filter());
 
     Effect::new(move |_| {
         if state.focus_intent() == FocusIntent::NoteTitle {
@@ -35,6 +37,9 @@ pub fn Editor() -> impl IntoView {
 
     Effect::new(move |_| {
         if is_editing_tags.get() {
+            if let Some(input) = tags_input_ref.get() {
+                let _ = input.focus();
+            }
             return;
         }
 
@@ -79,6 +84,10 @@ pub fn Editor() -> impl IntoView {
         if let Some(input) = tags_input_ref.get() {
             let _ = input.focus();
         }
+    };
+
+    let start_editing_tags = move |_| {
+        is_editing_tags.set(true);
     };
 
     let on_tags_keydown = move |ev: leptos::web_sys::KeyboardEvent| {
@@ -151,7 +160,7 @@ pub fn Editor() -> impl IntoView {
                 <div class="flex items-center gap-2 min-w-0">
                     <button
                         on:click=move |_| state.toggle_sidebar()
-                        class=move || format!("p-2 lg:hidden {}", ThemeAccent::PrimaryText.classes())
+                        class=sidebar_toggle_button_classes
                         title="Toggle Sidebar"
                         aria-label="Toggle sidebar"
                     >
@@ -165,13 +174,10 @@ pub fn Editor() -> impl IntoView {
                             title="Write"
                             aria-label="Write mode"
                             aria-pressed=move || state.editor_view_mode.get() == EditorViewMode::Write
-                            class=move || {
-                                if state.editor_view_mode.get() == EditorViewMode::Write {
-                                    format!("px-2.5 py-1 text-sm rounded-md transition-all {}", ThemeState::SegmentedActive.classes())
-                                } else {
-                                    format!("px-2.5 py-1 text-sm rounded-md transition-all {}", ThemeState::SegmentedIdle.classes())
-                                }
-                            }
+                            class=move || editor_view_button_classes(
+                                state.editor_view_mode.get() == EditorViewMode::Write,
+                                false,
+                            )
                         >
                             "Write"
                         </button>
@@ -180,13 +186,10 @@ pub fn Editor() -> impl IntoView {
                             title="Preview"
                             aria-label="Preview mode"
                             aria-pressed=move || state.editor_view_mode.get() == EditorViewMode::Preview
-                            class=move || {
-                                if state.editor_view_mode.get() == EditorViewMode::Preview {
-                                    format!("px-2.5 py-1 text-sm rounded-md transition-all {}", ThemeState::SegmentedActive.classes())
-                                } else {
-                                    format!("px-2.5 py-1 text-sm rounded-md transition-all {}", ThemeState::SegmentedIdle.classes())
-                                }
-                            }
+                            class=move || editor_view_button_classes(
+                                state.editor_view_mode.get() == EditorViewMode::Preview,
+                                false,
+                            )
                         >
                             "Preview"
                         </button>
@@ -195,13 +198,10 @@ pub fn Editor() -> impl IntoView {
                             title="Split"
                             aria-label="Split mode"
                             aria-pressed=move || state.editor_view_mode.get() == EditorViewMode::Split
-                            class=move || {
-                                if state.editor_view_mode.get() == EditorViewMode::Split {
-                                    format!("hidden lg:inline-flex px-2.5 py-1 text-sm rounded-md transition-all {}", ThemeState::SegmentedActive.classes())
-                                } else {
-                                    format!("hidden lg:inline-flex px-2.5 py-1 text-sm rounded-md transition-all {}", ThemeState::SegmentedIdle.classes())
-                                }
-                            }
+                            class=move || editor_view_button_classes(
+                                state.editor_view_mode.get() == EditorViewMode::Split,
+                                true,
+                            )
                         >
                             "Split"
                         </button>
@@ -209,7 +209,7 @@ pub fn Editor() -> impl IntoView {
                             on:click=move |_| show_cheatsheet.set(true)
                             title="Markdown Help"
                             aria-label="Show markdown cheatsheet"
-                            class=move || format!("px-3 py-1 text-sm rounded-md transition-colors {}", ThemeState::SegmentedIdle.classes())
+                            class=markdown_help_button_classes
                         >
                             "?"
                         </button>
@@ -262,60 +262,40 @@ pub fn Editor() -> impl IntoView {
                         <div class="flex-1 flex overflow-hidden divide-x divide-apple-gray-200 dark:divide-apple-dark-border">
                             <Show when=move || state.editor_view_mode.get().surfaces().writing>
                                 <div class=move || format!("flex-1 flex flex-col overflow-hidden {}", ThemeSurface::WritingSurface.classes())>
+                                    <Show when=move || selected_note_is_hidden_by_filter.get()>
+                                        <div class=move || format!("mx-6 mt-5 rounded-md border px-3 py-2 text-sm md:mx-8 {}", ThemeSurface::EditorChrome.classes())>
+                                            <p class=move || ThemeText::Muted.classes()>
+                                                "This note is outside the current Search or Tag filter. Clear the filter in the Note List to show it there again."
+                                            </p>
+                                        </div>
+                                    </Show>
                                     <div class="px-6 pt-7 pb-3 md:px-8 md:pt-8 space-y-3 border-b border-transparent">
-                                        <input
+                                        <textarea
                                             node_ref=title_input_ref
-                                            type="text"
-                                            class=move || format!("w-full min-w-0 text-2xl md:text-3xl font-bold leading-tight focus:outline-none bg-transparent {} {}", ThemeText::Primary.classes(), ThemeText::Placeholder.classes())
+                                            rows="1"
+                                            class=note_title_textarea_classes
                                             placeholder="Note Title"
                                             prop:value=move || selected_note.get().map(|note| note.title).unwrap_or_default()
                                             on:input=on_input_title
-                                        />
-                                        <input
-                                            node_ref=tags_input_ref
-                                            type="text"
-                                            class=move || format!("w-full max-w-xl px-0 py-1 text-sm focus:outline-none bg-transparent placeholder-gray-400 dark:placeholder-gray-600 {}", ThemeText::Muted.classes())
-                                            placeholder="Tags"
-                                            prop:value=move || tags_input_value.get()
-                                            on:focus=move |_| is_editing_tags.set(true)
-                                            on:input=on_input_tags
-                                            on:keydown=on_tags_keydown
-                                            on:blur=move |_| {
-                                                is_editing_tags.set(false);
-                                                commit_tags_input();
-                                            }
-                                        />
-                                        <Show when=move || selected_note.get().is_some_and(|note| !note.tags.is_empty())>
-                                            <div class="flex flex-wrap gap-1.5">
-                                                {move || {
-                                                    selected_note
-                                                        .get()
-                                                        .map(|note| {
-                                                            note.tags
-                                                                .into_iter()
-                                                                .map(|tag| {
-                                                                    let tag_for_remove = tag.clone();
-                                                                    view! {
-                                                                        <span class=move || format!("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs {}", ThemeState::TagPill.classes())>
-                                                                            {format!("#{tag}")}
-                                                                            <button
-                                                                                type="button"
-                                                                                class="ml-0.5 rounded-full px-1 leading-none opacity-70 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-apple-blue"
-                                                                                title=format!("Remove tag {tag_for_remove}")
-                                                                                aria-label=format!("Remove tag {tag_for_remove}")
-                                                                                on:click=move |_| {
-                                                                                    state.remove_selected_tag(&tag_for_remove);
-                                                                                }
-                                                                            >
-                                                                                "x"
-                                                                            </button>
-                                                                        </span>
-                                                                    }
-                                                                })
-                                                                .collect_view()
-                                                        })
-                                                }}
-                                            </div>
+                                        ></textarea>
+                                        <Show when=move || is_editing_tags.get() || selected_note.get().is_none_or(|note| note.tags.is_empty())>
+                                            <input
+                                                node_ref=tags_input_ref
+                                                type="text"
+                                                class=tag_input_classes
+                                                placeholder="Add tags"
+                                                prop:value=move || tags_input_value.get()
+                                                on:focus=move |_| is_editing_tags.set(true)
+                                                on:input=on_input_tags
+                                                on:keydown=on_tags_keydown
+                                                on:blur=move |_| {
+                                                    is_editing_tags.set(false);
+                                                    commit_tags_input();
+                                                }
+                                            />
+                                        </Show>
+                                        <Show when=move || !is_editing_tags.get() && selected_note.get().is_some_and(|note| !note.tags.is_empty())>
+                                            <EditableTagList selected_note=selected_note on_edit=start_editing_tags />
                                         </Show>
                                         <Show when=move || !tag_suggestions.get().is_empty()>
                                             <div class=move || format!("max-w-xl overflow-hidden rounded-md border shadow-sm {}", ThemeSurface::EditorChrome.classes())>
@@ -381,7 +361,7 @@ pub fn Editor() -> impl IntoView {
                                     </div>
                                     <textarea
                                         node_ref=content_area_ref
-                                        class=move || format!("flex-1 px-6 pb-8 pt-3 md:px-8 text-base md:text-lg leading-8 focus:outline-none resize-none bg-transparent font-mono dark:text-gray-300 {}", ThemeAccent::Selection.classes())
+                                        class=editor_body_textarea_classes
                                         placeholder="Start typing..."
                                         prop:value=move || selected_note.get().map(|note| note.content).unwrap_or_default()
                                         on:input=on_input_content
@@ -392,13 +372,10 @@ pub fn Editor() -> impl IntoView {
                             <Show when=move || state.editor_view_mode.get().surfaces().preview>
                                 <div
                                     class=move || {
-                                        if state.editor_view_mode.get() == EditorViewMode::Split {
-                                            format!("flex-1 px-6 pb-8 pt-7 md:px-8 md:pt-8 overflow-y-auto prose max-w-none break-words shadow-inner border-l transition-colors {}", ThemeSurface::SplitPreview.classes())
-                                        } else {
-                                            format!("flex-1 px-6 pb-8 pt-7 md:px-8 md:pt-8 overflow-y-auto prose max-w-none break-words transition-colors {}", ThemeSurface::Preview.classes())
-                                        }
+                                        preview_pane_classes(state.editor_view_mode.get() == EditorViewMode::Split)
                                     }
                                 >
+                                    <PreviewTagList selected_note=selected_note />
                                     <div inner_html=markdown_html.get()></div>
                                 </div>
                             </Show>
@@ -437,6 +414,145 @@ pub fn Editor() -> impl IntoView {
     }
 }
 
+fn editor_view_button_classes(is_active: bool, is_split: bool) -> String {
+    let visibility = if is_split {
+        "hidden lg:inline-flex"
+    } else {
+        "inline-flex"
+    };
+    let state_classes = if is_active {
+        ThemeState::SegmentedActive.classes()
+    } else {
+        ThemeState::SegmentedIdle.classes()
+    };
+
+    format!(
+        "{visibility} min-h-11 min-w-[4rem] items-center justify-center rounded-md px-3 text-sm transition-all {state_classes}"
+    )
+}
+
+fn sidebar_toggle_button_classes() -> String {
+    format!(
+        "inline-flex h-11 w-11 items-center justify-center lg:hidden {}",
+        ThemeAccent::PrimaryText.classes()
+    )
+}
+
+fn markdown_help_button_classes() -> String {
+    format!(
+        "inline-flex h-11 w-11 items-center justify-center rounded-md text-sm transition-colors {}",
+        ThemeState::SegmentedIdle.classes()
+    )
+}
+
+fn note_title_textarea_classes() -> String {
+    format!(
+        "w-full min-w-0 resize-none overflow-hidden break-words whitespace-pre-wrap [field-sizing:content] text-2xl md:text-3xl font-bold leading-tight focus:outline-none bg-transparent {} {}",
+        ThemeText::Primary.classes(),
+        ThemeText::Placeholder.classes()
+    )
+}
+
+fn tag_input_classes() -> String {
+    format!(
+        "w-full max-w-xl px-0 py-1 text-sm focus:outline-none bg-transparent placeholder-gray-400 dark:placeholder-gray-600 {}",
+        ThemeText::Muted.classes()
+    )
+}
+
+fn editor_body_textarea_classes() -> String {
+    format!(
+        "flex-1 px-6 pb-8 pt-3 md:px-8 text-base leading-7 focus:outline-none resize-none bg-transparent font-mono dark:text-gray-300 {}",
+        ThemeAccent::Selection.classes()
+    )
+}
+
+fn preview_pane_classes(is_split: bool) -> String {
+    if is_split {
+        format!(
+            "flex-1 px-6 pb-8 pt-7 md:px-8 md:pt-8 overflow-y-auto prose prose-base max-w-none break-words shadow-inner border-l transition-colors {}",
+            ThemeSurface::SplitPreview.classes()
+        )
+    } else {
+        format!(
+            "flex-1 px-6 pb-8 pt-7 md:px-8 md:pt-8 overflow-y-auto prose prose-base max-w-none break-words transition-colors {}",
+            ThemeSurface::Preview.classes()
+        )
+    }
+}
+
+#[component]
+fn EditableTagList(
+    selected_note: Memo<Option<Note>>,
+    on_edit: impl Fn(leptos::web_sys::MouseEvent) + Copy + Send + Sync + 'static,
+) -> impl IntoView {
+    let state = use_context::<AppState>().expect("state not found");
+
+    view! {
+        <div class="flex max-w-xl flex-wrap items-center gap-1.5">
+            {move || selected_note
+                .get()
+                .map(|note| view! {
+                    {note.tags
+                        .into_iter()
+                        .map(|tag| {
+                            let tag_for_remove = tag.clone();
+                            view! {
+                                <span class=move || format!("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs {}", ThemeState::TagPill.classes())>
+                                    {format!("#{tag}")}
+                                    <button
+                                        type="button"
+                                        class="ml-0.5 rounded-full px-1 leading-none opacity-70 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-apple-blue"
+                                        title=format!("Remove tag {tag_for_remove}")
+                                        aria-label=format!("Remove tag {tag_for_remove}")
+                                        on:click=move |_| {
+                                            state.remove_selected_tag(&tag_for_remove);
+                                        }
+                                    >
+                                        "x"
+                                    </button>
+                                </span>
+                            }
+                        })
+                        .collect_view()}
+                    <button
+                        type="button"
+                        class=move || format!("rounded-md px-2 py-0.5 text-xs {}", ThemeState::SegmentedIdle.classes())
+                        on:click=on_edit
+                    >
+                        "Edit tags"
+                    </button>
+                })
+            }
+        </div>
+    }
+}
+
+#[component]
+fn PreviewTagList(selected_note: Memo<Option<Note>>) -> impl IntoView {
+    view! {
+        <Show when=move || selected_note.get().is_some_and(|note| !note.tags.is_empty())>
+            <div class="not-prose mb-5 flex flex-wrap gap-1.5">
+                {move || selected_note
+                    .get()
+                    .map(|note| {
+                        note.tags
+                            .into_iter()
+                            .map(|tag| {
+                                view! {
+                                    <span class=move || format!("inline-flex items-center rounded-full px-2 py-0.5 text-xs {}", ThemeState::TagPill.classes())>
+                                        {format!("#{tag}")}
+                                    </span>
+                                }
+                            })
+                            .collect_view()
+                    })
+                }
+            </div>
+        </Show>
+    }
+}
+
 #[component]
 fn ToolbarButton(
     on_click: impl Fn(leptos::web_sys::MouseEvent) + Send + Sync + 'static,
@@ -453,5 +569,70 @@ fn ToolbarButton(
         >
             {children()}
         </button>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn compact_editor_view_controls_keep_touch_sized_targets() {
+        let sidebar = sidebar_toggle_button_classes();
+        let write = editor_view_button_classes(false, false);
+        let preview = editor_view_button_classes(true, false);
+        let help = markdown_help_button_classes();
+
+        assert!(sidebar.contains("h-11"));
+        assert!(sidebar.contains("w-11"));
+        assert!(sidebar.contains("lg:hidden"));
+        assert!(write.contains("inline-flex"));
+        assert!(write.contains("min-h-11"));
+        assert!(write.contains("min-w-[4rem]"));
+        assert!(preview.contains("min-h-11"));
+        assert!(preview.contains("min-w-[4rem]"));
+        assert!(help.contains("h-11"));
+        assert!(help.contains("w-11"));
+    }
+
+    #[test]
+    fn split_mode_control_stays_desktop_only() {
+        let split = editor_view_button_classes(false, true);
+
+        assert!(split.contains("hidden"));
+        assert!(split.contains("lg:inline-flex"));
+        assert!(split.starts_with("hidden lg:inline-flex"));
+        assert!(!split.starts_with("inline-flex"));
+    }
+
+    #[test]
+    fn note_title_editor_wraps_long_titles_without_horizontal_overflow() {
+        let title = note_title_textarea_classes();
+
+        assert!(title.contains("w-full"));
+        assert!(title.contains("min-w-0"));
+        assert!(title.contains("break-words"));
+        assert!(title.contains("whitespace-pre-wrap"));
+        assert!(title.contains("[field-sizing:content]"));
+        assert!(title.contains("overflow-hidden"));
+        assert!(title.contains("resize-none"));
+    }
+
+    #[test]
+    fn editor_body_text_matches_preview_scale() {
+        let editor_body = editor_body_textarea_classes();
+        let preview = preview_pane_classes(false);
+
+        assert!(editor_body.contains("text-base"));
+        assert!(!editor_body.contains("md:text-lg"));
+        assert!(preview.contains("prose-base"));
+    }
+
+    #[test]
+    fn split_preview_uses_the_same_body_scale_as_preview() {
+        let split_preview = preview_pane_classes(true);
+
+        assert!(split_preview.contains("prose-base"));
+        assert!(split_preview.contains("shadow-inner"));
     }
 }

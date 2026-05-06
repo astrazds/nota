@@ -1,7 +1,9 @@
 use crate::model::Note;
 use crate::sample_notes::debug_starter_notes;
+use gloo_storage::errors::StorageError;
 use gloo_storage::{LocalStorage, Storage};
 use leptos::prelude::{RwSignal, Set, window};
+use serde::de::DeserializeOwned;
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::JsCast;
@@ -135,7 +137,7 @@ impl SaveLifecycle {
     }
 }
 
-fn log_storage_error(operation: &str, key: &str, error: &gloo_storage::errors::StorageError) {
+fn log_storage_error(operation: &str, key: &str, error: &StorageError) {
     let message = format!("Storage error ({} {}): {:?}", operation, key, error);
     console::error_1(&message.into());
 }
@@ -264,7 +266,7 @@ fn schedule_notes_save(
 }
 
 pub fn load_dark_mode() -> bool {
-    match LocalStorage::get::<Option<bool>>(DARK_MODE_KEY) {
+    match load_optional_preference::<bool>(DARK_MODE_KEY) {
         Ok(Some(true)) => true,
         Ok(Some(false)) => false,
         Ok(None) => get_system_preference(),
@@ -276,14 +278,15 @@ pub fn load_dark_mode() -> bool {
 }
 
 pub fn save_dark_mode(enabled: bool) {
-    if let Err(e) = LocalStorage::set(DARK_MODE_KEY, Some(enabled)) {
+    if let Err(e) = LocalStorage::set(DARK_MODE_KEY, enabled) {
         log_storage_error("save", DARK_MODE_KEY, &e);
     }
 }
 
 pub fn load_sidebar_open() -> bool {
-    match LocalStorage::get(SIDEBAR_OPEN_KEY) {
-        Ok(open) => open,
+    match load_optional_preference::<bool>(SIDEBAR_OPEN_KEY) {
+        Ok(Some(open)) => open,
+        Ok(None) => true,
         Err(e) => {
             log_storage_error("load", SIDEBAR_OPEN_KEY, &e);
             true
@@ -294,6 +297,23 @@ pub fn load_sidebar_open() -> bool {
 pub fn save_sidebar_open(open: bool) {
     if let Err(e) = LocalStorage::set(SIDEBAR_OPEN_KEY, open) {
         log_storage_error("save", SIDEBAR_OPEN_KEY, &e);
+    }
+}
+
+fn load_optional_preference<T>(key: &str) -> Result<Option<T>, StorageError>
+where
+    T: DeserializeOwned,
+{
+    optional_preference_value(LocalStorage::get(key))
+}
+
+fn optional_preference_value<T>(
+    load_result: Result<T, StorageError>,
+) -> Result<Option<T>, StorageError> {
+    match load_result {
+        Ok(value) => Ok(Some(value)),
+        Err(StorageError::KeyNotFound(_)) => Ok(None),
+        Err(error) => Err(error),
     }
 }
 
@@ -365,6 +385,28 @@ mod tests {
 
         assert_eq!(decision, StartupDecision::CorruptSavedData);
         assert_eq!(decision.into_notes(), Vec::new());
+    }
+
+    #[test]
+    fn missing_optional_preference_is_not_a_storage_failure() {
+        let result = optional_preference_value::<bool>(Err(
+            gloo_storage::errors::StorageError::KeyNotFound(DARK_MODE_KEY.to_string()),
+        ));
+
+        assert!(matches!(result, Ok(None)));
+    }
+
+    #[test]
+    fn malformed_optional_preference_stays_a_storage_failure() {
+        let serde_error = serde_json::from_str::<bool>("not-json").unwrap_err();
+        let result = optional_preference_value::<bool>(Err(
+            gloo_storage::errors::StorageError::SerdeError(serde_error),
+        ));
+
+        assert!(matches!(
+            result,
+            Err(gloo_storage::errors::StorageError::SerdeError(_))
+        ));
     }
 
     #[test]

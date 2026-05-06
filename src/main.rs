@@ -22,7 +22,7 @@ use chrono::Utc;
 use editor_view::EditorViewMode;
 use leptos::prelude::*;
 use model::Note;
-use note_discovery::{NoteListItem, NoteListProjection};
+use note_discovery::{NoteListItem, NoteListProjection, SelectedNoteVisibility};
 use note_list_interaction::{
     NoteActionControls, NoteListCommand, NoteListDisplayState, NoteListInteraction,
 };
@@ -90,8 +90,16 @@ impl AppState {
             .display_state(self.workspace.get().notes().len(), projection)
     }
 
+    pub fn selected_note_is_hidden_by_filter(self) -> bool {
+        self.note_list_projection().selected_note_visibility
+            == SelectedNoteVisibility::HiddenByFilter
+    }
+
     pub fn note_search_input(self) -> String {
-        self.note_list_interaction.get().search_input().to_string()
+        self.note_list_interaction
+            .get_untracked()
+            .search_input()
+            .to_string()
     }
 
     pub fn edit_note_search(self, input: String) {
@@ -495,6 +503,34 @@ mod tests {
                 Some("Action target")
             );
         });
+    }
+
+    #[test]
+    fn search_input_and_active_tag_still_drive_note_list_projection() {
+        let mut mobile_note = Note::new(
+            "Mobile layout".to_string(),
+            "Responsive navigation".to_string(),
+        );
+        mobile_note.tags = vec!["Mobile".to_string()];
+        let desktop_note = Note::new("Desktop writing".to_string(), "Wide workspace".to_string());
+
+        with_test_state(
+            vec![mobile_note.clone(), desktop_note],
+            ViewportClass::Wide,
+            true,
+            |state| {
+                state.edit_note_search("layout".to_string());
+                assert_eq!(state.note_search_input(), "layout");
+
+                state.commit_note_search();
+                state.select_active_tag("Mobile".to_string());
+
+                let projection = state.note_list_projection();
+                assert_eq!(projection.rows.len(), 1);
+                assert_eq!(projection.rows[0].id, mobile_note.id);
+                assert!(projection.rows[0].is_selected);
+            },
+        );
     }
 
     #[test]

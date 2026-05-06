@@ -55,6 +55,14 @@ impl NoteListItem {
 pub struct NoteListProjection {
     pub rows: Vec<NoteListItem>,
     pub has_active_filter: bool,
+    pub selected_note_visibility: SelectedNoteVisibility,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SelectedNoteVisibility {
+    NoSelection,
+    Visible,
+    HiddenByFilter,
 }
 
 pub fn project_note_list(
@@ -66,36 +74,62 @@ pub fn project_note_list(
     let search_query = SearchQuery::parse(query);
     let title_highlight_terms = search_query.title_highlight_terms();
     let preview_highlight_terms = search_query.preview_highlight_terms();
-    let rows = filter_and_sort_notes_with_query(notes, &search_query, active_tag)
-        .into_iter()
-        .filter_map(|id| notes.iter().find(|note| note.id == id))
-        .map(|note| {
-            let display_title = note.display_title().to_string();
-            let preview = note.preview();
-            NoteListItem {
-                id: note.id,
-                display_date: note.display_date(),
-                tags: note.tags.clone(),
-                is_pinned: note.is_pinned,
-                is_selected: selected_id == Some(note.id),
-                title_highlights: highlight_segments_for_terms(
-                    &display_title,
-                    &title_highlight_terms,
-                ),
-                preview_highlights: highlight_segments_for_terms(
-                    &preview,
-                    &preview_highlight_terms,
-                ),
-                display_title,
-                preview,
-            }
-        })
-        .collect();
+    let has_active_filter =
+        !search_query.is_empty() || active_tag.map(str::trim).is_some_and(|tag| !tag.is_empty());
+    let rows: Vec<NoteListItem> =
+        filter_and_sort_notes_with_query(notes, &search_query, active_tag)
+            .into_iter()
+            .filter_map(|id| notes.iter().find(|note| note.id == id))
+            .map(|note| {
+                let display_title = note.display_title().to_string();
+                let preview = note.preview();
+                NoteListItem {
+                    id: note.id,
+                    display_date: note.display_date(),
+                    tags: note.tags.clone(),
+                    is_pinned: note.is_pinned,
+                    is_selected: selected_id == Some(note.id),
+                    title_highlights: highlight_segments_for_terms(
+                        &display_title,
+                        &title_highlight_terms,
+                    ),
+                    preview_highlights: highlight_segments_for_terms(
+                        &preview,
+                        &preview_highlight_terms,
+                    ),
+                    display_title,
+                    preview,
+                }
+            })
+            .collect();
+    let selected_note_visibility =
+        selected_note_visibility(notes, selected_id, &rows, has_active_filter);
 
     NoteListProjection {
         rows,
-        has_active_filter: !search_query.is_empty()
-            || active_tag.map(str::trim).is_some_and(|tag| !tag.is_empty()),
+        has_active_filter,
+        selected_note_visibility,
+    }
+}
+
+fn selected_note_visibility(
+    notes: &[Note],
+    selected_id: Option<Uuid>,
+    rows: &[NoteListItem],
+    has_active_filter: bool,
+) -> SelectedNoteVisibility {
+    let Some(selected_id) = selected_id else {
+        return SelectedNoteVisibility::NoSelection;
+    };
+
+    if rows.iter().any(|row| row.id == selected_id) {
+        return SelectedNoteVisibility::Visible;
+    }
+
+    if has_active_filter && notes.iter().any(|note| note.id == selected_id) {
+        SelectedNoteVisibility::HiddenByFilter
+    } else {
+        SelectedNoteVisibility::NoSelection
     }
 }
 
@@ -511,6 +545,34 @@ mod tests {
                 .any(|segment| segment.is_match)
         );
         assert_eq!(projection.rows[1].id, newer_unpinned.id);
+    }
+
+    #[test]
+    fn reports_when_the_selected_note_is_hidden_by_the_active_filter() {
+        let mut selected = Note::new("Writing draft".to_string(), "Private content".to_string());
+        selected.tags = vec!["Personal".to_string()];
+        let mut matching = Note::new("Launch plan".to_string(), "Work content".to_string());
+        matching.tags = vec!["Work".to_string()];
+        let notes = vec![selected.clone(), matching.clone()];
+
+        let filtered = project_note_list(&notes, Some(selected.id), "", Some("work"));
+
+        assert_eq!(
+            filtered.rows.iter().map(|row| row.id).collect::<Vec<_>>(),
+            vec![matching.id]
+        );
+        assert_eq!(
+            filtered.selected_note_visibility,
+            SelectedNoteVisibility::HiddenByFilter
+        );
+
+        let unfiltered = project_note_list(&notes, Some(selected.id), "", None);
+
+        assert!(unfiltered.rows.iter().any(|row| row.id == selected.id));
+        assert_eq!(
+            unfiltered.selected_note_visibility,
+            SelectedNoteVisibility::Visible
+        );
     }
 
     #[test]

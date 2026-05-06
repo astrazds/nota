@@ -56,6 +56,10 @@ _Avoid_: Generic destructive modal
 Lightweight descriptive information about a Note, such as its Tags.
 _Avoid_: Permanent bottom bar
 
+**Search Hint**:
+A temporary helper shown while Search is focused to explain scoped Search syntax without permanently adding sidebar noise.
+_Avoid_: Permanent syntax block
+
 **Save Status**:
 A small editing-state indicator that tells the user whether Note changes are saved.
 _Avoid_: Sidebar footer metadata
@@ -88,6 +92,10 @@ _Avoid_: Floating expand handle
 A versioned local export of the Flat Collection that preserves Notes and can be stored outside the browser.
 _Avoid_: Sync, cloud backup
 
+**Backup Controls**:
+Compact Export and Import actions for Backup, placed in the sidebar footer as a secondary utility row.
+_Avoid_: Backup dropdown
+
 **Merge Import**:
 The safe restore behaviour that adds Notes from a Backup and replaces same-identity Notes without destructively clearing the current Flat Collection.
 _Avoid_: Replace import by default
@@ -100,6 +108,7 @@ _Avoid_: Replace import by default
 - A **Note** exposes **Note Actions** through a stable control.
 - A **Note** should be named in its **Delete Confirmation**.
 - A **Note** shows **Note Metadata** near its header or details surface.
+- A **Preview** may show read-only **Note Metadata** so Preview and Split view keep Tags visible.
 - A **Note** has a **Save Status** while it is being edited.
 - A **Markdown Note App** prioritises creating, writing, finding, and organising **Notes** over exposing Markdown tooling.
 - A **Flat Collection** contains all **Notes** without folders or notebooks.
@@ -109,12 +118,14 @@ _Avoid_: Replace import by default
 - A **Preview** is a **View Mode**, not the default workspace.
 - A **Tag** supports filtering but does not define the primary navigation model.
 - **Search** is the primary way to discover existing **Notes**.
+- A **Search Hint** can explain scoped syntax while Search is focused, but should not become permanent sidebar content.
 - The **Note List** should remain dense enough to scan several **Notes** at once.
 - An **Empty Collection** should lead to creating the first **Note**.
 - **Product Metadata** belongs outside the primary note workflow.
 - Each **Theme** needs coherent surface, text, border, selection, and accent treatment.
 - **Responsive Navigation** keeps the **Note List** available without interrupting the **Writing Surface**.
 - A **Backup** preserves the **Flat Collection** outside browser storage.
+- **Backup Controls** belong in the sidebar footer as secondary utilities, not in primary navigation.
 - A **Merge Import** restores Notes from a **Backup** without destructively replacing the current **Flat Collection**.
 
 ## Example dialogue
@@ -152,6 +163,15 @@ _Avoid_: Replace import by default
 > **Dev:** "Should tags stay in a permanent bottom bar?"
 > **Domain expert:** "No — **Note Metadata** belongs near the **Note** header or details, not below the writing area."
 >
+> **Dev:** "Should tags disappear when previewing?"
+> **Domain expert:** "No — show read-only **Note Metadata** in **Preview** and Split view so organising context stays visible."
+>
+> **Dev:** "Should Search syntax be permanently visible below Search?"
+> **Domain expert:** "No — use a **Search Hint** while Search is focused, then give the space back to the **Note List**."
+>
+> **Dev:** "Should Backup use a disclosure dropdown?"
+> **Domain expert:** "No — **Backup Controls** are compact secondary utilities and fit in the sidebar footer."
+>
 > **Dev:** "Should each note row expand to show all tags by default?"
 > **Domain expert:** "No — the **Note List** should stay scannable, with **Tags** shown only when they help recognition or filtering."
 >
@@ -186,6 +206,9 @@ _Avoid_: Replace import by default
 - "Version" was treated as primary sidebar content — resolved: **Product Metadata** belongs outside the main note workflow.
 - "Search" could imply global commands — resolved: **Search** is scoped to discovering **Notes**.
 - "Tags input" was placed as a bottom bar — resolved: Tags are **Note Metadata** and belong near the Note header or details surface.
+- "Tags" were visible only while writing — resolved: read-only **Note Metadata** should also appear in **Preview** and Split view.
+- "Search syntax" was persistent sidebar content — resolved: use a focus-time **Search Hint**.
+- "Backup dropdown" added extra interaction for a utility feature — resolved: use compact sidebar-footer **Backup Controls**.
 - "Note rows" were drifting toward card-like metadata blocks — resolved: the **Note List** should be dense and scannable.
 - "Dark mode" was treated as inverted light styling — resolved: dark mode is a separately tuned **Theme**.
 - "Collapsed sidebar" looked like a desktop feature — resolved: sidebar behaviour is **Responsive Navigation**.

@@ -6,6 +6,6 @@ mod sidebar;
 
 pub use cheatsheet::CheatsheetModal;
 pub use confirm_modal::ConfirmModal;
-pub use editor::Editor;
+pub use editor::{Editor, GlobalNotificationOutlet};
 pub use modal::Modal;
 pub use sidebar::Sidebar;

@@ -2,12 +2,12 @@
 
 A local-first Markdown note-taking web app built with **Rust**, **Leptos**, and **Tailwind CSS**.
 
-Current app version: **0.6.0**.
+Current app version: **0.7.0**.
 
 ## Features
 
 - **Local-First Note Identity**: Quiet note-app structure with a scannable sidebar, calm writing surface, and warm accents.
-- **Markdown Support**: Markdown writing with explicit Write, Preview, and desktop Split view modes.
+- **Markdown Support**: Markdown writing with explicit Write, Preview, and desktop Split view modes in a stable editor-area footer.
   - Supports CommonMark plus tables, footnotes, strikethrough, and task lists.
   - Raw HTML in notes is rendered as text for safety.
   - Use 2 spaces at line-end for hard line breaks.
@@ -20,18 +20,18 @@ Current app version: **0.6.0**.
   - **Pinning**: Pin important notes to the top of your list.
 - **Local Persistence**: Automatically persists notes to your browser's `LocalStorage` with debounced saves while typing.
 - **Quick Capture**: Create a new Note from the sidebar, empty state, or `Ctrl/Cmd+N`; compact viewports return directly to the Writing Surface with the Note Title focused.
-- **Recoverable Delete**: Deleted Notes move to Recently Deleted so accidental deletes can be restored or explicitly cleared.
+- **Recoverable Delete**: Deleted Notes move to Recently Deleted so accidental deletes can be restored, individually cleared, or cleared all at once after a count-specific confirmation.
 - **Backup & Restore**: Export a versioned Flat Collection backup, track the last successful export, and preview add/replace impact before safely merge-importing backups from compact sidebar footer controls.
 - **Debug Starter Notes**: Debug builds seed three representative notes when the browser has no saved notes yet, giving manual testing coverage for pinning, tags, rich Markdown, preview safety, search, and responsive editing.
 - **Tuned Themes**: Supports Light and Dark themes with coherent surfaces, borders, selection states, and accents.
-- **Responsive Design**: Optimised for desktop and mobile, with top-bar navigation between the Note List and Writing Surface.
+- **Responsive Design**: Optimised for desktop and mobile, with compact Responsive Navigation and editor-area View Mode Controls.
 - **First-Run Flow**: Empty collections show a direct path to create the first note and focus the note title.
 - **Enhanced Editing**:
   - Matched Writing Surface and Preview body text scale for lower visual friction.
   - Tag chips stay readable near the Note header and switch to a single edit input only when editing.
-  - Contextual formatting tools (Bold, Italic, Strikethrough, Task List, Insert Table)
+  - Contextual formatting tools (Bold, Italic, Strikethrough, Task List, Insert Table) inside the Writing Surface after Note Metadata.
   - Markdown help modal
-  - Global notification outlet for save, backup, and import feedback near the active editing context
+  - Floating global notification outlet for save, Backup, and import feedback above app chrome
 - **Stable Note Actions**: Pin/unpin and delete are available from a note action menu instead of hover-only controls.
 - **Delete Confirmation**: Modal confirmation names the target Note before moving it to Recently Deleted.
 - **Accessibility**: ARIA labels on interactive elements.
@@ -100,9 +100,9 @@ cargo doc --workspace --no-deps
 Tests cover core domain logic including:
 - **Backup & Restore**: Versioned Flat Collection backup export, validation, import preview, merge import, duplicate identity handling, backup health, and all-or-nothing failure behavior.
 - **Filtering & Sorting**: Real-time search, scoped query parsing, quoted phrase matching, text highlighting, render-ready note list projection, active tag filtering, and note pinning logic.
-- **Browser Visual Regressions**: Mobile sidebar width, long Note Title wrapping/truncation, editor/preview text scale parity, search hint placement/readability, selected Note state, footer backup controls, global notifications, modal body consistency, and Tag visibility across writing and previewing.
+- **Browser Visual Regressions**: Mobile sidebar width, long Note Title wrapping/truncation, editor/preview text scale parity, search hint placement/readability, selected Note state, editor-area footer controls, footer backup controls, floating global notifications, modal body consistency, and Tag visibility across writing and previewing.
 - **Formatting**: Named Markdown commands and UTF-16/UTF-8-safe selection handling.
-- **Note Logic**: Workspace behaviours for quick capture, note creation, selected note editing, recoverable delete/restore/clear, delete confirmation, title extraction, date formatting, preview truncation, and deserialisation.
+- **Note Logic**: Workspace behaviours for quick capture, note creation, selected note editing, recoverable delete/restore/individual clear/count-confirmed Clear All, delete confirmation, title extraction, date formatting, preview truncation, and deserialisation.
 - **Tags**: Parsing, display formatting, autocomplete suggestions, normalization, individual removal, cleanup planning, case-insensitive matching, collection, and sorting.
 - **Persistence**: Save lifecycle and save session behaviour for debounced LocalStorage saves, Recently Deleted storage, and Backup Health metadata.
 - **Starter Notes**: Debug-only sample notes cover pinning, tags, rich Markdown, preview safety, long previews, and responsive editing checks.
@@ -118,7 +118,7 @@ The app keeps high-leverage behaviour behind focused Rust Modules:
 - `tag_rules`: tag parsing, display formatting, collection, sorting, and case-insensitive matching.
 - `backup`: versioned Flat Collection backup export/import, import preview, backup health assessment, validation, and merge behavior.
 - `search_query`: scoped Search parsing and Note matching for quoted phrases, `title:`, `tag:`, and `is:pinned`.
-- `note_workspace`: selected note lookup, empty collection display state, note creation, selected note editing, recoverable delete/restore/clear, delete confirmation target naming, and pinning behaviours.
+- `note_workspace`: selected note lookup, empty collection display state, note creation, selected note editing, recoverable delete/restore/individual clear/count-confirmed Clear All, delete confirmation target naming, and pinning behaviours.
 - `note_discovery`: note list projection, Search integration, active tag filtering, ordering, display fields, and highlight segments.
 - `editor_view`: explicit Write, Preview, and Split view modes with viewport-aware behaviour.
 - `storage`: debounced save session, save lifecycle, active Notes persistence, Recently Deleted persistence, Backup Health metadata, and page lifecycle flushing.

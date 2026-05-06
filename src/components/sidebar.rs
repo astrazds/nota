@@ -48,6 +48,17 @@ fn backup_footer_button_classes() -> String {
     )
 }
 
+fn recently_deleted_clear_all_button_classes() -> String {
+    format!(
+        "ml-auto cursor-pointer rounded-md px-1.5 py-0.5 text-[11px] {}",
+        ThemeState::DangerMenuItem.classes()
+    )
+}
+
+fn should_show_clear_all_recently_deleted(count: usize) -> bool {
+    count > 0
+}
+
 fn note_list_title_classes() -> String {
     format!(
         "min-w-0 flex-1 truncate pr-2 font-semibold {}",
@@ -293,8 +304,21 @@ pub fn Sidebar() -> impl IntoView {
                     </Show>
                     <Show when=move || !recently_deleted_notes.get().is_empty()>
                         <details class="mx-4 mt-4 rounded-md border border-apple-gray-300 text-sm dark:border-apple-dark-border">
-                            <summary class=move || format!("cursor-pointer px-3 py-2 font-medium {}", ThemeText::Primary.classes())>
-                                {move || format!("Recently Deleted ({})", recently_deleted_notes.get().len())}
+                            <summary class=move || format!("flex cursor-pointer items-center gap-2 px-3 py-2 font-medium {}", ThemeText::Primary.classes())>
+                                <span>{move || format!("Recently Deleted ({})", recently_deleted_notes.get().len())}</span>
+                                <Show when=move || should_show_clear_all_recently_deleted(recently_deleted_notes.get().len())>
+                                    <button
+                                        type="button"
+                                        class=recently_deleted_clear_all_button_classes
+                                        on:click=move |ev: leptos::web_sys::MouseEvent| {
+                                            ev.prevent_default();
+                                            ev.stop_propagation();
+                                            state.request_clear_all_recently_deleted();
+                                        }
+                                    >
+                                        "Clear All"
+                                    </button>
+                                </Show>
                             </summary>
                             <div class="divide-y divide-apple-gray-200 dark:divide-apple-dark-border">
                                 <For
@@ -568,7 +592,8 @@ fn percent_encode_data_url(value: &str) -> String {
 mod tests {
     use super::{
         backup_footer_button_classes, note_list_title_classes, percent_encode_data_url,
-        search_syntax_hint_classes, sidebar_footer_classes, sidebar_state_class,
+        recently_deleted_clear_all_button_classes, search_syntax_hint_classes,
+        should_show_clear_all_recently_deleted, sidebar_footer_classes, sidebar_state_class,
         sidebar_title_classes,
     };
 
@@ -611,6 +636,18 @@ mod tests {
         assert!(footer.contains("items-center"));
         assert!(button.contains("rounded-md"));
         assert!(!footer.contains("details"));
+    }
+
+    #[test]
+    fn clear_all_recently_deleted_is_available_only_for_non_empty_recovery_lists() {
+        let button = recently_deleted_clear_all_button_classes();
+
+        assert!(!should_show_clear_all_recently_deleted(0));
+        assert!(should_show_clear_all_recently_deleted(1));
+        assert!(should_show_clear_all_recently_deleted(3));
+        assert!(button.contains("ml-auto"));
+        assert!(button.contains("text-red"));
+        assert!(button.contains("rounded-md"));
     }
 
     #[test]

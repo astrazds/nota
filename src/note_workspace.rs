@@ -12,6 +12,7 @@ pub struct NoteWorkspace {
     selected_id: Option<Uuid>,
     focus_intent: FocusIntent,
     delete_confirmation: Option<DeleteConfirmation>,
+    clear_all_recently_deleted_confirmation_count: Option<usize>,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -43,6 +44,7 @@ impl NoteWorkspace {
             selected_id,
             focus_intent: FocusIntent::None,
             delete_confirmation: None,
+            clear_all_recently_deleted_confirmation_count: None,
         }
     }
 
@@ -54,6 +56,7 @@ impl NoteWorkspace {
             selected_id,
             focus_intent: FocusIntent::None,
             delete_confirmation: None,
+            clear_all_recently_deleted_confirmation_count: None,
         }
     }
 
@@ -219,6 +222,38 @@ impl NoteWorkspace {
         };
 
         self.recently_deleted_notes.remove(index);
+        true
+    }
+
+    pub fn request_clear_all_recently_deleted(&mut self) -> bool {
+        if self.recently_deleted_notes.is_empty() {
+            return false;
+        }
+
+        self.clear_all_recently_deleted_confirmation_count =
+            Some(self.recently_deleted_notes.len());
+        true
+    }
+
+    pub fn cancel_clear_all_recently_deleted(&mut self) {
+        self.clear_all_recently_deleted_confirmation_count = None;
+    }
+
+    pub fn clear_all_recently_deleted_confirmation_count(&self) -> Option<usize> {
+        self.clear_all_recently_deleted_confirmation_count
+    }
+
+    pub fn confirm_clear_all_recently_deleted(&mut self) -> bool {
+        if self
+            .clear_all_recently_deleted_confirmation_count
+            .take()
+            .is_none()
+            || self.recently_deleted_notes.is_empty()
+        {
+            return false;
+        }
+
+        self.recently_deleted_notes.clear();
         true
     }
 
@@ -428,6 +463,47 @@ mod tests {
         assert_eq!(workspace.notes()[0].id, active_id);
         assert_eq!(workspace.selected_id(), Some(active_id));
         assert!(!workspace.permanently_clear_recently_deleted(deleted_id));
+    }
+
+    #[test]
+    fn clear_all_recently_deleted_requires_confirmation_and_preserves_active_notes() {
+        let active_note = Note::new("Active".to_string(), String::new());
+        let active_id = active_note.id;
+        let first_deleted = Note::new("First deleted".to_string(), String::new());
+        let second_deleted = Note::new("Second deleted".to_string(), String::new());
+        let mut workspace = NoteWorkspace::new_with_recently_deleted(
+            vec![active_note.clone()],
+            vec![first_deleted, second_deleted],
+        );
+
+        assert_eq!(
+            workspace.clear_all_recently_deleted_confirmation_count(),
+            None
+        );
+        assert!(workspace.request_clear_all_recently_deleted());
+        assert_eq!(
+            workspace.clear_all_recently_deleted_confirmation_count(),
+            Some(2)
+        );
+
+        workspace.cancel_clear_all_recently_deleted();
+        assert_eq!(workspace.recently_deleted_notes().len(), 2);
+        assert_eq!(
+            workspace.clear_all_recently_deleted_confirmation_count(),
+            None
+        );
+
+        assert!(workspace.request_clear_all_recently_deleted());
+        assert!(workspace.confirm_clear_all_recently_deleted());
+
+        assert!(workspace.recently_deleted_notes().is_empty());
+        assert_eq!(workspace.notes(), &[active_note]);
+        assert_eq!(workspace.selected_id(), Some(active_id));
+        assert_eq!(
+            workspace.clear_all_recently_deleted_confirmation_count(),
+            None
+        );
+        assert!(!workspace.confirm_clear_all_recently_deleted());
     }
 
     #[test]

@@ -190,95 +190,17 @@ pub fn Editor() -> impl IntoView {
         <div class="flex-1 flex flex-col h-full overflow-hidden relative transition-colors duration-300">
             <CheatsheetModal show=show_cheatsheet />
 
-            <div class=move || format!("min-h-14 p-2 px-3 md:px-4 flex justify-between items-center gap-3 border-b sticky top-0 z-10 {}", ThemeSurface::EditorChrome.classes())>
-                <div class="flex items-center gap-2 min-w-0">
-                    <button
-                        on:click=move |_| state.toggle_sidebar()
-                        class=sidebar_toggle_button_classes
-                        title="Toggle Sidebar"
-                        aria-label="Toggle sidebar"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                    </button>
-                    <div class="flex space-x-1 border-r pr-3 border-gray-200 dark:border-apple-dark-border">
-                        <button
-                            on:click=move |_| state.set_editor_view_mode(EditorViewMode::Write)
-                            title="Write"
-                            aria-label="Write mode"
-                            aria-pressed=move || state.editor_view_mode.get() == EditorViewMode::Write
-                            class=move || editor_view_button_classes(
-                                state.editor_view_mode.get() == EditorViewMode::Write,
-                                false,
-                            )
-                        >
-                            "Write"
-                        </button>
-                        <button
-                            on:click=move |_| state.set_editor_view_mode(EditorViewMode::Preview)
-                            title="Preview"
-                            aria-label="Preview mode"
-                            aria-pressed=move || state.editor_view_mode.get() == EditorViewMode::Preview
-                            class=move || editor_view_button_classes(
-                                state.editor_view_mode.get() == EditorViewMode::Preview,
-                                false,
-                            )
-                        >
-                            "Preview"
-                        </button>
-                        <button
-                            on:click=move |_| state.set_editor_view_mode(EditorViewMode::Split)
-                            title="Split"
-                            aria-label="Split mode"
-                            aria-pressed=move || state.editor_view_mode.get() == EditorViewMode::Split
-                            class=move || editor_view_button_classes(
-                                state.editor_view_mode.get() == EditorViewMode::Split,
-                                true,
-                            )
-                        >
-                            "Split"
-                        </button>
-                        <button
-                            on:click=move |_| show_cheatsheet.set(true)
-                            title="Markdown Help"
-                            aria-label="Show markdown cheatsheet"
-                            class=markdown_help_button_classes
-                        >
-                            "?"
-                        </button>
-                    </div>
-
-                    <Show when=move || state.editor_view_mode.get() != EditorViewMode::Preview>
-                        <div class="hidden sm:flex items-center space-x-1">
-                            <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Bold) title="Bold" aria_label="Bold">
-                                <span class="font-bold">B</span>
-                            </ToolbarButton>
-                            <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Italic) title="Italic" aria_label="Italic">
-                                <span class="italic">I</span>
-                            </ToolbarButton>
-                            <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Strikethrough) title="Strikethrough" aria_label="Strikethrough">
-                                <span class="line-through">S</span>
-                            </ToolbarButton>
-                            <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::TaskList) title="Task List" aria_label="Task list">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h4v4H4V6zm0 8h4v4H4v-4zm0 8h4v-4H4v4zM12 7h8M12 15h8M12 19h8" />
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 7.5l1.2 1.2L7.8 7" />
-                                </svg>
-                            </ToolbarButton>
-                            <ToolbarButton
-                                on_click=move |_| apply_format(MarkdownCommand::Table)
-                                title="Insert Table"
-                                aria_label="Insert table"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6h18v12H3V6zM3 12h18M9 6v12M15 6v12" />
-                                </svg>
-                            </ToolbarButton>
-                        </div>
-                    </Show>
-                </div>
-                <NotificationOutlet />
+            <div class="pointer-events-none absolute left-3 top-3 z-20 lg:hidden">
+                <button
+                    on:click=move |_| state.toggle_sidebar()
+                    class=sidebar_toggle_button_classes
+                    title="Toggle Sidebar"
+                    aria-label="Toggle sidebar"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
             </div>
 
             <div class="flex-1 flex overflow-hidden">
@@ -384,6 +306,32 @@ pub fn Editor() -> impl IntoView {
                                             </details>
                                         </Show>
                                     </div>
+                                    <div class=formatting_tools_classes>
+                                        <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Bold) title="Bold" aria_label="Bold">
+                                            <span class="font-bold">B</span>
+                                        </ToolbarButton>
+                                        <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Italic) title="Italic" aria_label="Italic">
+                                            <span class="italic">I</span>
+                                        </ToolbarButton>
+                                        <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Strikethrough) title="Strikethrough" aria_label="Strikethrough">
+                                            <span class="line-through">S</span>
+                                        </ToolbarButton>
+                                        <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::TaskList) title="Task List" aria_label="Task list">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h4v4H4V6zm0 8h4v4H4v-4zm0 8h4v-4H4v4zM12 7h8M12 15h8M12 19h8" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 7.5l1.2 1.2L7.8 7" />
+                                            </svg>
+                                        </ToolbarButton>
+                                        <ToolbarButton
+                                            on_click=move |_| apply_format(MarkdownCommand::Table)
+                                            title="Insert Table"
+                                            aria_label="Insert table"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6h18v12H3V6zM3 12h18M9 6v12M15 6v12" />
+                                            </svg>
+                                        </ToolbarButton>
+                                    </div>
                                     <textarea
                                         node_ref=content_area_ref
                                         class=editor_body_textarea_classes
@@ -436,12 +384,61 @@ pub fn Editor() -> impl IntoView {
                     }.into_any()
                 }}
             </div>
+
+            <div class=editor_area_footer_classes>
+                <div class=editor_view_controls_classes>
+                    <button
+                        on:click=move |_| state.set_editor_view_mode(EditorViewMode::Write)
+                        title="Write"
+                        aria-label="Write mode"
+                        aria-pressed=move || state.editor_view_mode.get() == EditorViewMode::Write
+                        class=move || editor_view_button_classes(
+                            state.editor_view_mode.get() == EditorViewMode::Write,
+                            false,
+                        )
+                    >
+                        "Write"
+                    </button>
+                    <button
+                        on:click=move |_| state.set_editor_view_mode(EditorViewMode::Preview)
+                        title="Preview"
+                        aria-label="Preview mode"
+                        aria-pressed=move || state.editor_view_mode.get() == EditorViewMode::Preview
+                        class=move || editor_view_button_classes(
+                            state.editor_view_mode.get() == EditorViewMode::Preview,
+                            false,
+                        )
+                    >
+                        "Preview"
+                    </button>
+                    <button
+                        on:click=move |_| state.set_editor_view_mode(EditorViewMode::Split)
+                        title="Split"
+                        aria-label="Split mode"
+                        aria-pressed=move || state.editor_view_mode.get() == EditorViewMode::Split
+                        class=move || editor_view_button_classes(
+                            state.editor_view_mode.get() == EditorViewMode::Split,
+                            true,
+                        )
+                    >
+                        "Split"
+                    </button>
+                    <button
+                        on:click=move |_| show_cheatsheet.set(true)
+                        title="Markdown Help"
+                        aria-label="Show markdown cheatsheet"
+                        class=markdown_help_button_classes
+                    >
+                        "?"
+                    </button>
+                </div>
+            </div>
         </div>
     }
 }
 
 #[component]
-fn NotificationOutlet() -> impl IntoView {
+pub fn GlobalNotificationOutlet() -> impl IntoView {
     let state = use_context::<AppState>().expect("state not found");
     let timeout: NotificationTimeout = Rc::new(RefCell::new(None));
 
@@ -474,7 +471,7 @@ fn NotificationOutlet() -> impl IntoView {
     });
 
     view! {
-        <div class="ml-auto flex min-w-0 shrink-0 justify-end">
+        <div class=notification_outlet_classes>
             {move || {
                 state.notification.get().map(|notification| {
                     view! {
@@ -491,6 +488,10 @@ fn NotificationOutlet() -> impl IntoView {
     }
 }
 
+fn notification_outlet_classes() -> &'static str {
+    "pointer-events-none fixed right-3 top-3 z-50 flex min-w-0 justify-end"
+}
+
 fn notification_classes(tone: NotificationTone) -> String {
     let tone_classes = match tone {
         NotificationTone::Progress => {
@@ -505,7 +506,7 @@ fn notification_classes(tone: NotificationTone) -> String {
     };
 
     format!(
-        "max-w-[11rem] truncate rounded-md border px-3 py-1 text-xs font-medium shadow-sm {tone_classes}"
+        "pointer-events-auto max-w-[11rem] truncate rounded-md border px-3 py-1 text-xs font-medium shadow-sm {tone_classes}"
     )
 }
 
@@ -528,9 +529,32 @@ fn editor_view_button_classes(is_active: bool, is_split: bool) -> String {
 
 fn sidebar_toggle_button_classes() -> String {
     format!(
-        "inline-flex h-11 w-11 items-center justify-center lg:hidden {}",
+        "pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-md shadow-sm lg:hidden {} {}",
+        ThemeSurface::EditorChrome.classes(),
         ThemeAccent::PrimaryText.classes()
     )
+}
+
+fn editor_area_footer_classes() -> String {
+    format!(
+        "min-h-14 shrink-0 border-t px-3 py-1.5 flex items-center justify-center {}",
+        ThemeSurface::EditorChrome.classes()
+    )
+}
+
+fn editor_view_controls_classes() -> &'static str {
+    "flex min-w-0 items-center justify-center space-x-1"
+}
+
+fn formatting_tools_classes() -> String {
+    format!(
+        "flex items-center space-x-1 border-y border-apple-gray-200 px-6 py-1.5 md:px-8 dark:border-apple-dark-border {}",
+        ThemeSurface::EditorChrome.classes()
+    )
+}
+
+fn formatting_tool_button_classes() -> String {
+    format!("p-1.5 rounded {}", ThemeState::ToolbarButton.classes())
 }
 
 fn markdown_help_button_classes() -> String {
@@ -660,7 +684,7 @@ fn ToolbarButton(
             on:click=on_click
             title=title
             aria-label=aria_label
-            class=move || format!("p-1.5 rounded {}", ThemeState::ToolbarButton.classes())
+            class=formatting_tool_button_classes
         >
             {children()}
         </button>
@@ -674,10 +698,17 @@ mod tests {
     #[test]
     fn compact_editor_view_controls_keep_touch_sized_targets() {
         let sidebar = sidebar_toggle_button_classes();
+        let footer = editor_area_footer_classes();
+        let controls = editor_view_controls_classes();
         let write = editor_view_button_classes(false, false);
         let preview = editor_view_button_classes(true, false);
         let help = markdown_help_button_classes();
 
+        assert!(footer.contains("min-h-14"));
+        assert!(footer.contains("border-t"));
+        assert!(footer.contains("justify-center"));
+        assert!(controls.contains("flex"));
+        assert!(controls.contains("space-x-1"));
         assert!(sidebar.contains("h-11"));
         assert!(sidebar.contains("w-11"));
         assert!(sidebar.contains("lg:hidden"));
@@ -698,6 +729,20 @@ mod tests {
         assert!(split.contains("lg:inline-flex"));
         assert!(split.starts_with("hidden lg:inline-flex"));
         assert!(!split.starts_with("inline-flex"));
+    }
+
+    #[test]
+    fn formatting_tools_live_inside_the_writing_surface() {
+        let toolbar = formatting_tools_classes();
+        let button = formatting_tool_button_classes();
+
+        assert!(toolbar.contains("flex"));
+        assert!(toolbar.contains("border-y"));
+        assert!(toolbar.contains("px-6"));
+        assert!(toolbar.contains("md:px-8"));
+        assert!(!toolbar.contains("sticky"));
+        assert!(button.contains("rounded"));
+        assert!(button.contains("p-1.5"));
     }
 
     #[test]
@@ -733,11 +778,19 @@ mod tests {
 
     #[test]
     fn global_notification_classes_are_visible_but_compact() {
+        let outlet = notification_outlet_classes();
         let progress = notification_classes(NotificationTone::Progress);
         let success = notification_classes(NotificationTone::Success);
         let error = notification_classes(NotificationTone::Error);
 
+        assert!(outlet.contains("fixed"));
+        assert!(outlet.contains("top-3"));
+        assert!(outlet.contains("right-3"));
+        assert!(outlet.contains("z-50"));
+        assert!(outlet.contains("pointer-events-none"));
+
         for classes in [&progress, &success, &error] {
+            assert!(classes.contains("pointer-events-auto"));
             assert!(classes.contains("rounded-md"));
             assert!(classes.contains("border"));
             assert!(classes.contains("shadow-sm"));

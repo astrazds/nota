@@ -15,7 +15,7 @@ mod storage;
 mod tag_rules;
 mod theme;
 
-use components::{ConfirmModal, Editor, Sidebar};
+use components::{ConfirmModal, Editor, GlobalNotificationOutlet, Sidebar};
 
 use backup::{
     BackupError, BackupHealth, BackupHealthRecord, BackupImportPreview, assess_backup_health,
@@ -257,6 +257,34 @@ impl AppState {
             .unwrap_or(false);
         if cleared {
             self.mark_notes_changed();
+        }
+    }
+
+    pub fn request_clear_all_recently_deleted(self) {
+        self.workspace.update(|workspace| {
+            workspace.request_clear_all_recently_deleted();
+        });
+    }
+
+    pub fn clear_all_recently_deleted_confirmation_count(self) -> Option<usize> {
+        self.workspace
+            .get()
+            .clear_all_recently_deleted_confirmation_count()
+    }
+
+    pub fn cancel_clear_all_recently_deleted(self) {
+        self.workspace
+            .update(NoteWorkspace::cancel_clear_all_recently_deleted);
+    }
+
+    pub fn confirm_clear_all_recently_deleted_notes(self) {
+        let cleared = self
+            .workspace
+            .try_update(NoteWorkspace::confirm_clear_all_recently_deleted)
+            .unwrap_or(false);
+        if cleared {
+            self.mark_notes_changed();
+            self.show_notification("Recently Deleted cleared", NotificationTone::Success);
         }
     }
 
@@ -538,6 +566,7 @@ fn App() -> impl IntoView {
         >
             <Sidebar />
             <Editor />
+            <GlobalNotificationOutlet />
             <ConfirmModal
                 title="Delete Note?"
                 message="This can be restored from Recently Deleted."
@@ -644,6 +673,33 @@ mod tests {
         })
     }
 
+    fn with_test_state_and_recently_deleted<T>(
+        notes: Vec<Note>,
+        recently_deleted_notes: Vec<Note>,
+        test: impl FnOnce(AppState) -> T,
+    ) -> T {
+        Owner::new().with(|| {
+            let state = AppState {
+                workspace: RwSignal::new(NoteWorkspace::new_with_recently_deleted(
+                    notes,
+                    recently_deleted_notes,
+                )),
+                notes_save_revision: RwSignal::new(0),
+                is_dark_mode: RwSignal::new(false),
+                viewport_class: RwSignal::new(ViewportClass::Wide),
+                is_sidebar_open: RwSignal::new(true),
+                note_list_interaction: RwSignal::new(NoteListInteraction::default()),
+                editor_view_mode: RwSignal::new(EditorViewMode::Write),
+                save_status: RwSignal::new(SaveStatus::Saved),
+                backup_health_record: RwSignal::new(None),
+                notification: RwSignal::new(None),
+                notification_sequence: RwSignal::new(0),
+            };
+
+            test(state)
+        })
+    }
+
     #[test]
     fn note_list_row_selection_selects_the_note_and_updates_responsive_navigation() {
         let first = Note::new("First".to_string(), String::new());
@@ -727,6 +783,39 @@ mod tests {
             assert!(state.recently_deleted_notes_untracked().is_empty());
             assert_eq!(state.notes_save_revision.get_untracked(), 4);
         });
+    }
+
+    #[test]
+    fn clear_all_recently_deleted_marks_notes_changed_after_confirmation() {
+        let active_note = Note::new("Active".to_string(), String::new());
+        let first_deleted = Note::new("First deleted".to_string(), String::new());
+        let second_deleted = Note::new("Second deleted".to_string(), String::new());
+
+        with_test_state_and_recently_deleted(
+            vec![active_note.clone()],
+            vec![first_deleted, second_deleted],
+            |state| {
+                assert_eq!(state.clear_all_recently_deleted_confirmation_count(), None);
+
+                state.request_clear_all_recently_deleted();
+                assert_eq!(
+                    state.clear_all_recently_deleted_confirmation_count(),
+                    Some(2)
+                );
+                assert_eq!(state.notes_save_revision.get_untracked(), 0);
+
+                state.cancel_clear_all_recently_deleted();
+                assert_eq!(state.recently_deleted_notes_untracked().len(), 2);
+                assert_eq!(state.notes_save_revision.get_untracked(), 0);
+
+                state.request_clear_all_recently_deleted();
+                state.confirm_clear_all_recently_deleted_notes();
+
+                assert_eq!(state.notes_untracked(), vec![active_note]);
+                assert!(state.recently_deleted_notes_untracked().is_empty());
+                assert_eq!(state.notes_save_revision.get_untracked(), 1);
+            },
+        );
     }
 
     #[test]

@@ -32,6 +32,10 @@ _Avoid_: Source pane
 A user-selected way to see a Note, such as writing, previewing, or desktop-only split view.
 _Avoid_: Layout toggle
 
+**View Mode Controls**:
+The compact controls for switching between Write, Preview, Split, and Markdown help, kept with the editor area at a stable height.
+_Avoid_: Primary app header
+
 **Tag**:
 A lightweight label on a Note used for secondary organisation and filtering.
 _Avoid_: Folder, primary navigation item
@@ -60,6 +64,10 @@ _Avoid_: Generic destructive modal
 A recoverable holding area for Notes deleted from the Flat Collection, with explicit Restore and Clear actions.
 _Avoid_: Hidden undo state, Trash as primary navigation
 
+**Clear All**:
+An explicit Recently Deleted action that permanently clears all recoverable Notes after confirmation.
+_Avoid_: Empty, silent purge
+
 **Note Metadata**:
 Lightweight descriptive information about a Note, such as its Tags.
 _Avoid_: Permanent bottom bar
@@ -73,8 +81,8 @@ A small editing-state indicator that tells the user whether Note changes are sav
 _Avoid_: Sidebar footer metadata
 
 **Global Notification**:
-A short-lived top-bar message for save, Backup, and import feedback.
-_Avoid_: Permanent footer status text
+A short-lived floating message for save, Backup, and import feedback that does not create persistent header chrome.
+_Avoid_: Permanent footer status text, app header status
 
 **Formatting Tools**:
 Contextual controls that help users insert or wrap Markdown while writing.
@@ -128,16 +136,24 @@ _Avoid_: Replace import by default
 - A **Note** exposes **Note Actions** through a stable control.
 - A **Note** should be named in its **Delete Confirmation**.
 - A **Note** can move to **Recently Deleted** before it is explicitly cleared.
+- **Clear All** permanently removes every Note in **Recently Deleted** and should confirm the count before applying.
+- **Clear All** should be visible in the **Recently Deleted** summary row when recoverable Notes exist.
 - A **Note** shows **Note Metadata** near its header or details surface.
 - A **Preview** shows the **Note Title**, then read-only **Note Metadata**, then the Markdown body so Preview and Split view match the Writing Surface header order.
 - A **Note** has a **Save Status** while it is being edited.
-- A **Global Notification** can show save, Backup, and import outcomes, then clear itself after a short delay.
+- A **Global Notification** can show save, Backup, and import outcomes above the app chrome, then clear itself after a short delay.
 - A **Markdown Note App** prioritises creating, writing, finding, and organising **Notes** over exposing Markdown tooling.
 - **Quick Capture** creates a **Note** and returns the user to the **Writing Surface**.
 - A **Flat Collection** contains all **Notes** without folders or notebooks.
 - A **Local-First Note Identity** can borrow familiar note-app structure without copying Apple Notes exactly.
 - A **Writing Surface** is the default **View Mode** for a **Note**.
+- **View Mode Controls** belong in a consistent editor-area footer and should keep a stable height across Write, Preview, and Split.
+- In Split, one editor-area footer should span the editor/preview area because both panes are one **View Mode** for the same **Note**.
+- Desktop should avoid a persistent editor header when the editor-area footer can carry **View Mode Controls**.
+- Compact viewports may keep a minimal **Responsive Navigation** toggle so the user can return to the **Note List**.
 - **Formatting Tools** support the **Writing Surface** but should not dominate the app chrome.
+- **Formatting Tools** should only appear when the **Writing Surface** is available.
+- In the **Writing Surface**, **Formatting Tools** sit after the Note header metadata and before the Markdown body.
 - A **Preview** is a **View Mode**, not the default workspace.
 - A **Tag** supports filtering but does not define the primary navigation model.
 - **Search** is the primary way to discover existing **Notes**.
@@ -240,7 +256,7 @@ _Avoid_: Replace import by default
 - "New note" behaved like a generic creation action — resolved: **Quick Capture** should start a selected Note and focus the Note Title.
 - "Apple Notes clone" was too restrictive as a design target — resolved: use a **Local-First Note Identity**.
 - "Saved" was treated as sidebar metadata — resolved: **Save Status** belongs with the active editing context.
-- "Backup exported" was treated as persistent footer metadata — resolved: transient Backup and import feedback belongs in a **Global Notification**.
+- "Backup exported" was treated as persistent footer metadata — resolved: transient Backup and import feedback belongs in a floating **Global Notification**.
 - "Toolbar" implied primary app chrome — resolved: **Formatting Tools** are contextual writing affordances.
 - "Version" was treated as primary sidebar content — resolved: **Product Metadata** belongs outside the main note workflow.
 - "Search" could imply global commands — resolved: **Search** is scoped to discovering **Notes**.

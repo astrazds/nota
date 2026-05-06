@@ -1042,7 +1042,7 @@ checksum = "60993920e071b0c9b66f14e2b32740a4e27ffc82854dcd72035887f336a09a28"
 
 [[package]]
 name = "noter"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "gloo-storage",

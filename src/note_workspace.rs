@@ -1,6 +1,8 @@
+use crate::backup::{BackupError, BackupImport, import_flat_collection_backup};
 use crate::model::Note;
 use crate::note_collection::NoteCollection;
 use crate::note_discovery::{NoteListProjection, project_note_list};
+use crate::tag_rules::{TagCleanupPlan, plan_collection_tag_cleanup};
 use uuid::Uuid;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -104,6 +106,32 @@ impl NoteWorkspace {
             return false;
         };
         NoteCollection::update_tags(&mut self.notes, id, tags)
+    }
+
+    pub fn remove_selected_tag(&mut self, tag: &str) -> bool {
+        let Some(id) = self.selected_id else {
+            return false;
+        };
+        NoteCollection::remove_tag(&mut self.notes, id, tag)
+    }
+
+    pub fn tag_cleanup_plan(&self) -> TagCleanupPlan {
+        plan_collection_tag_cleanup(&self.notes)
+    }
+
+    pub fn apply_tag_cleanup(&mut self, plan: &TagCleanupPlan) -> bool {
+        NoteCollection::apply_tag_cleanup(&mut self.notes, plan)
+    }
+
+    pub fn import_flat_collection_backup(
+        &mut self,
+        backup_json: &str,
+    ) -> Result<BackupImport, BackupError> {
+        let imported = import_flat_collection_backup(&mut self.notes, backup_json)?;
+        self.selected_id = imported
+            .selected_id
+            .or_else(|| self.notes.first().map(|note| note.id));
+        Ok(imported)
     }
 
     pub fn request_delete(&mut self, id: Uuid) -> bool {
@@ -239,6 +267,88 @@ mod tests {
         assert_eq!(selected.title, "Title");
         assert_eq!(selected.content, "Content");
         assert_eq!(selected.tags, vec!["work".to_string()]);
+    }
+
+    #[test]
+    fn removes_a_selected_note_tag_and_refreshes_discovery() {
+        let mut note = Note::new("Tagged".to_string(), "Find me".to_string());
+        note.tags = vec!["Work".to_string(), "Rust".to_string()];
+        let note_id = note.id;
+        let mut workspace = NoteWorkspace::new(vec![note]);
+
+        assert!(workspace.remove_selected_tag("work"));
+        assert_eq!(
+            workspace.selected_note().unwrap().tags,
+            vec!["Rust".to_string()]
+        );
+
+        assert!(
+            workspace
+                .note_list_projection("", Some("work"))
+                .rows
+                .is_empty()
+        );
+        assert_eq!(
+            workspace.note_list_projection("rust", None).rows[0].id,
+            note_id
+        );
+    }
+
+    #[test]
+    fn previews_and_applies_collection_tag_cleanup_through_workspace() {
+        let mut dirty = Note::new("Dirty".to_string(), "Find me".to_string());
+        dirty.tags = vec![" Work ".to_string(), "work".to_string()];
+        let dirty_id = dirty.id;
+        let mut clean = Note::new("Clean".to_string(), "Reference".to_string());
+        clean.tags = vec!["Reference".to_string()];
+        let clean_id = clean.id;
+        let mut workspace = NoteWorkspace::new(vec![dirty, clean]);
+
+        let plan = workspace.tag_cleanup_plan();
+        assert_eq!(plan.changes.len(), 1);
+        assert_eq!(plan.changes[0].after, vec!["Work".to_string()]);
+
+        assert!(workspace.apply_tag_cleanup(&plan));
+        assert_eq!(workspace.notes()[0].tags, vec!["Work".to_string()]);
+        assert_eq!(workspace.notes()[1].tags, vec!["Reference".to_string()]);
+        assert_eq!(
+            workspace.note_list_projection("", Some("work")).rows[0].id,
+            dirty_id
+        );
+        assert_eq!(
+            workspace.note_list_projection("reference", None).rows[0].id,
+            clean_id
+        );
+        assert!(workspace.tag_cleanup_plan().is_empty());
+    }
+
+    #[test]
+    fn imports_a_flat_collection_backup_and_selects_the_first_imported_note() {
+        let imported_note = Note::new("Imported".to_string(), "Backup content".to_string());
+        let backup_json =
+            crate::backup::export_flat_collection_backup(std::slice::from_ref(&imported_note))
+                .unwrap();
+        let mut workspace = NoteWorkspace::new(Vec::new());
+
+        let imported = workspace
+            .import_flat_collection_backup(&backup_json)
+            .unwrap();
+
+        assert_eq!(imported.selected_id, Some(imported_note.id));
+        assert_eq!(workspace.selected_id(), Some(imported_note.id));
+        assert_eq!(workspace.notes(), &[imported_note]);
+    }
+
+    #[test]
+    fn invalid_flat_collection_backup_leaves_workspace_unchanged() {
+        let existing_note = Note::new("Existing".to_string(), "Current content".to_string());
+        let mut workspace = NoteWorkspace::new(vec![existing_note.clone()]);
+
+        let result = workspace.import_flat_collection_backup("{not valid json");
+
+        assert!(result.is_err());
+        assert_eq!(workspace.selected_id(), Some(existing_note.id));
+        assert_eq!(workspace.notes(), &[existing_note]);
     }
 
     #[test]

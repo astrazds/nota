@@ -5,8 +5,9 @@ use crate::theme::{ThemeAccent, ThemeState, ThemeSurface, ThemeText};
 use leptos::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
+use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
-use web_sys::window;
+use web_sys::{FileReader, HtmlAnchorElement, HtmlInputElement, window};
 
 const SIDEBAR_BASE_CLASS: &str = "fixed inset-y-0 left-0 z-30 transform transition-all duration-300 ease-in-out lg:relative lg:translate-x-0 flex flex-col h-full border-r";
 type TimeoutState = Rc<RefCell<Option<(i32, Closure<dyn FnMut()>)>>>;
@@ -21,7 +22,54 @@ pub fn Sidebar() -> impl IntoView {
     let available_tags = Memo::new(move |_| state.available_tags());
 
     let search_input_value = RwSignal::new(state.note_search_input());
+    let backup_status = RwSignal::new(String::new());
     let debounce_timeout: TimeoutState = Rc::new(RefCell::new(None));
+
+    let export_backup = move |_| match state.export_backup_json() {
+        Ok(backup_json) => match download_backup(&state.backup_file_name(), &backup_json) {
+            Ok(()) => backup_status.set("Backup exported".to_string()),
+            Err(message) => backup_status.set(message),
+        },
+        Err(_) => backup_status.set("Backup export failed".to_string()),
+    };
+
+    let import_backup = move |ev| {
+        let input = event_target::<HtmlInputElement>(&ev);
+        let Some(file) = input.files().and_then(|files| files.get(0)) else {
+            return;
+        };
+
+        backup_status.set("Importing backup...".to_string());
+        let Ok(reader) = FileReader::new() else {
+            backup_status.set("Backup import failed".to_string());
+            input.set_value("");
+            return;
+        };
+        let reader_for_load = reader.clone();
+        let backup_status_for_load = backup_status;
+        let on_load = Closure::wrap(Box::new(move |_ev: web_sys::ProgressEvent| {
+            let Some(backup_json) = reader_for_load
+                .result()
+                .ok()
+                .and_then(|value| value.as_string())
+            else {
+                backup_status_for_load.set("Backup import failed".to_string());
+                return;
+            };
+
+            match state.import_backup_json(&backup_json) {
+                Ok(()) => backup_status_for_load.set("Backup imported".to_string()),
+                Err(_) => backup_status_for_load.set("Backup import failed".to_string()),
+            }
+        }) as Box<dyn FnMut(_)>);
+
+        reader.set_onloadend(Some(on_load.as_ref().unchecked_ref()));
+        if reader.read_as_text(&file).is_err() {
+            backup_status.set("Backup import failed".to_string());
+        }
+        on_load.forget();
+        input.set_value("");
+    };
 
     Effect::new(move |_| {
         let _input = search_input_value.get();
@@ -124,7 +172,43 @@ pub fn Sidebar() -> impl IntoView {
                                 search_input_value.set(value);
                             }
                         />
+                        <details class=move || format!("mt-1 text-xs {}", ThemeText::Subtle.classes())>
+                            <summary class="inline cursor-pointer select-none hover:underline">
+                                "Search syntax"
+                            </summary>
+                            <div class="mt-1 flex flex-wrap gap-1.5" aria-label="Supported search syntax">
+                                <code class="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">"\"exact phrase\""</code>
+                                <code class="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">"title:plan"</code>
+                                <code class="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">"tag:work"</code>
+                                <code class="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">"is:pinned"</code>
+                            </div>
+                        </details>
                     </div>
+
+                    <details class=move || format!("rounded-md border border-black/10 p-2 text-xs dark:border-white/10 {}", ThemeText::Subtle.classes())>
+                        <summary class="cursor-pointer select-none font-medium">"Backup"</summary>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                class=move || format!("rounded-md px-2 py-1 text-xs {}", ThemeState::SegmentedIdle.classes())
+                                on:click=export_backup
+                            >
+                                "Export"
+                            </button>
+                            <label class=move || format!("cursor-pointer rounded-md px-2 py-1 text-xs {}", ThemeState::SegmentedIdle.classes())>
+                                "Import"
+                                <input
+                                    type="file"
+                                    accept="application/json,.json"
+                                    class="sr-only"
+                                    on:change=import_backup
+                                />
+                            </label>
+                        </div>
+                        <Show when=move || !backup_status.get().is_empty()>
+                            <p class="mt-2">{move || backup_status.get()}</p>
+                        </Show>
+                    </details>
 
                     <Show when=move || state.active_tag().is_some() && !available_tags.get().is_empty()>
                         <div class="flex items-center gap-2 text-xs">
@@ -305,5 +389,51 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
                 </div>
             </Show>
         </div>
+    }
+}
+
+fn download_backup(filename: &str, backup_json: &str) -> Result<(), String> {
+    let document = window()
+        .and_then(|window| window.document())
+        .ok_or_else(|| "Backup export failed".to_string())?;
+    let anchor = document
+        .create_element("a")
+        .map_err(|_| "Backup export failed".to_string())?
+        .dyn_into::<HtmlAnchorElement>()
+        .map_err(|_| "Backup export failed".to_string())?;
+
+    anchor.set_download(filename);
+    anchor.set_href(&format!(
+        "data:application/json;charset=utf-8,{}",
+        percent_encode_data_url(backup_json)
+    ));
+    anchor.click();
+    Ok(())
+}
+
+fn percent_encode_data_url(value: &str) -> String {
+    value
+        .bytes()
+        .fold(String::with_capacity(value.len()), |mut encoded, byte| {
+            match byte {
+                b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                    encoded.push(byte as char)
+                }
+                _ => encoded.push_str(&format!("%{byte:02X}")),
+            }
+            encoded
+        })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::percent_encode_data_url;
+
+    #[test]
+    fn backup_download_data_url_percent_encodes_json_content() {
+        assert_eq!(
+            percent_encode_data_url("{\"title\":\"日本語 note\"}"),
+            "%7B%22title%22%3A%22%E6%97%A5%E6%9C%AC%E8%AA%9E%20note%22%7D"
+        );
     }
 }

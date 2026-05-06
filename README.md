@@ -2,7 +2,7 @@
 
 A local-first Markdown note-taking web app built with **Rust**, **Leptos**, and **Tailwind CSS**.
 
-Current app version: **0.3.0**.
+Current app version: **0.4.0**.
 
 ## Features
 
@@ -13,9 +13,11 @@ Current app version: **0.3.0**.
   - Use 2 spaces at line-end for hard line breaks.
 - **Organisation Tools**:
   - **Search**: Real-time search bar (with debounce) to filter notes by title, content, or tags with text highlighting.
-  - **Tags**: Lightweight note metadata for secondary filtering without folders or notebooks.
+  - **Scoped Search**: Optional syntax for quoted phrases, `title:`, `tag:`, and `is:pinned` filters while keeping Search focused on Notes.
+  - **Tags**: Lightweight note metadata with autocomplete, normalization, removable Tag pills, and reviewed cleanup for secondary filtering without folders or notebooks.
   - **Pinning**: Pin important notes to the top of your list.
 - **Local Persistence**: Automatically persists notes to your browser's `LocalStorage` with debounced saves while typing.
+- **Backup & Restore**: Export a versioned Flat Collection backup and safely merge-import backups without destructive replacement.
 - **Debug Starter Notes**: Debug builds seed three representative notes when the browser has no saved notes yet, giving manual testing coverage for pinning, tags, rich Markdown, preview safety, search, and responsive editing.
 - **Tuned Themes**: Supports Light and Dark themes with coherent surfaces, borders, selection states, and accents.
 - **Responsive Design**: Optimised for desktop and mobile, with top-bar navigation between the Note List and Writing Surface.
@@ -90,10 +92,11 @@ cargo doc --workspace --no-deps
 ```
 
 Tests cover core domain logic including:
-- **Filtering & Sorting**: Real-time search, text highlighting, render-ready note list projection, active tag filtering, and note pinning logic.
+- **Backup & Restore**: Versioned Flat Collection backup export, validation, merge import, duplicate identity handling, and all-or-nothing failure behavior.
+- **Filtering & Sorting**: Real-time search, scoped query parsing, quoted phrase matching, text highlighting, render-ready note list projection, active tag filtering, and note pinning logic.
 - **Formatting**: Named Markdown commands and UTF-16/UTF-8-safe selection handling.
 - **Note Logic**: Workspace behaviours for note creation, selected note editing, delete confirmation, title extraction, date formatting, preview truncation, and deserialisation.
-- **Tags**: Parsing, display formatting, case-insensitive matching, collection, and sorting.
+- **Tags**: Parsing, display formatting, autocomplete suggestions, normalization, individual removal, cleanup planning, case-insensitive matching, collection, and sorting.
 - **Persistence**: Save lifecycle and save session behaviour for debounced LocalStorage saves.
 - **Starter Notes**: Debug-only sample notes cover pinning, tags, rich Markdown, preview safety, long previews, and responsive editing checks.
 - **Preview Safety**: Raw HTML escaping, safe URL policy, and supported Markdown preview dialect.
@@ -104,8 +107,10 @@ Tests cover core domain logic including:
 The app keeps high-leverage behaviour behind focused Rust Modules:
 
 - `tag_rules`: tag parsing, display formatting, collection, sorting, and case-insensitive matching.
+- `backup`: versioned Flat Collection backup export/import, validation, and merge behavior.
+- `search_query`: scoped Search parsing and Note matching for quoted phrases, `title:`, `tag:`, and `is:pinned`.
 - `note_workspace`: selected note lookup, empty collection display state, note creation, selected note editing, delete confirmation target naming, and pinning behaviours.
-- `note_discovery`: note list projection, search, active tag filtering, ordering, display fields, and highlight segments.
+- `note_discovery`: note list projection, Search integration, active tag filtering, ordering, display fields, and highlight segments.
 - `editor_view`: explicit Write, Preview, and Split view modes with viewport-aware behaviour.
 - `storage`: debounced save session, save lifecycle, LocalStorage persistence, and page lifecycle flushing.
 - `markdown_editing`: named Markdown commands, cheatsheet sections, and Unicode-safe caret handling.

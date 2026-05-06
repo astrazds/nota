@@ -1,4 +1,5 @@
 use crate::model::Note;
+use crate::search_query::SearchQuery;
 use crate::tag_rules::{fold_case, note_has_active_tag};
 use uuid::Uuid;
 
@@ -62,7 +63,10 @@ pub fn project_note_list(
     query: &str,
     active_tag: Option<&str>,
 ) -> NoteListProjection {
-    let rows = filter_and_sort_notes(notes, query, active_tag)
+    let search_query = SearchQuery::parse(query);
+    let title_highlight_terms = search_query.title_highlight_terms();
+    let preview_highlight_terms = search_query.preview_highlight_terms();
+    let rows = filter_and_sort_notes_with_query(notes, &search_query, active_tag)
         .into_iter()
         .filter_map(|id| notes.iter().find(|note| note.id == id))
         .map(|note| {
@@ -74,8 +78,14 @@ pub fn project_note_list(
                 tags: note.tags.clone(),
                 is_pinned: note.is_pinned,
                 is_selected: selected_id == Some(note.id),
-                title_highlights: highlight_segments(&display_title, query),
-                preview_highlights: highlight_segments(&preview, query),
+                title_highlights: highlight_segments_for_terms(
+                    &display_title,
+                    &title_highlight_terms,
+                ),
+                preview_highlights: highlight_segments_for_terms(
+                    &preview,
+                    &preview_highlight_terms,
+                ),
                 display_title,
                 preview,
             }
@@ -84,22 +94,30 @@ pub fn project_note_list(
 
     NoteListProjection {
         rows,
-        has_active_filter: !query.is_empty() || active_tag.is_some(),
+        has_active_filter: !search_query.is_empty()
+            || active_tag.map(str::trim).is_some_and(|tag| !tag.is_empty()),
     }
 }
 
+#[allow(
+    dead_code,
+    reason = "kept as the note discovery public test boundary and legacy module interface"
+)]
 pub fn filter_and_sort_notes(notes: &[Note], query: &str, active_tag: Option<&str>) -> Vec<Uuid> {
-    let folded_query = build_folded_query(query);
+    let search_query = SearchQuery::parse(query);
+    filter_and_sort_notes_with_query(notes, &search_query, active_tag)
+}
+
+fn filter_and_sort_notes_with_query(
+    notes: &[Note],
+    query: &SearchQuery,
+    active_tag: Option<&str>,
+) -> Vec<Uuid> {
     let active_tag = active_tag.map(str::trim).filter(|tag| !tag.is_empty());
     let mut filtered: Vec<&Note> = notes
         .iter()
         .filter(|note| {
-            let matches_query = contains_folded_query(&note.title, &folded_query)
-                || contains_folded_query(&note.content, &folded_query)
-                || note
-                    .tags
-                    .iter()
-                    .any(|tag| contains_folded_query(tag, &folded_query));
+            let matches_query = query.matches(note);
 
             let matches_active_tag =
                 active_tag.is_none_or(|active| note_has_active_tag(note, active));
@@ -117,8 +135,17 @@ pub fn filter_and_sort_notes(notes: &[Note], query: &str, active_tag: Option<&st
     filtered.into_iter().map(|note| note.id).collect()
 }
 
+#[allow(
+    dead_code,
+    reason = "kept as the note discovery public test boundary and legacy module interface"
+)]
 pub fn highlight_segments(text: &str, query: &str) -> Vec<HighlightSegment> {
-    let match_ranges = find_case_insensitive_match_ranges(text, query);
+    let query = SearchQuery::parse(query);
+    highlight_segments_for_terms(text, &query.title_highlight_terms())
+}
+
+fn highlight_segments_for_terms(text: &str, terms: &[&str]) -> Vec<HighlightSegment> {
+    let match_ranges = find_case_insensitive_match_ranges_for_terms(text, terms);
     if match_ranges.is_empty() {
         return vec![HighlightSegment {
             text: text.to_string(),
@@ -153,34 +180,28 @@ pub fn highlight_segments(text: &str, query: &str) -> Vec<HighlightSegment> {
     segments
 }
 
-enum FoldedQuery {
-    Empty,
-    Ascii(String),
-    Unicode(String),
-}
+fn find_case_insensitive_match_ranges_for_terms(text: &str, terms: &[&str]) -> Vec<(usize, usize)> {
+    let mut ranges: Vec<(usize, usize)> = terms
+        .iter()
+        .flat_map(|term| find_case_insensitive_match_ranges(text, term))
+        .collect();
+    ranges.sort_by(|(left_start, left_end), (right_start, right_end)| {
+        left_start
+            .cmp(right_start)
+            .then_with(|| right_end.cmp(left_end))
+    });
 
-fn build_folded_query(query: &str) -> FoldedQuery {
-    if query.is_empty() {
-        FoldedQuery::Empty
-    } else if query.is_ascii() {
-        FoldedQuery::Ascii(query.to_ascii_lowercase())
-    } else {
-        FoldedQuery::Unicode(query.to_lowercase())
-    }
-}
-
-fn contains_folded_query(text: &str, query: &FoldedQuery) -> bool {
-    match query {
-        FoldedQuery::Empty => true,
-        FoldedQuery::Ascii(q) => {
-            if text.is_ascii() {
-                text.to_ascii_lowercase().contains(q)
-            } else {
-                text.to_lowercase().contains(q)
+    let mut merged: Vec<(usize, usize)> = Vec::new();
+    for (start, end) in ranges {
+        match merged.last_mut() {
+            Some((_, last_end)) if start <= *last_end => {
+                *last_end = (*last_end).max(end);
             }
+            _ => merged.push((start, end)),
         }
-        FoldedQuery::Unicode(q) => text.to_lowercase().contains(q),
     }
+
+    merged
 }
 
 fn find_case_insensitive_match_ranges(text: &str, query: &str) -> Vec<(usize, usize)> {
@@ -290,6 +311,172 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn quoted_phrase_search_matches_multi_word_note_fragments() {
+        let matching = Note::new(
+            "Release planning".to_string(),
+            "Capture migration risks before launch".to_string(),
+        );
+        let other = Note::new(
+            "Migration".to_string(),
+            "The launch notes live elsewhere".to_string(),
+        );
+
+        let ids = filter_and_sort_notes(&[matching.clone(), other], "\"migration risks\"", None);
+
+        assert_eq!(ids, vec![matching.id]);
+    }
+
+    #[test]
+    fn plain_multi_word_search_preserves_substring_matching() {
+        let matching = Note::new(
+            "Release planning".to_string(),
+            "Capture migration risks before launch".to_string(),
+        );
+        let words_apart = Note::new(
+            "Migration".to_string(),
+            "Risks are tracked before launch".to_string(),
+        );
+
+        let ids = filter_and_sort_notes(&[matching.clone(), words_apart], "migration risks", None);
+
+        assert_eq!(ids, vec![matching.id]);
+    }
+
+    #[test]
+    fn malformed_quoted_phrase_search_fails_gently() {
+        let matching = Note::new(
+            "Release planning".to_string(),
+            "Capture migration risks before launch".to_string(),
+        );
+
+        let ids = filter_and_sort_notes(std::slice::from_ref(&matching), "\"migration risks", None);
+
+        assert_eq!(ids, vec![matching.id]);
+    }
+
+    #[test]
+    fn scoped_title_and_tag_search_combine_with_plain_search_and_active_tag() {
+        let mut matching = Note::new(
+            "Launch Plan".to_string(),
+            "Review migration risks with product".to_string(),
+        );
+        matching.tags = vec!["Work".to_string(), "Product".to_string()];
+
+        let mut missing_active_tag = Note::new(
+            "Launch Plan".to_string(),
+            "Review migration risks with product".to_string(),
+        );
+        missing_active_tag.tags = vec!["Work".to_string()];
+
+        let mut missing_scoped_tag = Note::new(
+            "Launch Plan".to_string(),
+            "Review migration risks with product".to_string(),
+        );
+        missing_scoped_tag.tags = vec!["Product".to_string()];
+
+        let notes = vec![
+            matching.clone(),
+            missing_active_tag,
+            missing_scoped_tag,
+            Note::new(
+                "Migration Risks".to_string(),
+                "Launch details only".to_string(),
+            ),
+        ];
+
+        let projection = project_note_list(
+            &notes,
+            None,
+            "title:launch tag:work \"migration risks\"",
+            Some("product"),
+        );
+
+        assert_eq!(projection.rows.len(), 1);
+        assert_eq!(projection.rows[0].id, matching.id);
+        assert!(
+            projection.rows[0]
+                .title_highlights
+                .iter()
+                .any(|segment| segment.is_match && segment.text == "Launch")
+        );
+        assert!(
+            projection.rows[0]
+                .preview_highlights
+                .iter()
+                .any(|segment| segment.is_match && segment.text == "migration risks")
+        );
+    }
+
+    #[test]
+    fn scoped_search_sets_filtered_empty_state_when_no_notes_match() {
+        let note = Note::new("Launch Plan".to_string(), "Review notes".to_string());
+
+        let projection = project_note_list(&[note], None, "title:archive", None);
+
+        assert!(projection.has_active_filter);
+        assert!(projection.rows.is_empty());
+    }
+
+    #[test]
+    fn whitespace_search_uses_normal_note_list_ordering() {
+        let mut older = Note::new("Older".to_string(), String::new());
+        older.last_modified = Utc::now();
+        let mut newer = Note::new("Newer".to_string(), String::new());
+        newer.last_modified = older.last_modified + chrono::Duration::seconds(10);
+
+        let projection = project_note_list(&[older.clone(), newer.clone()], None, "   ", None);
+
+        assert!(!projection.has_active_filter);
+        assert_eq!(
+            projection.rows.iter().map(|row| row.id).collect::<Vec<_>>(),
+            vec![newer.id, older.id]
+        );
+    }
+
+    #[test]
+    fn pinned_search_filter_combines_with_plain_and_scoped_terms() {
+        let mut older_pinned = Note::new(
+            "Rust Launch Plan".to_string(),
+            "Pinned migration risks".to_string(),
+        );
+        older_pinned.tags = vec!["Work".to_string()];
+        older_pinned.is_pinned = true;
+        older_pinned.last_modified = Utc::now();
+
+        let mut newer_pinned = Note::new(
+            "Rust Launch Plan".to_string(),
+            "Pinned migration risks".to_string(),
+        );
+        newer_pinned.tags = vec!["Work".to_string()];
+        newer_pinned.is_pinned = true;
+        newer_pinned.last_modified = older_pinned.last_modified + chrono::Duration::seconds(10);
+
+        let mut unpinned = Note::new(
+            "Rust Launch Plan".to_string(),
+            "Pinned migration risks".to_string(),
+        );
+        unpinned.tags = vec!["Work".to_string()];
+        unpinned.last_modified = newer_pinned.last_modified + chrono::Duration::seconds(10);
+
+        let ids = filter_and_sort_notes(
+            &[unpinned, older_pinned.clone(), newer_pinned.clone()],
+            "is:pinned title:launch tag:work migration",
+            None,
+        );
+
+        assert_eq!(ids, vec![newer_pinned.id, older_pinned.id]);
+    }
+
+    #[test]
+    fn invalid_is_filter_does_not_block_plain_search_terms() {
+        let matching = Note::new("Rust Launch Plan".to_string(), String::new());
+
+        let ids = filter_and_sort_notes(std::slice::from_ref(&matching), "is:archived rust", None);
+
+        assert_eq!(ids, vec![matching.id]);
     }
 
     #[test]

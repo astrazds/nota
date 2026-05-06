@@ -1,6 +1,6 @@
 [package]
 name = "noter"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 rust-version = "1.95"
 authors = ["Andrejs Strazds"]
@@ -20,4 +20,4 @@ gloo-storage = "0.4.0"
 uuid = { version = "1.23.1", features = ["v4", "js", "serde"] }
 chrono = { version = "0.4.44", features = ["serde"] }
 pulldown-cmark = "0.13.3"
-web-sys = { version = "0.3.97", features = ["HtmlTextAreaElement", "Selection", "Range", "Window", "Document", "Node", "NodeList", "Element", "Event", "EventTarget", "HtmlInputElement", "MediaQueryList", "console"] }
+web-sys = { version = "0.3.97", features = ["HtmlTextAreaElement", "Selection", "Range", "Window", "Document", "Node", "NodeList", "Element", "Event", "EventTarget", "HtmlElement", "HtmlInputElement", "HtmlAnchorElement", "File", "FileList", "FileReader", "ProgressEvent", "MediaQueryList", "console"] }

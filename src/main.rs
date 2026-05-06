@@ -1,3 +1,4 @@
+pub mod backup;
 mod components;
 mod editor_view;
 mod markdown_editing;
@@ -9,12 +10,15 @@ mod note_list_interaction;
 mod note_workspace;
 mod responsive_navigation;
 mod sample_notes;
+mod search_query;
 mod storage;
 mod tag_rules;
 mod theme;
 
 use components::{ConfirmModal, Editor, Sidebar};
 
+use backup::{BackupError, backup_file_name, export_flat_collection_backup};
+use chrono::Utc;
 use editor_view::EditorViewMode;
 use leptos::prelude::*;
 use model::Note;
@@ -31,7 +35,7 @@ use storage::{
     SaveSession, SaveStatus, load_dark_mode, load_notes, load_sidebar_open, save_dark_mode,
     save_sidebar_open,
 };
-use tag_rules::collect_note_tags;
+use tag_rules::{TagCleanupPlan, TagSuggestion, collect_note_tags, suggest_existing_tags};
 use theme::ThemeSurface;
 use uuid::Uuid;
 use wasm_bindgen::{JsCast, prelude::Closure};
@@ -138,6 +142,12 @@ impl AppState {
         collect_note_tags(self.workspace.get().notes())
     }
 
+    pub fn tag_suggestions(self, input: &str) -> Vec<TagSuggestion> {
+        let workspace = self.workspace.get();
+        let selected_note = workspace.selected_note();
+        suggest_existing_tags(workspace.notes(), selected_note.as_ref(), input)
+    }
+
     pub fn create_note(self) {
         self.workspace.update(NoteWorkspace::create_note);
         self.mark_notes_changed();
@@ -212,6 +222,50 @@ impl AppState {
         if updated {
             self.mark_notes_changed();
         }
+    }
+
+    pub fn remove_selected_tag(self, tag: &str) {
+        let updated = self
+            .workspace
+            .try_update(|workspace| workspace.remove_selected_tag(tag))
+            .unwrap_or(false);
+        if updated {
+            self.mark_notes_changed();
+        }
+    }
+
+    pub fn tag_cleanup_plan(self) -> TagCleanupPlan {
+        self.workspace.get().tag_cleanup_plan()
+    }
+
+    pub fn apply_tag_cleanup(self, plan: &TagCleanupPlan) {
+        let updated = self
+            .workspace
+            .try_update(|workspace| workspace.apply_tag_cleanup(plan))
+            .unwrap_or(false);
+        if updated {
+            self.mark_notes_changed();
+        }
+    }
+
+    pub fn export_backup_json(self) -> Result<String, BackupError> {
+        export_flat_collection_backup(self.workspace.get().notes())
+    }
+
+    pub fn backup_file_name(self) -> String {
+        backup_file_name(Utc::now())
+    }
+
+    pub fn import_backup_json(self, backup_json: &str) -> Result<(), BackupError> {
+        self.workspace
+            .try_update(|workspace| workspace.import_flat_collection_backup(backup_json))
+            .unwrap_or_else(|| {
+                Err(BackupError::UnsupportedKind(
+                    "missing workspace".to_string(),
+                ))
+            })?;
+        self.mark_notes_changed();
+        Ok(())
     }
 
     pub fn toggle_note_pin(self, id: Uuid) {
@@ -441,5 +495,63 @@ mod tests {
                 Some("Action target")
             );
         });
+    }
+
+    #[test]
+    fn tag_mutations_mark_notes_changed_only_when_metadata_changes() {
+        let mut note = Note::new("Tagged".to_string(), String::new());
+        note.tags = vec![" Work ".to_string(), "work".to_string()];
+
+        with_test_state(vec![note], ViewportClass::Wide, true, |state| {
+            let plan = state.tag_cleanup_plan();
+            assert_eq!(state.notes_save_revision.get_untracked(), 0);
+
+            state.apply_tag_cleanup(&plan);
+            assert_eq!(state.notes_save_revision.get_untracked(), 1);
+            assert_eq!(state.notes_untracked()[0].tags, vec!["Work".to_string()]);
+
+            state.apply_tag_cleanup(&plan);
+            assert_eq!(state.notes_save_revision.get_untracked(), 1);
+
+            state.remove_selected_tag("work");
+            assert_eq!(state.notes_save_revision.get_untracked(), 2);
+            assert!(state.notes_untracked()[0].tags.is_empty());
+
+            state.remove_selected_tag("missing");
+            assert_eq!(state.notes_save_revision.get_untracked(), 2);
+        });
+    }
+
+    #[test]
+    fn backup_import_replaces_collection_through_app_state_and_marks_notes_changed() {
+        let imported_note = Note::new("Imported".to_string(), "Backup content".to_string());
+        let backup_json =
+            crate::backup::export_flat_collection_backup(std::slice::from_ref(&imported_note))
+                .unwrap();
+
+        with_test_state(Vec::new(), ViewportClass::Wide, true, |state| {
+            state.import_backup_json(&backup_json).unwrap();
+
+            assert_eq!(state.notes_untracked(), vec![imported_note.clone()]);
+            assert_eq!(state.selected_id(), Some(imported_note.id));
+            assert_eq!(state.notes_save_revision.get_untracked(), 1);
+        });
+    }
+
+    #[test]
+    fn invalid_backup_import_does_not_mark_notes_changed() {
+        let existing_note = Note::new("Existing".to_string(), String::new());
+
+        with_test_state(
+            vec![existing_note.clone()],
+            ViewportClass::Wide,
+            true,
+            |state| {
+                assert!(state.import_backup_json("{not valid json").is_err());
+
+                assert_eq!(state.notes_untracked(), vec![existing_note]);
+                assert_eq!(state.notes_save_revision.get_untracked(), 0);
+            },
+        );
     }
 }

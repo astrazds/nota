@@ -84,6 +84,14 @@ _Avoid_: Inverted colours
 The sidebar behaviour that adapts note navigation for smaller screens.
 _Avoid_: Floating expand handle
 
+**Backup**:
+A versioned local export of the Flat Collection that preserves Notes and can be stored outside the browser.
+_Avoid_: Sync, cloud backup
+
+**Merge Import**:
+The safe restore behaviour that adds Notes from a Backup and replaces same-identity Notes without destructively clearing the current Flat Collection.
+_Avoid_: Replace import by default
+
 ## Relationships
 
 - A **Note** has one **Preview** when rendered.
@@ -106,6 +114,8 @@ _Avoid_: Floating expand handle
 - **Product Metadata** belongs outside the primary note workflow.
 - Each **Theme** needs coherent surface, text, border, selection, and accent treatment.
 - **Responsive Navigation** keeps the **Note List** available without interrupting the **Writing Surface**.
+- A **Backup** preserves the **Flat Collection** outside browser storage.
+- A **Merge Import** restores Notes from a **Backup** without destructively replacing the current **Flat Collection**.
 
 ## Example dialogue
 
@@ -159,6 +169,9 @@ _Avoid_: Floating expand handle
 >
 > **Dev:** "Should the redesign introduce notebooks?"
 > **Domain expert:** "No — keep a **Flat Collection** and improve **Search**, the **Note List**, and **Tags** first."
+>
+> **Dev:** "Should importing a backup replace the current collection by default?"
+> **Domain expert:** "No — use **Merge Import** for the first backup flow so restore remains safe by default."
 
 ## Flagged ambiguities
 
@@ -179,3 +192,4 @@ _Avoid_: Floating expand handle
 - "Delete Note?" was generic — resolved: **Delete Confirmation** should identify the target **Note**.
 - "Title" could be confused with the first Markdown heading — resolved: **Note Title** is a distinct Note property.
 - "Folders" and "notebooks" imply a new primary organisation model — resolved: Noter uses a **Flat Collection** for now.
+- "Backup import" could imply destructive replacement — resolved: backup v1 uses **Merge Import** and leaves replace import out of scope until a clear workflow needs it.

@@ -16,6 +16,7 @@ pub fn Editor() -> impl IntoView {
     let show_cheatsheet = RwSignal::new(false);
 
     let title_input_ref = NodeRef::<leptos::html::Input>::new();
+    let tags_input_ref = NodeRef::<leptos::html::Input>::new();
     let content_area_ref = NodeRef::<leptos::html::Textarea>::new();
     let tags_input_value = RwSignal::new(String::new());
     let is_editing_tags = RwSignal::new(false);
@@ -60,6 +61,38 @@ pub fn Editor() -> impl IntoView {
 
         let parsed_tags = parse_tags_input(&value);
         state.update_selected_tags(parsed_tags);
+    };
+
+    let tag_suggestions = Memo::new(move |_| {
+        if is_editing_tags.get() {
+            state.tag_suggestions(&tags_input_value.get())
+        } else {
+            Vec::new()
+        }
+    });
+    let tag_cleanup_plan = Memo::new(move |_| state.tag_cleanup_plan());
+
+    let apply_tags_value = move |value: String| {
+        let parsed_tags = parse_tags_input(&value);
+        tags_input_value.set(value);
+        state.update_selected_tags(parsed_tags);
+        if let Some(input) = tags_input_ref.get() {
+            let _ = input.focus();
+        }
+    };
+
+    let on_tags_keydown = move |ev: leptos::web_sys::KeyboardEvent| {
+        let key = ev.key();
+        if key != "Enter" && key != "Tab" {
+            return;
+        }
+
+        let Some(suggestion) = tag_suggestions.get().into_iter().next() else {
+            return;
+        };
+
+        ev.prevent_default();
+        apply_tags_value(suggestion.completed_input);
     };
 
     let commit_tags_input = move || {
@@ -239,17 +272,112 @@ pub fn Editor() -> impl IntoView {
                                             on:input=on_input_title
                                         />
                                         <input
+                                            node_ref=tags_input_ref
                                             type="text"
                                             class=move || format!("w-full max-w-xl px-0 py-1 text-sm focus:outline-none bg-transparent placeholder-gray-400 dark:placeholder-gray-600 {}", ThemeText::Muted.classes())
                                             placeholder="Tags"
                                             prop:value=move || tags_input_value.get()
                                             on:focus=move |_| is_editing_tags.set(true)
                                             on:input=on_input_tags
+                                            on:keydown=on_tags_keydown
                                             on:blur=move |_| {
                                                 is_editing_tags.set(false);
                                                 commit_tags_input();
                                             }
                                         />
+                                        <Show when=move || selected_note.get().is_some_and(|note| !note.tags.is_empty())>
+                                            <div class="flex flex-wrap gap-1.5">
+                                                {move || {
+                                                    selected_note
+                                                        .get()
+                                                        .map(|note| {
+                                                            note.tags
+                                                                .into_iter()
+                                                                .map(|tag| {
+                                                                    let tag_for_remove = tag.clone();
+                                                                    view! {
+                                                                        <span class=move || format!("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs {}", ThemeState::TagPill.classes())>
+                                                                            {format!("#{tag}")}
+                                                                            <button
+                                                                                type="button"
+                                                                                class="ml-0.5 rounded-full px-1 leading-none opacity-70 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-apple-blue"
+                                                                                title=format!("Remove tag {tag_for_remove}")
+                                                                                aria-label=format!("Remove tag {tag_for_remove}")
+                                                                                on:click=move |_| {
+                                                                                    state.remove_selected_tag(&tag_for_remove);
+                                                                                }
+                                                                            >
+                                                                                "x"
+                                                                            </button>
+                                                                        </span>
+                                                                    }
+                                                                })
+                                                                .collect_view()
+                                                        })
+                                                }}
+                                            </div>
+                                        </Show>
+                                        <Show when=move || !tag_suggestions.get().is_empty()>
+                                            <div class=move || format!("max-w-xl overflow-hidden rounded-md border shadow-sm {}", ThemeSurface::EditorChrome.classes())>
+                                                {move || {
+                                                    tag_suggestions
+                                                        .get()
+                                                        .into_iter()
+                                                        .map(|suggestion| {
+                                                            let completed_input = suggestion.completed_input.clone();
+                                                            view! {
+                                                                <button
+                                                                    type="button"
+                                                                    class=move || format!("block w-full px-3 py-2 text-left text-sm transition-colors {}", ThemeState::SegmentedIdle.classes())
+                                                                    on:mousedown=move |ev| ev.prevent_default()
+                                                                    on:click=move |_| apply_tags_value(completed_input.clone())
+                                                                >
+                                                                    {format!("#{label}", label = suggestion.label)}
+                                                                </button>
+                                                            }
+                                                        })
+                                                        .collect_view()
+                                                }}
+                                            </div>
+                                        </Show>
+                                        <Show when=move || !tag_cleanup_plan.get().is_empty()>
+                                            <details class=move || format!("max-w-xl rounded-md border p-3 text-sm {}", ThemeSurface::EditorChrome.classes())>
+                                                <summary class="cursor-pointer select-none">
+                                                    "Review Tag cleanup"
+                                                </summary>
+                                                <div class="mt-2 space-y-2">
+                                                    {move || {
+                                                        tag_cleanup_plan
+                                                            .get()
+                                                            .changes
+                                                            .into_iter()
+                                                            .take(4)
+                                                            .map(|change| {
+                                                                view! {
+                                                                    <p class=move || ThemeText::Muted.classes()>
+                                                                        {format!(
+                                                                            "{} -> {}",
+                                                                            tags_to_input(&change.before),
+                                                                            tags_to_input(&change.after),
+                                                                        )}
+                                                                    </p>
+                                                                }
+                                                            })
+                                                            .collect_view()
+                                                    }}
+                                                    <button
+                                                        type="button"
+                                                        class=move || format!("rounded-md px-3 py-1 text-sm {}", ThemeState::SegmentedIdle.classes())
+                                                        on:click=move |_| {
+                                                            let plan = tag_cleanup_plan.get_untracked();
+                                                            state.apply_tag_cleanup(&plan);
+                                                        }
+                                                    >
+                                                        "Apply cleanup"
+                                                    </button>
+                                                </div>
+                                            </details>
+                                        </Show>
                                     </div>
                                     <textarea
                                         node_ref=content_area_ref

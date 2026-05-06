@@ -1,4 +1,5 @@
 use crate::AppState;
+use crate::NotificationTone;
 use crate::components::CheatsheetModal;
 use crate::editor_view::EditorViewMode;
 use crate::markdown_editing::{BrowserSelection, MarkdownCommand, apply_markdown_command};
@@ -9,6 +10,12 @@ use crate::storage::SaveStatus;
 use crate::tag_rules::{parse_tags_input, tags_to_input};
 use crate::theme::{ThemeAccent, ThemeState, ThemeSurface, ThemeText};
 use leptos::prelude::*;
+use std::cell::RefCell;
+use std::rc::Rc;
+use wasm_bindgen::{JsCast, prelude::Closure};
+
+const NOTIFICATION_HIDE_MS: i32 = 3_000;
+type NotificationTimeout = Rc<RefCell<Option<(i32, Closure<dyn FnMut()>)>>>;
 
 #[component]
 pub fn Editor() -> impl IntoView {
@@ -25,6 +32,25 @@ pub fn Editor() -> impl IntoView {
     let workspace_display_state = Memo::new(move |_| state.workspace_display_state());
     let selected_note_is_hidden_by_filter =
         Memo::new(move |_| state.selected_note_is_hidden_by_filter());
+    let previous_save_status = RwSignal::new(state.save_status.get_untracked());
+
+    Effect::new(move |_| {
+        let save_status = state.save_status.get();
+        let previous = previous_save_status.get_untracked();
+        if save_status == previous {
+            return;
+        }
+
+        previous_save_status.set(save_status);
+        match save_status {
+            SaveStatus::Saving => {
+                state.show_notification("Saving...", NotificationTone::Progress);
+            }
+            SaveStatus::Saved => {
+                state.show_notification("Saved", NotificationTone::Success);
+            }
+        }
+    });
 
     Effect::new(move |_| {
         if state.focus_intent() == FocusIntent::NoteTitle {
@@ -252,16 +278,7 @@ pub fn Editor() -> impl IntoView {
                         </div>
                     </Show>
                 </div>
-                <span
-                    class="hidden sm:inline shrink-0 text-xs text-gray-500 dark:text-gray-400"
-                    class:text-apple-yellow=move || matches!(state.save_status.get(), SaveStatus::Saving)
-                    class:text-green-600=move || matches!(state.save_status.get(), SaveStatus::Saved)
-                >
-                    {move || match state.save_status.get() {
-                        SaveStatus::Saving => "Saving...",
-                        SaveStatus::Saved => "Saved",
-                    }}
-                </span>
+                <NotificationOutlet />
             </div>
 
             <div class="flex-1 flex overflow-hidden">
@@ -421,6 +438,75 @@ pub fn Editor() -> impl IntoView {
             </div>
         </div>
     }
+}
+
+#[component]
+fn NotificationOutlet() -> impl IntoView {
+    let state = use_context::<AppState>().expect("state not found");
+    let timeout: NotificationTimeout = Rc::new(RefCell::new(None));
+
+    Effect::new(move |_| {
+        if let Some((id, _closure)) = timeout.borrow_mut().take()
+            && let Some(win) = web_sys::window()
+        {
+            win.clear_timeout_with_handle(id);
+        }
+
+        let Some(notification) = state.notification.get() else {
+            return;
+        };
+        let notification_id = notification.id;
+        let timeout_ref = timeout.clone();
+        let closure = Closure::wrap(Box::new(move || {
+            state.clear_notification(notification_id);
+            timeout_ref.borrow_mut().take();
+        }) as Box<dyn FnMut()>);
+
+        let Some(win) = web_sys::window() else {
+            return;
+        };
+        if let Ok(id) = win.set_timeout_with_callback_and_timeout_and_arguments_0(
+            closure.as_ref().unchecked_ref(),
+            NOTIFICATION_HIDE_MS,
+        ) {
+            *timeout.borrow_mut() = Some((id, closure));
+        }
+    });
+
+    view! {
+        <div class="ml-auto flex min-w-0 shrink-0 justify-end">
+            {move || {
+                state.notification.get().map(|notification| {
+                    view! {
+                        <span
+                            role="status"
+                            class=notification_classes(notification.tone)
+                        >
+                            {notification.message}
+                        </span>
+                    }
+                })
+            }}
+        </div>
+    }
+}
+
+fn notification_classes(tone: NotificationTone) -> String {
+    let tone_classes = match tone {
+        NotificationTone::Progress => {
+            "border-apple-yellow/40 bg-apple-yellow/15 text-yellow-700 dark:bg-apple-yellow/20 dark:text-yellow-200"
+        }
+        NotificationTone::Success => {
+            "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200"
+        }
+        NotificationTone::Error => {
+            "border-red-500/30 bg-red-500/10 text-red-700 dark:bg-red-500/15 dark:text-red-200"
+        }
+    };
+
+    format!(
+        "max-w-[11rem] truncate rounded-md border px-3 py-1 text-xs font-medium shadow-sm {tone_classes}"
+    )
 }
 
 fn editor_view_button_classes(is_active: bool, is_split: bool) -> String {
@@ -643,5 +729,25 @@ mod tests {
 
         assert!(split_preview.contains("prose-base"));
         assert!(split_preview.contains("shadow-inner"));
+    }
+
+    #[test]
+    fn global_notification_classes_are_visible_but_compact() {
+        let progress = notification_classes(NotificationTone::Progress);
+        let success = notification_classes(NotificationTone::Success);
+        let error = notification_classes(NotificationTone::Error);
+
+        for classes in [&progress, &success, &error] {
+            assert!(classes.contains("rounded-md"));
+            assert!(classes.contains("border"));
+            assert!(classes.contains("shadow-sm"));
+            assert!(classes.contains("text-xs"));
+            assert!(classes.contains("max-w-[11rem]"));
+            assert!(classes.contains("truncate"));
+        }
+
+        assert!(progress.contains("bg-apple-yellow/15"));
+        assert!(success.contains("bg-emerald-500/10"));
+        assert!(error.contains("bg-red-500/10"));
     }
 }

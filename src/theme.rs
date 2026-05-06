@@ -83,9 +83,11 @@ impl ThemeSurface {
                 "bg-white border-apple-gray-200 dark:bg-apple-dark-bg dark:border-apple-dark-border transition-colors"
             }
             Self::WritingSurface => "bg-white dark:bg-apple-dark-bg",
-            Self::Preview => "bg-white prose-yellow dark:bg-apple-dark-bg dark:prose-invert",
+            Self::Preview => {
+                "bg-white text-gray-900 prose-yellow dark:bg-apple-dark-bg dark:text-white dark:prose-invert"
+            }
             Self::SplitPreview => {
-                "bg-gray-50 prose-yellow border-apple-gray-200 dark:bg-white/5 dark:prose-invert dark:border-apple-dark-border"
+                "bg-apple-gray-100 text-gray-900 prose-yellow border-apple-gray-300 dark:bg-apple-dark-sidebar dark:text-white dark:prose-invert dark:border-apple-dark-border"
             }
             Self::ModalPanel => {
                 "bg-white border-apple-gray-200 dark:bg-apple-dark-sidebar dark:border-apple-dark-border"
@@ -180,7 +182,7 @@ impl ThemeState {
                 "border-apple-gray-200 dark:border-apple-dark-border hover:bg-apple-gray-200 dark:hover:bg-white/5"
             }
             Self::NoteRowSelected => {
-                "border-apple-gray-200 dark:border-apple-dark-border bg-apple-yellow/15 dark:bg-apple-yellow/20"
+                "border-apple-yellow bg-apple-yellow/25 shadow-inner ring-1 ring-apple-yellow/30 dark:border-apple-yellow dark:bg-apple-yellow/20 dark:ring-apple-yellow/30"
             }
             Self::NoteActionMenu => {
                 "border-apple-gray-200 bg-white dark:border-apple-dark-border dark:bg-apple-dark-sidebar"
@@ -330,5 +332,26 @@ mod tests {
             || token.starts_with("sm:")
             || token.starts_with("md:")
             || token.starts_with("lg:")
+    }
+
+    #[test]
+    fn preview_surfaces_and_selection_have_explicit_theme_contrast() {
+        let preview = ThemeSurface::Preview.classes();
+        let split_preview = ThemeSurface::SplitPreview.classes();
+        let selected_row = ThemeState::NoteRowSelected.classes();
+
+        assert!(preview.contains("text-gray-900"));
+        assert!(preview.contains("dark:text-white"));
+        assert!(preview.contains("dark:prose-invert"));
+
+        assert!(split_preview.contains("bg-apple-gray-100"));
+        assert!(split_preview.contains("text-gray-900"));
+        assert!(split_preview.contains("dark:bg-apple-dark-sidebar"));
+        assert!(split_preview.contains("dark:text-white"));
+        assert!(split_preview.contains("dark:prose-invert"));
+
+        assert!(selected_row.contains("bg-apple-yellow/25"));
+        assert!(selected_row.contains("ring-1"));
+        assert!(selected_row.contains("dark:bg-apple-yellow/20"));
     }
 }

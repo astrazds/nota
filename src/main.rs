@@ -55,6 +55,22 @@ pub struct AppState {
     pub editor_view_mode: RwSignal<EditorViewMode>,
     pub save_status: RwSignal<SaveStatus>,
     pub backup_health_record: RwSignal<Option<BackupHealthRecord>>,
+    pub notification: RwSignal<Option<GlobalNotification>>,
+    pub notification_sequence: RwSignal<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GlobalNotification {
+    pub id: u64,
+    pub message: String,
+    pub tone: NotificationTone,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NotificationTone {
+    Progress,
+    Success,
+    Error,
 }
 
 impl AppState {
@@ -336,6 +352,29 @@ impl AppState {
         save_backup_health_record(record);
     }
 
+    pub fn show_notification(self, message: impl Into<String>, tone: NotificationTone) {
+        let mut id = 0;
+        self.notification_sequence.update(|sequence| {
+            *sequence = sequence.wrapping_add(1);
+            id = *sequence;
+        });
+        self.notification.set(Some(GlobalNotification {
+            id,
+            message: message.into(),
+            tone,
+        }));
+    }
+
+    pub fn clear_notification(self, id: u64) {
+        let should_clear = self
+            .notification
+            .get_untracked()
+            .is_some_and(|notification| notification.id == id);
+        if should_clear {
+            self.notification.set(None);
+        }
+    }
+
     pub fn import_backup_json(self, backup_json: &str) -> Result<(), BackupError> {
         self.workspace
             .try_update(|workspace| workspace.import_flat_collection_backup(backup_json))
@@ -437,6 +476,8 @@ fn App() -> impl IntoView {
     let editor_view_mode = RwSignal::new(EditorViewMode::Write);
     let save_status = RwSignal::new(SaveStatus::Saved);
     let backup_health_record = RwSignal::new(load_backup_health_record());
+    let notification = RwSignal::new(None);
+    let notification_sequence = RwSignal::new(0);
 
     let state = AppState {
         workspace,
@@ -448,6 +489,8 @@ fn App() -> impl IntoView {
         editor_view_mode,
         save_status,
         backup_health_record,
+        notification,
+        notification_sequence,
     };
     provide_context(state);
     install_viewport_listener(state);
@@ -593,6 +636,8 @@ mod tests {
                 editor_view_mode: RwSignal::new(EditorViewMode::Write),
                 save_status: RwSignal::new(SaveStatus::Saved),
                 backup_health_record: RwSignal::new(None),
+                notification: RwSignal::new(None),
+                notification_sequence: RwSignal::new(0),
             };
 
             test(state)
@@ -779,5 +824,29 @@ mod tests {
         assert!(!is_quick_capture_shortcut("n", true, false, true, false));
         assert!(!is_quick_capture_shortcut("n", true, false, false, true));
         assert!(!is_quick_capture_shortcut("m", true, false, false, false));
+    }
+
+    #[test]
+    fn global_notifications_replace_and_clear_by_identity() {
+        with_test_state(Vec::new(), ViewportClass::Wide, true, |state| {
+            state.show_notification("Saving...", NotificationTone::Progress);
+            let first = state.notification.get_untracked().unwrap();
+
+            assert_eq!(first.message, "Saving...");
+            assert_eq!(first.tone, NotificationTone::Progress);
+
+            state.show_notification("Backup exported", NotificationTone::Success);
+            let second = state.notification.get_untracked().unwrap();
+
+            assert_eq!(second.message, "Backup exported");
+            assert_eq!(second.tone, NotificationTone::Success);
+            assert_ne!(first.id, second.id);
+
+            state.clear_notification(first.id);
+            assert!(state.notification.get_untracked().is_some());
+
+            state.clear_notification(second.id);
+            assert!(state.notification.get_untracked().is_none());
+        });
     }
 }

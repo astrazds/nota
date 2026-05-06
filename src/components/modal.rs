@@ -7,6 +7,7 @@ pub fn Modal(
     #[prop(optional)] header: Option<Box<dyn Fn() -> AnyView + Send + Sync + 'static>>,
     #[prop(optional)] footer: Option<Box<dyn Fn() -> AnyView + Send + Sync + 'static>>,
     #[prop(default = "max-w-2xl")] max_width_class: &'static str,
+    #[prop(default = false)] hide_body: bool,
     children: ChildrenFn,
 ) -> impl IntoView {
     view! {
@@ -27,9 +28,11 @@ pub fn Modal(
                     </div>
                 })}
 
-                <div class="overflow-y-auto">
-                    {children()}
-                </div>
+                <Show when=move || should_render_modal_body(hide_body)>
+                    <div class="overflow-y-auto">
+                        {children()}
+                    </div>
+                </Show>
 
                 {footer.map(|f| view! {
                     <div class=move || format!("p-4 border-t flex justify-end gap-3 {}", ThemeSurface::ModalChrome.classes())>
@@ -38,5 +41,20 @@ pub fn Modal(
                 })}
             </div>
         </div>
+    }
+}
+
+fn should_render_modal_body(hide_body: bool) -> bool {
+    !hide_body
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn modal_can_hide_empty_body_region() {
+        assert!(!should_render_modal_body(true));
+        assert!(should_render_modal_body(false));
     }
 }

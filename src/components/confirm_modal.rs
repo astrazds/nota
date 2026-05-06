@@ -54,8 +54,9 @@ pub fn ConfirmModal(title: &'static str, message: &'static str) -> impl IntoView
                 max_width_class="max-w-sm"
                 header=header_clone.clone()
                 footer=footer_clone.clone()
+                hide_body=true
             >
-                <div class="p-6"></div>
+                <div></div>
             </Modal>
         </Show>
     }

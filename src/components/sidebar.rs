@@ -1,4 +1,5 @@
 use crate::AppState;
+use crate::NotificationTone;
 use crate::backup::BackupImportPreview;
 use crate::note_discovery::NoteListItem;
 use crate::note_list_interaction::{NoteListDisplayState, SEARCH_DEBOUNCE_MS};
@@ -23,21 +24,26 @@ fn sidebar_state_class(is_open: bool) -> &'static str {
 
 fn search_syntax_hint_classes() -> String {
     format!(
-        "absolute left-0 right-0 top-full z-30 mt-2 rounded-md border p-3 text-xs shadow-lg {}",
-        ThemeSurface::EditorChrome.classes()
+        "absolute left-0 right-0 top-full z-30 mt-2 rounded-md border p-3 text-xs shadow-lg {} {}",
+        ThemeSurface::EditorChrome.classes(),
+        ThemeText::Primary.classes()
     )
 }
 
 fn sidebar_footer_classes() -> String {
     format!(
-        "h-12 gap-2 px-4 border-t border-apple-gray-300 dark:border-apple-dark-border flex items-center text-xs {}",
+        "min-h-12 gap-x-2 gap-y-1 px-3 py-1.5 border-t border-apple-gray-300 dark:border-apple-dark-border flex flex-wrap items-center text-[11px] leading-4 {}",
         ThemeText::Subtle.classes()
     )
 }
 
+fn sidebar_title_classes() -> String {
+    format!("text-xl font-bold {}", ThemeText::Primary.classes())
+}
+
 fn backup_footer_button_classes() -> String {
     format!(
-        "cursor-pointer rounded-md px-2 py-1 text-xs {}",
+        "cursor-pointer rounded-md px-1.5 py-0.5 text-[11px] {}",
         ThemeState::SegmentedIdle.classes()
     )
 }
@@ -61,7 +67,6 @@ pub fn Sidebar() -> impl IntoView {
 
     let search_input_value = RwSignal::new(state.note_search_input());
     let search_hint_open = RwSignal::new(false);
-    let backup_status = RwSignal::new(String::new());
     let pending_backup_import = RwSignal::new(None::<(String, BackupImportPreview)>);
     let debounce_timeout: TimeoutState = Rc::new(RefCell::new(None));
 
@@ -69,11 +74,11 @@ pub fn Sidebar() -> impl IntoView {
         Ok(backup_json) => match download_backup(&state.backup_file_name(), &backup_json) {
             Ok(()) => {
                 state.record_backup_exported();
-                backup_status.set("Backup exported".to_string());
+                state.show_notification("Backup exported", NotificationTone::Success);
             }
-            Err(message) => backup_status.set(message),
+            Err(message) => state.show_notification(message, NotificationTone::Error),
         },
-        Err(_) => backup_status.set("Backup export failed".to_string()),
+        Err(_) => state.show_notification("Backup export failed", NotificationTone::Error),
     };
 
     let import_backup = move |ev| {
@@ -82,14 +87,13 @@ pub fn Sidebar() -> impl IntoView {
             return;
         };
 
-        backup_status.set("Reading backup...".to_string());
+        state.show_notification("Reading backup...", NotificationTone::Progress);
         let Ok(reader) = FileReader::new() else {
-            backup_status.set("Backup import failed".to_string());
+            state.show_notification("Backup import failed", NotificationTone::Error);
             input.set_value("");
             return;
         };
         let reader_for_load = reader.clone();
-        let backup_status_for_load = backup_status;
         let pending_backup_import_for_load = pending_backup_import;
         let on_load = Closure::wrap(Box::new(move |_ev: web_sys::ProgressEvent| {
             let Some(backup_json) = reader_for_load
@@ -97,22 +101,22 @@ pub fn Sidebar() -> impl IntoView {
                 .ok()
                 .and_then(|value| value.as_string())
             else {
-                backup_status_for_load.set("Backup import failed".to_string());
+                state.show_notification("Backup import failed", NotificationTone::Error);
                 return;
             };
 
             match state.preview_backup_import_json(&backup_json) {
                 Ok(preview) => {
                     pending_backup_import_for_load.set(Some((backup_json, preview)));
-                    backup_status_for_load.set("Backup ready".to_string());
+                    state.show_notification("Backup ready", NotificationTone::Success);
                 }
-                Err(_) => backup_status_for_load.set("Backup import failed".to_string()),
+                Err(_) => state.show_notification("Backup import failed", NotificationTone::Error),
             }
         }) as Box<dyn FnMut(_)>);
 
         reader.set_onloadend(Some(on_load.as_ref().unchecked_ref()));
         if reader.read_as_text(&file).is_err() {
-            backup_status.set("Backup import failed".to_string());
+            state.show_notification("Backup import failed", NotificationTone::Error);
         }
         on_load.forget();
         input.set_value("");
@@ -126,15 +130,15 @@ pub fn Sidebar() -> impl IntoView {
         match state.import_backup_json(&backup_json) {
             Ok(()) => {
                 pending_backup_import.set(None);
-                backup_status.set("Backup imported".to_string());
+                state.show_notification("Backup imported", NotificationTone::Success);
             }
-            Err(_) => backup_status.set("Backup import failed".to_string()),
+            Err(_) => state.show_notification("Backup import failed", NotificationTone::Error),
         }
     };
 
     let cancel_backup_import = move |_| {
         pending_backup_import.set(None);
-        backup_status.set("Backup import cancelled".to_string());
+        state.show_notification("Backup import cancelled", NotificationTone::Progress);
     };
 
     Effect::new(move |_| {
@@ -190,7 +194,7 @@ pub fn Sidebar() -> impl IntoView {
                                     view! { <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" /></svg> }.into_any()
                                 }}
                             </button>
-                            <h1 class="text-xl font-bold">Notes</h1>
+                            <h1 class=sidebar_title_classes>"Notes"</h1>
                         </div>
                         <div class="flex items-center space-x-1">
                             <button
@@ -323,14 +327,11 @@ pub fn Sidebar() -> impl IntoView {
                     </Show>
                 </div>
                 <div class=sidebar_footer_classes>
-                    <div class="min-w-0">
+                    <div class="min-w-0 flex-1 basis-32 leading-4">
                         <div>{move || format!("{} notes", state.note_count())}</div>
-                        <div class="max-w-36 truncate">{move || state.backup_health_summary()}</div>
+                        <div>{move || state.backup_health_summary()}</div>
                     </div>
-                    <div class="ml-auto flex min-w-0 items-center gap-2">
-                        <Show when=move || !backup_status.get().is_empty()>
-                            <span class=move || format!("max-w-24 truncate {}", ThemeText::Subtle.classes())>{move || backup_status.get()}</span>
-                        </Show>
+                    <div class="ml-auto flex min-w-0 flex-none flex-wrap items-center justify-end gap-1.5">
                         <button
                             type="button"
                             class=backup_footer_button_classes
@@ -568,6 +569,7 @@ mod tests {
     use super::{
         backup_footer_button_classes, note_list_title_classes, percent_encode_data_url,
         search_syntax_hint_classes, sidebar_footer_classes, sidebar_state_class,
+        sidebar_title_classes,
     };
 
     #[test]
@@ -594,6 +596,8 @@ mod tests {
         assert!(class.contains("top-full"));
         assert!(class.contains("z-30"));
         assert!(class.contains("shadow-lg"));
+        assert!(class.contains("text-gray-900"));
+        assert!(class.contains("dark:text-white"));
     }
 
     #[test]
@@ -601,11 +605,20 @@ mod tests {
         let footer = sidebar_footer_classes();
         let button = backup_footer_button_classes();
 
-        assert!(footer.contains("h-12"));
+        assert!(footer.contains("min-h-12"));
         assert!(footer.contains("flex"));
+        assert!(footer.contains("flex-wrap"));
         assert!(footer.contains("items-center"));
         assert!(button.contains("rounded-md"));
         assert!(!footer.contains("details"));
+    }
+
+    #[test]
+    fn sidebar_title_and_footer_status_remain_visible_across_themes() {
+        let title = sidebar_title_classes();
+
+        assert!(title.contains("text-gray-900"));
+        assert!(title.contains("dark:text-white"));
     }
 
     #[test]

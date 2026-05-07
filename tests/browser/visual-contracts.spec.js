@@ -24,6 +24,17 @@ async function seedNotes(page, { dark = false } = {}) {
   await page.goto("/");
 }
 
+async function seedEmptyCollection(page) {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("noter-notes", "[]");
+    window.localStorage.setItem("noter-recently-deleted-notes", "[]");
+    window.localStorage.setItem("noter-dark-mode", "false");
+    window.localStorage.setItem("noter-sidebar-open", "true");
+    window.localStorage.removeItem("noter-backup-health");
+  });
+  await page.goto("/");
+}
+
 async function visibleContrast(locator) {
   return locator.evaluate((element) => {
     const styles = getComputedStyle(element);
@@ -62,6 +73,28 @@ test("Light and Dark Theme keep core visual contracts readable", async ({ page }
   const darkHint = await visibleContrast(searchHint);
   expect(darkHint.color).toBe("rgb(255, 255, 255)");
   expect(darkHint.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+});
+
+test("Quick Capture keeps a new Note title editable instead of resetting to display fallback", async ({ page }) => {
+  await seedEmptyCollection(page);
+
+  await page.getByRole("button", { name: "New Note", exact: true }).click();
+
+  const title = page.getByPlaceholder("Note Title");
+  await expect(title).toBeFocused();
+  await expect(title).toHaveValue("");
+
+  await title.fill("Daily plan");
+  await expect(title).toHaveValue("Daily plan");
+  await expect(
+    page.getByRole("navigation", { name: "Notes sidebar" }).getByText("Daily plan"),
+  ).toBeVisible();
+
+  await title.fill("");
+  await expect(title).toHaveValue("");
+  await expect(
+    page.getByRole("navigation", { name: "Notes sidebar" }).getByText("New Note"),
+  ).toBeVisible();
 });
 
 test("Preview, Split, footers, Backup Controls, and notifications keep their layout contracts", async ({ page }) => {

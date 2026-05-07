@@ -52,19 +52,20 @@ impl WritingSurfaceModel {
     pub fn from_note(note: &Note, view_mode: EditorViewMode, is_hidden_by_filter: bool) -> Self {
         let surfaces = view_mode.surfaces();
         let hidden_by_filter_message = is_hidden_by_filter.then_some(HIDDEN_BY_FILTER_MESSAGE);
-        let title = note.display_title().to_string();
+        let editor_title = note.title.clone();
+        let display_title = note.display_title().to_string();
         let tags = note.tags.clone();
 
         let writing = surfaces.writing.then(|| WritingSurfaceEditor {
-            title: title.clone(),
+            title: editor_title,
             tags: tags.clone(),
             content: note.content.clone(),
             formatting_tools_visible: true,
         });
         let preview = surfaces.preview.then(|| WritingSurfacePreview {
-            title: title.clone(),
+            title: display_title.clone(),
             tags,
-            body_html: render_markdown_preview_body(&title, &note.content),
+            body_html: render_markdown_preview_body(&display_title, &note.content),
         });
 
         Self {
@@ -121,7 +122,7 @@ mod tests {
         let model = WritingSurfaceModel::from_note(&note, EditorViewMode::Split, true);
 
         let writing = model.writing.expect("split mode keeps the Writing Surface");
-        assert_eq!(writing.title, "Sprint plan");
+        assert_eq!(writing.title, " Sprint plan ");
         assert_eq!(writing.tags, ["product", "writing"]);
         assert_eq!(writing.content, note.content);
         assert!(writing.formatting_tools_visible);
@@ -144,6 +145,21 @@ mod tests {
             model.hidden_by_filter_message,
             Some(HIDDEN_BY_FILTER_MESSAGE)
         );
+    }
+
+    #[test]
+    fn writing_surface_edits_the_raw_note_title_while_preview_uses_display_title() {
+        let note = Note::new(String::new(), "Draft body".to_string());
+
+        let write_model = WritingSurfaceModel::from_note(&note, EditorViewMode::Write, false);
+        let writing = write_model.writing.expect("write mode keeps editor fields");
+        assert_eq!(writing.title, "");
+
+        let preview_model = WritingSurfaceModel::from_note(&note, EditorViewMode::Preview, false);
+        let preview = preview_model
+            .preview
+            .expect("preview mode keeps display fields");
+        assert_eq!(preview.title, "New Note");
     }
 
     #[test]

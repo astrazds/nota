@@ -557,12 +557,8 @@ fn markdown_help_button_classes() -> String {
     ui_recipes::compact_help_button()
 }
 
-fn note_title_textarea_classes(is_split: bool) -> String {
-    let scale = if is_split {
-        "text-xl md:text-2xl"
-    } else {
-        "text-2xl md:text-3xl"
-    };
+fn note_title_textarea_classes(_is_split: bool) -> String {
+    let scale = "text-2xl md:text-3xl";
 
     format!(
         "w-full min-w-0 resize-none overflow-hidden break-words whitespace-pre-wrap [field-sizing:content] {scale} font-bold leading-tight focus:outline-none bg-transparent {} {}",
@@ -763,14 +759,14 @@ mod tests {
     }
 
     #[test]
-    fn split_title_editor_is_quieter_than_single_pane_title() {
+    fn split_title_editor_keeps_the_same_note_header_scale_as_single_pane() {
         let single = note_title_textarea_classes(false);
         let split = note_title_textarea_classes(true);
 
         assert!(single.contains("text-2xl"));
         assert!(single.contains("md:text-3xl"));
-        assert!(split.contains("text-xl"));
-        assert!(split.contains("md:text-2xl"));
+        assert!(split.contains("text-2xl"));
+        assert!(split.contains("md:text-3xl"));
     }
 
     #[test]

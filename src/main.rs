@@ -533,7 +533,7 @@ fn App() -> impl IntoView {
             <Editor />
             <GlobalNotificationOutlet />
             <ConfirmModal
-                title="Delete Note?"
+                title="Move to Recently Deleted?"
                 message="This can be restored from Recently Deleted."
             />
         </div>

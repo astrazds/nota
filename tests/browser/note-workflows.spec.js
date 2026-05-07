@@ -98,7 +98,18 @@ test("user can delete, restore, and permanently clear Recently Deleted Notes", a
   await page.getByRole("button", { name: "Delete" }).click();
 
   let dialog = page.getByRole("dialog");
+  await expect(dialog).toHaveAttribute("aria-labelledby", "confirmation-modal-title");
+  await expect(dialog).toHaveAttribute("aria-describedby", "confirmation-modal-message");
+  await expect(dialog.getByRole("heading", { name: "Move to Recently Deleted?" })).toBeVisible();
   await expect(dialog).toContainText('"Architecture note" will move to Recently Deleted.');
+  await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(noteRow(page, "Architecture note").getByRole("button", { name: "Note actions" })).toBeFocused();
+
+  await noteRow(page, "Architecture note").getByRole("button", { name: "Note actions" }).click();
+  await page.getByRole("button", { name: "Delete" }).click();
+  dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: "Delete" }).click();
   await waitForSaved(page);
 
@@ -120,8 +131,11 @@ test("user can delete, restore, and permanently clear Recently Deleted Notes", a
   await navigation.getByText("Recently Deleted (1)").click();
   await navigation.getByRole("button", { name: "Clear All" }).click();
   dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("heading", { name: "Permanently clear Recently Deleted?" })).toBeVisible();
   await expect(dialog).toContainText("This will permanently clear 1 recently deleted Note.");
+  await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
   await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(navigation.getByRole("button", { name: "Clear All" })).toBeFocused();
   await expect(navigation.getByText("Recently Deleted (1)")).toBeVisible();
 
   await navigation.getByRole("button", { name: "Clear All" }).click();

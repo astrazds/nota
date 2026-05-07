@@ -123,6 +123,52 @@ test("desktop primary actions use recognizable labels where space allows", async
   await expect(page.getByRole("button", { name: "Show markdown cheatsheet" })).toContainText("Help");
 });
 
+test("Markdown syntax modal keeps dense reference content accessible", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await seedNotes(page);
+
+  await page.getByText("Architecture note", { exact: true }).click();
+  await page.getByRole("button", { name: "Show markdown cheatsheet" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("heading", { name: "Markdown syntax" })).toBeVisible();
+
+  const closeBox = await dialog
+    .getByRole("button", { name: "Close markdown syntax" })
+    .evaluate((element) => element.getBoundingClientRect().toJSON());
+  expect(closeBox.width).toBeGreaterThanOrEqual(40);
+  expect(closeBox.height).toBeGreaterThanOrEqual(40);
+
+  const sections = await dialog.locator("h3,h4").evaluateAll((headings) =>
+    headings.map((heading) => heading.textContent.trim()),
+  );
+  expect(sections.slice(0, 3)).toEqual(["Core syntax", "Headings", "Emphasis"]);
+  expect(sections).toContain("Extended syntax");
+
+  const bodyMetrics = await dialog.locator(".overflow-y-auto").evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+  }));
+  expect(bodyMetrics.clientHeight).toBeGreaterThan(300);
+  expect(bodyMetrics.scrollHeight).toBeGreaterThan(bodyMetrics.clientHeight);
+});
+
+test("Search Hint appears as a popup without shifting the Note List", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await seedNotes(page);
+
+  const navigation = page.getByRole("navigation", { name: "Notes sidebar" });
+  const firstNote = navigation
+    .getByText("Architecture note", { exact: true })
+    .locator("xpath=ancestor::div[contains(@class, 'group')][1]");
+  const topBefore = await firstNote.evaluate((element) => element.getBoundingClientRect().top);
+
+  await page.getByPlaceholder("Search").focus();
+  await expect(page.getByText("Syntax")).toBeVisible();
+
+  const topAfter = await firstNote.evaluate((element) => element.getBoundingClientRect().top);
+  expect(Math.abs(topAfter - topBefore)).toBeLessThanOrEqual(1);
+});
+
 test("Light and Dark Theme keep core visual contracts readable", async ({ page }) => {
   await seedNotes(page);
 
@@ -191,6 +237,10 @@ test("Preview, Split, footers, Backup Controls, and notifications keep their lay
   expect(footerHeights[0]).toBe(45);
   expect(footerHeights[1]).toBe(45);
 
+  const writeTitleScale = await page
+    .getByPlaceholder("Note Title")
+    .evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+
   await page.getByRole("button", { name: "Split mode" }).click();
   const preview = page.locator(".prose").first();
   await expect(preview.getByRole("heading", { name: "Architecture note" })).toBeVisible();
@@ -216,7 +266,8 @@ test("Preview, Split, footers, Backup Controls, and notifications keep their lay
       preview: parseFloat(getComputedStyle(previewTitle).fontSize),
     };
   });
-  expect(splitTitleScale.editor).toBeLessThan(splitTitleScale.preview);
+  expect(splitTitleScale.editor).toBe(writeTitleScale);
+  expect(splitTitleScale.preview).toBeGreaterThanOrEqual(splitTitleScale.editor);
 
   const body = page.getByPlaceholder("Start typing...");
   await body.fill(`${note.content}\n\nSaved by browser coverage.`);

@@ -11,7 +11,7 @@ Accepted decisions:
 - Keep Backup domain semantics in `backup`, but move sidebar Backup Controls, browser download/FileReader Adapter details, pending import state, and related Global Notification outcomes into `backup_controls`.
 - Deepen the Writing Surface through a render-ready model that preserves Note Title, Note Metadata, Markdown body, Preview/Split ordering, hidden-by-filter messaging, and formatting command application without leaking browser selection concerns.
 - Add Playwright browser coverage for the visual contracts most likely to regress: Light/Dark readability, Search Hint contrast, selected Note state, footer height parity, compact controls, Preview/Split Note Metadata order, Backup Controls placement, and Global Notification layering.
-- Keep browser workflow coverage alongside visual coverage for user-visible regressions in Quick Capture, Note Title editing, Note creation/edit/save, scoped Search, pinning, Tags, Formatting Tools, Preview safety, Backup export/import, Responsive Navigation, Markdown help, recoverable delete/restore, and Clear All.
+- Keep browser workflow coverage alongside visual coverage for user-visible regressions in Quick Capture, Note Title editing, Note creation/edit/save, scoped Search, pinning, Tags, Formatting Tools, Preview safety, Backup export/import, Responsive Navigation, Markdown syntax help, recoverable delete/restore, and Clear All.
 
 Implementation notes:
 

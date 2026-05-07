@@ -222,6 +222,7 @@ pub fn Sidebar() -> impl IntoView {
                                     <button
                                         type="button"
                                         class=recently_deleted_clear_all_button_classes
+                                        data-confirm-return="clear-all"
                                         on:click=move |ev: leptos::web_sys::MouseEvent| {
                                             ev.prevent_default();
                                             ev.stop_propagation();
@@ -341,6 +342,7 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
                         class=move || format!("p-1 rounded-full {}", ThemeState::NoteActionButton.classes())
                         title="Note actions"
                         aria-label="Note actions"
+                        data-confirm-return="note-actions"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.75h.01M12 12h.01M12 17.25h.01" />
@@ -425,11 +427,12 @@ mod tests {
     }
 
     #[test]
-    fn search_syntax_hint_is_a_temporary_inline_helper_not_a_covering_overlay() {
+    fn search_syntax_hint_is_a_temporary_popup_not_permanent_sidebar_content() {
         let class = search_syntax_hint_classes();
 
-        assert!(!class.contains("absolute"));
-        assert!(class.contains("mt-1.5"));
+        assert!(class.contains("absolute"));
+        assert!(class.contains("top-full"));
+        assert!(class.contains("z-30"));
         assert!(class.contains("shadow-sm"));
         assert!(class.contains("text-gray-900"));
         assert!(class.contains("dark:text-white"));

@@ -2,6 +2,7 @@ use crate::AppState;
 use crate::components::Modal;
 use crate::theme::{ThemeState, ThemeText};
 use leptos::prelude::*;
+use wasm_bindgen::JsCast;
 
 #[component]
 pub fn ConfirmModal(title: &'static str, message: &'static str) -> impl IntoView {
@@ -13,6 +14,9 @@ pub fn ConfirmModal(title: &'static str, message: &'static str) -> impl IntoView
                 .is_some()
     };
     let dismiss_confirmation = move || {
+        let is_clear_all_confirmation = state
+            .clear_all_recently_deleted_confirmation_count()
+            .is_some();
         if state
             .clear_all_recently_deleted_confirmation_count()
             .is_some()
@@ -21,24 +25,31 @@ pub fn ConfirmModal(title: &'static str, message: &'static str) -> impl IntoView
         } else {
             state.cancel_delete_note();
         }
+        focus_confirmation_return_target(is_clear_all_confirmation);
     };
 
     let header = Box::new(move || {
         view! {
             <div>
-                <h2 class=move || format!("text-xl font-bold {}", ThemeText::Primary.classes())>
+                <h2
+                    id="confirmation-modal-title"
+                    class=move || format!("text-xl font-bold {}", ThemeText::Primary.classes())
+                >
                     {move || {
                         if state
                             .clear_all_recently_deleted_confirmation_count()
                             .is_some()
                         {
-                            "Clear Recently Deleted?"
+                            "Permanently clear Recently Deleted?"
                         } else {
                             title
                         }
                     }}
                 </h2>
-                <p class=move || format!("mt-2 {}", ThemeText::Muted.classes())>
+                <p
+                    id="confirmation-modal-message"
+                    class=move || format!("mt-2 {}", ThemeText::Muted.classes())
+                >
                     {move || {
                         if let Some(count) = state.clear_all_recently_deleted_confirmation_count() {
                             clear_all_recently_deleted_confirmation_message(count)
@@ -58,8 +69,9 @@ pub fn ConfirmModal(title: &'static str, message: &'static str) -> impl IntoView
     let footer = Box::new(move || {
         view! {
             <button
+                data-modal-cancel="true"
                 on:click=move |_| dismiss_confirmation()
-                class=move || format!("px-5 py-2 font-semibold rounded-md transition-colors {}", ThemeState::SecondaryButton.classes())
+                class=move || format!("min-h-10 px-5 py-2 font-semibold rounded-md transition-colors {}", ThemeState::SecondaryButton.classes())
             >
                 "Cancel"
             </button>
@@ -74,7 +86,7 @@ pub fn ConfirmModal(title: &'static str, message: &'static str) -> impl IntoView
                         state.confirm_delete_selected_note();
                     }
                 }
-                class=move || format!("px-5 py-2 font-semibold rounded-md transition-colors {}", ThemeState::DangerButton.classes())
+                class=move || format!("min-h-10 px-5 py-2 font-semibold rounded-md transition-colors {}", ThemeState::DangerButton.classes())
             >
                 {move || {
                     if state
@@ -101,6 +113,9 @@ pub fn ConfirmModal(title: &'static str, message: &'static str) -> impl IntoView
                 max_width_class="max-w-sm"
                 header=header_clone.clone()
                 footer=footer_clone.clone()
+                labelledby="confirmation-modal-title"
+                describedby="confirmation-modal-message"
+                initial_focus_selector="[data-modal-cancel='true']"
                 hide_body=true
             >
                 <div></div>
@@ -116,6 +131,24 @@ fn delete_confirmation_message(note_title: String) -> String {
 fn clear_all_recently_deleted_confirmation_message(count: usize) -> String {
     let note_label = if count == 1 { "Note" } else { "Notes" };
     format!("This will permanently clear {count} recently deleted {note_label}.")
+}
+
+fn focus_confirmation_return_target(is_clear_all_confirmation: bool) {
+    let selector = if is_clear_all_confirmation {
+        "[data-confirm-return='clear-all']"
+    } else {
+        "[data-confirm-return='note-actions']"
+    };
+    let Some(document) = leptos::web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    let Ok(Some(element)) = document.query_selector(selector) else {
+        return;
+    };
+    let Some(element) = element.dyn_ref::<leptos::web_sys::HtmlElement>() else {
+        return;
+    };
+    let _ = element.focus();
 }
 
 #[cfg(test)]

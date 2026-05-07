@@ -156,7 +156,7 @@ The palette is a quiet local note system: paper-like neutrals, tuned dark desk s
 Noter is flat by default. Depth is conveyed mostly through tonal layering, borders, dividers, selected-state rings, and compact spacing. Shadows are reserved for overlays, transient hints, modals, menus, tag suggestions, global notifications, and split Preview inset treatment.
 
 ### Shadow Vocabulary
-- **Hint Lift** (`shadow-sm`): Search Hint and action menus that appear temporarily without competing with the Note List.
+- **Hint Lift** (`shadow-sm`): Search Hint and action menus that appear temporarily above the Note List without changing layout.
 - **Modal Lift** (`shadow-2xl`): Modal panel only.
 - **Small Lift** (`shadow-sm`): Primary buttons, tag suggestion panels, notifications, and compact mobile sidebar toggle.
 - **Inset Reading Plane** (`shadow-inner`): Selected Note row and Split Preview when depth clarifies the active surface.
@@ -194,8 +194,8 @@ Noter is flat by default. Depth is conveyed mostly through tonal layering, borde
 - **Mobile Treatment:** Compact navigation toggle is a normal top-left control, not a floating mid-page handle.
 
 ### Signature Components
-- **Editor-area Footer:** Stable 45px compact footer that owns Write, Preview, Split, and Markdown help.
-- **Search Hint:** Temporary inline helper below Search, theme-aware and readable in Light and Dark without covering Note rows.
+- **Editor-area Footer:** Stable 45px compact footer that owns Write, Preview, Split, and Markdown syntax help.
+- **Search Hint:** Temporary popup below Search, theme-aware and readable in Light and Dark without pushing the Note List down.
 - **Global Notification:** Floating, compact, transient feedback for save, Backup, and import outcomes.
 
 ## 6. Do's and Don'ts

@@ -185,8 +185,13 @@ test("keyboard Quick Capture and Markdown help are available from the editor", a
 
   await page.getByRole("button", { name: "Show markdown cheatsheet" }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("heading", { name: "Markdown help" })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Markdown syntax" })).toBeVisible();
+  await expect(dialog).toHaveAttribute("aria-labelledby", "markdown-syntax-title");
+  await expect(dialog.getByRole("heading", { name: "Core syntax" })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Extended syntax" })).toBeVisible();
   await expect(dialog.getByText("Raw HTML is displayed as text for safety.")).toBeVisible();
-  await dialog.getByRole("button", { name: "Close markdown help" }).click();
+  await expect(dialog.getByText("Click backdrop or X to close.")).toHaveCount(0);
+  await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
+  await expect(page.getByRole("button", { name: "Show markdown cheatsheet" })).toBeFocused();
 });

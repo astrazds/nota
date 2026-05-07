@@ -102,7 +102,7 @@
       {
         "name": "hint-lift",
         "value": "0 1px 2px 0 rgba(17, 24, 39, 0.05)",
-        "purpose": "Search Hint and compact action menus."
+        "purpose": "Search Hint popup and compact action menus."
       },
       {
         "name": "small-lift",
@@ -197,7 +197,7 @@
       "refersTo": "search-input",
       "description": "Soft filled Search field for finding Notes without turning Search into a command system.",
       "html": "<label class=\"ds-search\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M21 21l-4.35-4.35m1.1-5.15a6.25 6.25 0 1 1-12.5 0 6.25 6.25 0 0 1 12.5 0Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg><input placeholder=\"Search\" /></label>",
-      "css": ".ds-search { display: flex; align-items: center; gap: 8px; border-radius: 8px; background: rgba(17, 24, 39, 0.05); color: #6B7280; padding: 6px 16px 6px 12px; transition: background 150ms ease-out; } .ds-search:hover, .ds-search:focus-within { background: rgba(17, 24, 39, 0.10); } .ds-search svg { width: 16px; height: 16px; flex: none; } .ds-search input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: #111827; font: 400 14px/20px \"Source Sans 3 Variable\", ui-sans-serif, system-ui, sans-serif; } .ds-search-hint { margin-top: 6px; border: 1px solid #D2D2D7; border-radius: 6px; padding: 8px; font: 500 11px/16px \"Source Sans 3 Variable\", ui-sans-serif, system-ui, sans-serif; }"
+      "css": ".ds-search { position: relative; display: flex; align-items: center; gap: 8px; border-radius: 8px; background: rgba(17, 24, 39, 0.05); color: #6B7280; padding: 6px 16px 6px 12px; transition: background 150ms ease-out; } .ds-search:hover, .ds-search:focus-within { background: rgba(17, 24, 39, 0.10); } .ds-search svg { width: 16px; height: 16px; flex: none; } .ds-search input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: #111827; font: 400 14px/20px \"Source Sans 3 Variable\", ui-sans-serif, system-ui, sans-serif; } .ds-search-hint { position: absolute; left: 0; right: 0; top: 100%; z-index: 30; margin-top: 6px; border: 1px solid #D2D2D7; border-radius: 6px; padding: 8px; font: 500 11px/16px \"Source Sans 3 Variable\", ui-sans-serif, system-ui, sans-serif; }"
     },
     {
       "name": "Tag Chip",

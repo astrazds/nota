@@ -103,11 +103,8 @@ pub const MARKDOWN_CHEATSHEET_SECTIONS: &[MarkdownCheatsheetSection] = &[
         items: &["\\*literal asterisks\\*", "\\# literal heading marker"],
     },
     MarkdownCheatsheetSection {
-        title: "Note",
-        items: &[
-            "Raw HTML is displayed as text for safety.",
-            "Click backdrop or X to close.",
-        ],
+        title: "Safety",
+        items: &["Raw HTML is displayed as text for safety."],
     },
 ];
 

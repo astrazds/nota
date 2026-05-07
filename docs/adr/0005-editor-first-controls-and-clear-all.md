@@ -14,6 +14,7 @@ Accepted decisions:
 - Keep Global Notifications as floating overlay feedback above app chrome instead of turning save, Backup, or import feedback into persistent header/footer content.
 - Add `Clear All` to the Recently Deleted summary row only when recoverable Notes exist.
 - Require count-specific Delete Confirmation before `Clear All` permanently removes Recently Deleted Notes.
+- Keep Delete Confirmation keyboard-safe by defaulting focus to `Cancel`, labelling the dialog from its title and message, and returning focus to the invoking Note action or `Clear All` control after dismissal.
 
 Implementation notes:
 

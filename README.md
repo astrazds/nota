@@ -2,7 +2,7 @@
 
 A local-first Markdown note-taking web app built with **Rust**, **Leptos**, and **Tailwind CSS**.
 
-Current app version: **0.9.0**.
+Current app version: **0.9.1**.
 
 ## Features
 
@@ -32,10 +32,10 @@ Current app version: **0.9.0**.
   - Matched Writing Surface and Preview body text scale for lower visual friction.
   - Tag chips stay compact near the Note header, defer removal to the Edit tags flow, preserve mobile touch targets, and switch to a single edit input only when editing.
   - Contextual formatting tools (Bold, Italic, Strikethrough, Task List, Insert Table) inside the Writing Surface after Note Metadata.
-  - Markdown help modal
+  - Markdown syntax modal
   - Floating global notification outlet for save, Backup, and import feedback above app chrome
 - **Stable Note Actions**: Pin/unpin and delete are available from a note action menu instead of hover-only controls.
-- **Delete Confirmation**: Modal confirmation names the target Note before moving it to Recently Deleted.
+- **Delete Confirmation**: Modal confirmation uses the "Move to Recently Deleted?" frame, names the target Note, and defaults keyboard focus to Cancel before recoverable or permanent removal.
 - **Accessibility**: ARIA labels on interactive elements.
 
 ## Technology Stack
@@ -106,8 +106,8 @@ npm run test:browser
 Tests cover core domain logic including:
 - **Backup & Restore**: Versioned Flat Collection backup export, validation, import preview, merge import, duplicate identity handling, backup health, and all-or-nothing failure behavior.
 - **Filtering & Sorting**: Real-time search, scoped query parsing, quoted phrase matching, text highlighting, render-ready note list projection, active tag filtering, and note pinning logic.
-- **Browser Visual Regressions**: Playwright coverage verifies Light/Dark Theme readability, Search Hint contrast and placement, selected Note state, emitted Tailwind/style contracts, local Source font loading, editor/sidebar footer height parity, compact footer controls, compact desktop Tag chips, labelled desktop actions, mobile touch targets, startup notification quietness, Preview/Split Note Title hierarchy and Note Metadata ordering, Backup Controls placement, and floating Global Notification layering.
-- **Browser Workflow Regressions**: Playwright coverage exercises Quick Capture, Note Title editing, Note creation/edit/save, scoped Search, pinning, Tags, Formatting Tools, Preview safety, Backup export/import, Responsive Navigation, Markdown help, recoverable delete/restore, and Clear All.
+- **Browser Visual Regressions**: Playwright coverage verifies Light/Dark Theme readability, Search Hint contrast and placement, selected Note state, emitted Tailwind/style contracts, local Source font loading, editor/sidebar footer height parity, compact footer controls, compact desktop Tag chips, labelled desktop actions, mobile touch targets, startup notification quietness, Preview/Split Note Title consistency and Note Metadata ordering, Backup Controls placement, and floating Global Notification layering.
+- **Browser Workflow Regressions**: Playwright coverage exercises Quick Capture, Note Title editing, Note creation/edit/save, scoped Search, pinning, Tags, Formatting Tools, Preview safety, Backup export/import, Responsive Navigation, Markdown syntax help, recoverable delete/restore, and Clear All.
 - **Formatting**: Named Markdown commands and UTF-16/UTF-8-safe selection handling.
 - **Note Logic**: Workspace behaviours for quick capture, note creation, selected note editing, recoverable delete/restore/individual clear/count-confirmed Clear All, delete confirmation, title extraction, date formatting, preview truncation, and deserialisation.
 - **Tags**: Parsing, display formatting, autocomplete suggestions, normalization, individual removal, cleanup planning, case-insensitive matching, collection, and sorting.

@@ -29,6 +29,11 @@ async function waitForSaved(page) {
   await expect(page.getByRole("status")).toBeHidden({ timeout: 5_000 });
 }
 
+async function waitForStatus(page, message) {
+  await expect(page.getByRole("status")).toContainText(message);
+  await expect(page.getByRole("status")).toBeHidden({ timeout: 5_000 });
+}
+
 function noteRow(page, title) {
   return page
     .getByRole("navigation", { name: "Notes sidebar" })
@@ -122,6 +127,6 @@ test("user can delete, restore, and permanently clear Recently Deleted Notes", a
   await navigation.getByRole("button", { name: "Clear All" }).click();
   dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: "Clear All" }).click();
-  await waitForSaved(page);
+  await waitForStatus(page, "Recently Deleted cleared");
   await expect(navigation.getByText("Recently Deleted")).toBeHidden();
 });

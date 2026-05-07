@@ -12,6 +12,8 @@ use crate::storage::{
     SaveSession, SaveStatus, save_dark_mode, save_recently_deleted_notes, save_sidebar_open,
 };
 use leptos::prelude::*;
+use std::cell::Cell;
+use std::rc::Rc;
 
 #[derive(Debug, Clone)]
 pub struct AppRuntimeStartup {
@@ -135,8 +137,12 @@ pub fn install_runtime_persistence(state: AppState) -> SaveSession {
 
     let save_session = SaveSession::default();
     let save_session_for_effect = save_session.clone();
+    let is_initial_notes_effect = Rc::new(Cell::new(true));
     Effect::new(move |_| {
         let snapshot = state.tracked_notes_persistence_snapshot();
+        if is_initial_notes_effect.replace(false) {
+            return;
+        }
         save_session_for_effect.schedule_notes_save(snapshot.notes, state.save_status);
         save_recently_deleted_notes(&snapshot.recently_deleted_notes);
     });

@@ -48,6 +48,7 @@ pub fn Editor() -> impl IntoView {
         Memo::new(move |_| writing_surface_model.get().and_then(|model| model.writing));
     let preview_model =
         Memo::new(move |_| writing_surface_model.get().and_then(|model| model.preview));
+    let is_split_view = Memo::new(move |_| state.editor_view_mode.get() == EditorViewMode::Split);
     let preview_tags = Memo::new(move |_| {
         preview_model
             .get()
@@ -71,10 +72,10 @@ pub fn Editor() -> impl IntoView {
         previous_save_status.set(save_status);
         match save_status {
             SaveStatus::Saving => {
-                state.show_notification("Saving...", NotificationTone::Progress);
+                state.show_save_notification("Saving...", NotificationTone::Progress);
             }
             SaveStatus::Saved => {
-                state.show_notification("Saved", NotificationTone::Success);
+                state.show_save_notification("Saved", NotificationTone::Success);
             }
         }
     });
@@ -225,7 +226,7 @@ pub fn Editor() -> impl IntoView {
                                         <textarea
                                             node_ref=title_input_ref
                                             rows="1"
-                                            class=note_title_textarea_classes
+                                            class=move || note_title_textarea_classes(is_split_view.get())
                                             placeholder="Note Title"
                                             prop:value=move || writing_model.get().map(|note| note.title).unwrap_or_default()
                                             on:input=on_input_title
@@ -436,7 +437,8 @@ pub fn Editor() -> impl IntoView {
                         aria-label="Show markdown cheatsheet"
                         class=markdown_help_button_classes
                     >
-                        "?"
+                        <span class="md:hidden">"?"</span>
+                        <span class="hidden md:inline">"Help"</span>
                     </button>
                 </div>
             </div>
@@ -555,9 +557,15 @@ fn markdown_help_button_classes() -> String {
     ui_recipes::compact_help_button()
 }
 
-fn note_title_textarea_classes() -> String {
+fn note_title_textarea_classes(is_split: bool) -> String {
+    let scale = if is_split {
+        "text-xl md:text-2xl"
+    } else {
+        "text-2xl md:text-3xl"
+    };
+
     format!(
-        "w-full min-w-0 resize-none overflow-hidden break-words whitespace-pre-wrap [field-sizing:content] text-2xl md:text-3xl font-bold leading-tight focus:outline-none bg-transparent {} {}",
+        "w-full min-w-0 resize-none overflow-hidden break-words whitespace-pre-wrap [field-sizing:content] {scale} font-bold leading-tight focus:outline-none bg-transparent {} {}",
         ThemeText::Primary.classes(),
         ThemeText::Placeholder.classes()
     )
@@ -570,8 +578,11 @@ fn tag_input_classes() -> String {
     )
 }
 
-fn editable_tag_remove_button_classes() -> &'static str {
-    "ml-0.5 inline-flex h-9 w-9 items-center justify-center rounded-full px-0 leading-none opacity-70 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-apple-yellow md:ml-0 md:h-5 md:w-5 md:text-[0.625rem]"
+fn edit_tags_button_classes() -> String {
+    format!(
+        "inline-flex h-9 items-center rounded-md px-3 text-xs md:h-auto md:px-2 md:py-0.5 {}",
+        ThemeState::SegmentedIdle.classes()
+    )
 }
 
 fn editor_body_textarea_classes() -> String {
@@ -600,8 +611,6 @@ fn EditableTagList(
     selected_note: Memo<Option<Note>>,
     on_edit: impl Fn(leptos::web_sys::MouseEvent) + Copy + Send + Sync + 'static,
 ) -> impl IntoView {
-    let state = use_context::<AppState>().expect("state not found");
-
     view! {
         <div class="flex max-w-xl flex-wrap items-center gap-1.5">
             {move || selected_note
@@ -612,26 +621,18 @@ fn EditableTagList(
                         .map(|tag| {
                             let tag_for_remove = tag.clone();
                             view! {
-                                <span class=move || format!("inline-flex items-center gap-1 {}", ui_recipes::tag_pill())>
+                                <span
+                                    class=move || format!("inline-flex items-center {}", ui_recipes::tag_pill())
+                                    title=format!("Tag {tag_for_remove}")
+                                >
                                     {format!("#{tag}")}
-                                    <button
-                                        type="button"
-                                        class=editable_tag_remove_button_classes()
-                                        title=format!("Remove tag {tag_for_remove}")
-                                        aria-label=format!("Remove tag {tag_for_remove}")
-                                        on:click=move |_| {
-                                            state.remove_selected_tag(&tag_for_remove);
-                                        }
-                                    >
-                                        "x"
-                                    </button>
                                 </span>
                             }
                         })
                         .collect_view()}
                     <button
                         type="button"
-                        class=move || format!("rounded-md px-2 py-0.5 text-xs {}", ThemeState::SegmentedIdle.classes())
+                        class=edit_tags_button_classes
                         on:click=on_edit
                     >
                         "Edit tags"
@@ -750,7 +751,7 @@ mod tests {
 
     #[test]
     fn note_title_editor_wraps_long_titles_without_horizontal_overflow() {
-        let title = note_title_textarea_classes();
+        let title = note_title_textarea_classes(false);
 
         assert!(title.contains("w-full"));
         assert!(title.contains("min-w-0"));
@@ -762,14 +763,24 @@ mod tests {
     }
 
     #[test]
-    fn editable_tag_remove_buttons_are_compact_after_the_mobile_breakpoint() {
-        let button = editable_tag_remove_button_classes();
+    fn split_title_editor_is_quieter_than_single_pane_title() {
+        let single = note_title_textarea_classes(false);
+        let split = note_title_textarea_classes(true);
+
+        assert!(single.contains("text-2xl"));
+        assert!(single.contains("md:text-3xl"));
+        assert!(split.contains("text-xl"));
+        assert!(split.contains("md:text-2xl"));
+    }
+
+    #[test]
+    fn edit_tags_button_keeps_mobile_touch_target_and_desktop_density() {
+        let button = edit_tags_button_classes();
 
         assert!(button.contains("h-9"));
-        assert!(button.contains("w-9"));
-        assert!(button.contains("md:h-5"));
-        assert!(button.contains("md:w-5"));
-        assert!(button.contains("md:text-[0.625rem]"));
+        assert!(button.contains("md:h-auto"));
+        assert!(button.contains("md:px-2"));
+        assert!(button.contains("md:py-0.5"));
     }
 
     #[test]

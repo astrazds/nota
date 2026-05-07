@@ -90,19 +90,37 @@ test("typography uses local Source families for UI and Markdown editing", async 
   expect(families.editor).toContain("Source Code Pro Variable");
 });
 
-test("desktop editor tag chips stay compact while keeping remove controls visible", async ({ page }) => {
+test("desktop editor tag chips stay compact and defer removal to tag editing", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await seedNotes(page);
 
-  const removeProduct = page.getByRole("button", { name: "Remove tag product" });
-  const removeBox = await removeProduct.evaluate((element) => element.getBoundingClientRect().toJSON());
-  const chipBox = await removeProduct.evaluate((element) =>
-    element.parentElement.getBoundingClientRect().toJSON(),
+  await expect(page.getByRole("button", { name: "Remove tag product" })).toBeHidden();
+
+  const productChip = page.getByText("#product", { exact: true }).first();
+  const chipBox = await productChip.evaluate((element) =>
+    element.getBoundingClientRect().toJSON(),
   );
 
-  expect(removeBox.height).toBeLessThanOrEqual(24);
-  expect(removeBox.width).toBeLessThanOrEqual(24);
   expect(chipBox.height).toBeLessThanOrEqual(28);
+
+  await page.getByRole("button", { name: "Edit tags" }).click();
+  await expect(page.getByPlaceholder("Add tags")).toBeVisible();
+  await expect(page.getByPlaceholder("Add tags")).toHaveValue("product, writing");
+});
+
+test("startup does not show a save notification before user edits", async ({ page }) => {
+  await seedNotes(page);
+
+  await page.waitForTimeout(1_000);
+  await expect(page.getByRole("status")).toHaveCount(0);
+});
+
+test("desktop primary actions use recognizable labels where space allows", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await seedNotes(page);
+
+  await expect(page.getByRole("button", { name: "Create new note" })).toContainText("New");
+  await expect(page.getByRole("button", { name: "Show markdown cheatsheet" })).toContainText("Help");
 });
 
 test("Light and Dark Theme keep core visual contracts readable", async ({ page }) => {
@@ -114,7 +132,7 @@ test("Light and Dark Theme keep core visual contracts readable", async ({ page }
   await expect(page.getByPlaceholder("Note Title")).toHaveValue("Architecture note");
 
   await page.getByPlaceholder("Search").focus();
-  const searchHint = page.getByText("Search syntax").locator("..");
+  const searchHint = page.getByText("Syntax").locator("..");
   await expect(searchHint).toBeVisible();
   const lightHint = await visibleContrast(searchHint);
   expect(lightHint.color).toBe("rgb(17, 24, 39)");
@@ -190,6 +208,16 @@ test("Preview, Split, footers, Backup Controls, and notifications keep their lay
   });
   expect(previewOrder).toEqual({ titleBeforeTags: true, tagsBeforeBody: true });
 
+  const splitTitleScale = await page.evaluate(() => {
+    const editorTitle = document.querySelector('textarea[placeholder="Note Title"]');
+    const previewTitle = document.querySelector(".prose > h1");
+    return {
+      editor: parseFloat(getComputedStyle(editorTitle).fontSize),
+      preview: parseFloat(getComputedStyle(previewTitle).fontSize),
+    };
+  });
+  expect(splitTitleScale.editor).toBeLessThan(splitTitleScale.preview);
+
   const body = page.getByPlaceholder("Start typing...");
   await body.fill(`${note.content}\n\nSaved by browser coverage.`);
   await expect(page.getByRole("status")).toContainText(/Saving|Saved/);
@@ -213,8 +241,7 @@ test("mobile editor chrome avoids title collisions and keeps touch controls reac
 
   const mobileTouchTargets = [
     sidebarToggle,
-    page.getByRole("button", { name: "Remove tag product" }),
-    page.getByRole("button", { name: "Remove tag writing" }),
+    page.getByRole("button", { name: "Edit tags" }),
     page.getByRole("button", { name: "Write mode" }),
     page.getByRole("button", { name: "Preview mode" }),
     page.getByRole("button", { name: "Show markdown cheatsheet" }),

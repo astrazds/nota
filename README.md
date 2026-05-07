@@ -18,7 +18,7 @@ Current app version: **0.9.0**.
 - **Organisation Tools**:
   - **Search**: Real-time search bar (with debounce) to filter notes by title, content, or tags with text highlighting.
   - **Scoped Search**: Optional syntax for quoted phrases, `title:`, `tag:`, and `is:pinned` filters, shown as a focus-time hint while keeping Search focused on Notes.
-  - **Tags**: Lightweight Note Metadata with autocomplete, normalization, removable Tag pills, preview visibility beneath the Note Title, and reviewed cleanup for secondary filtering without folders or notebooks.
+  - **Tags**: Lightweight Note Metadata with autocomplete, normalization, compact read-only Tag pills, preview visibility beneath the Note Title, and reviewed cleanup for secondary filtering without folders or notebooks.
   - **Pinning**: Pin important notes to the top of your list.
 - **Local Persistence**: Automatically persists notes to your browser's `LocalStorage` with debounced saves while typing.
 - **Quick Capture**: Create a new Note from the sidebar, empty state, or `Ctrl/Cmd+N`; compact viewports return directly to the Writing Surface with the Note Title focused.
@@ -30,7 +30,7 @@ Current app version: **0.9.0**.
 - **First-Run Flow**: Empty collections show a direct path to create the first note and focus the note title.
 - **Enhanced Editing**:
   - Matched Writing Surface and Preview body text scale for lower visual friction.
-  - Tag chips stay compact near the Note header, keep desktop remove controls visually small, preserve mobile touch targets, and switch to a single edit input only when editing.
+  - Tag chips stay compact near the Note header, defer removal to the Edit tags flow, preserve mobile touch targets, and switch to a single edit input only when editing.
   - Contextual formatting tools (Bold, Italic, Strikethrough, Task List, Insert Table) inside the Writing Surface after Note Metadata.
   - Markdown help modal
   - Floating global notification outlet for save, Backup, and import feedback above app chrome
@@ -99,13 +99,14 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo fmt --check
 cargo doc --workspace --no-deps
 npm run build
+npx impeccable detect --json --fast src index.html
 npm run test:browser
 ```
 
 Tests cover core domain logic including:
 - **Backup & Restore**: Versioned Flat Collection backup export, validation, import preview, merge import, duplicate identity handling, backup health, and all-or-nothing failure behavior.
 - **Filtering & Sorting**: Real-time search, scoped query parsing, quoted phrase matching, text highlighting, render-ready note list projection, active tag filtering, and note pinning logic.
-- **Browser Visual Regressions**: Playwright coverage verifies Light/Dark Theme readability, Search Hint contrast, selected Note state, emitted Tailwind/style contracts, local Source font loading, editor/sidebar footer height parity, compact footer controls, compact desktop Tag chips, mobile touch targets, Preview/Split Note Title and Note Metadata ordering, Backup Controls placement, and floating Global Notification layering.
+- **Browser Visual Regressions**: Playwright coverage verifies Light/Dark Theme readability, Search Hint contrast and placement, selected Note state, emitted Tailwind/style contracts, local Source font loading, editor/sidebar footer height parity, compact footer controls, compact desktop Tag chips, labelled desktop actions, mobile touch targets, startup notification quietness, Preview/Split Note Title hierarchy and Note Metadata ordering, Backup Controls placement, and floating Global Notification layering.
 - **Browser Workflow Regressions**: Playwright coverage exercises Quick Capture, Note Title editing, Note creation/edit/save, scoped Search, pinning, Tags, Formatting Tools, Preview safety, Backup export/import, Responsive Navigation, Markdown help, recoverable delete/restore, and Clear All.
 - **Formatting**: Named Markdown commands and UTF-16/UTF-8-safe selection handling.
 - **Note Logic**: Workspace behaviours for quick capture, note creation, selected note editing, recoverable delete/restore/individual clear/count-confirmed Clear All, delete confirmation, title extraction, date formatting, preview truncation, and deserialisation.

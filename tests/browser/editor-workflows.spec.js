@@ -98,7 +98,7 @@ test("selected Note stays editable when hidden by Search or Tag filters", async 
   await expect(page.getByPlaceholder("Note Title")).toHaveValue("Launch Plan Edited");
 });
 
-test("user can accept tag suggestions and remove Tags", async ({ page }) => {
+test("user can accept tag suggestions and remove Tags while editing metadata", async ({ page }) => {
   await seedCollection(page);
 
   await navigation(page).getByText("Archive", { exact: true }).click();
@@ -108,9 +108,10 @@ test("user can accept tag suggestions and remove Tags", async ({ page }) => {
   await page.keyboard.press("Enter");
   await expect(page.getByPlaceholder("Add tags")).toHaveValue("Product");
 
+  await page.getByPlaceholder("Add tags").fill("");
   await page.getByPlaceholder("Start typing...").click();
-  await page.getByRole("button", { name: "Remove tag Product" }).click();
-  await expect(page.getByRole("button", { name: "Remove tag Product" })).toBeHidden();
+  await expect(page.getByRole("button", { name: "Edit tags" })).toBeHidden();
+  await expect(page.getByPlaceholder("Add tags")).toBeVisible();
 });
 
 test("user can review and apply startup Tag cleanup", async ({ page }) => {

@@ -132,12 +132,13 @@ pub fn Sidebar() -> impl IntoView {
                             <button
                                 on:click=add_note
                                 title="New Note"
-                                class=move || format!("transition-colors p-2 {}", ThemeAccent::PrimaryText.classes())
+                                class=move || format!("inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium transition-colors {}", ThemeAccent::PrimaryText.classes())
                                 aria-label="Create new note"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                 </svg>
+                                <span class="hidden sm:inline">"New"</span>
                             </button>
                         </div>
                     </div>
@@ -169,9 +170,9 @@ pub fn Sidebar() -> impl IntoView {
                                 class=search_syntax_hint_classes
                                 role="status"
                             >
-                                <div class="mb-1 font-medium">"Search syntax"</div>
-                                <div class="flex flex-wrap gap-1.5" aria-label="Supported search syntax">
-                                    <code class="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">"\"exact phrase\""</code>
+                                <div class="mb-1 font-medium">"Syntax"</div>
+                                <div class="flex flex-wrap gap-1" aria-label="Supported search syntax">
+                                    <code class="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">"\"phrase\""</code>
                                     <code class="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">"title:plan"</code>
                                     <code class="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">"tag:work"</code>
                                     <code class="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">"is:pinned"</code>
@@ -424,13 +425,12 @@ mod tests {
     }
 
     #[test]
-    fn search_syntax_hint_is_a_popup_layer_not_permanent_sidebar_content() {
+    fn search_syntax_hint_is_a_temporary_inline_helper_not_a_covering_overlay() {
         let class = search_syntax_hint_classes();
 
-        assert!(class.contains("absolute"));
-        assert!(class.contains("top-full"));
-        assert!(class.contains("z-30"));
-        assert!(class.contains("shadow-lg"));
+        assert!(!class.contains("absolute"));
+        assert!(class.contains("mt-1.5"));
+        assert!(class.contains("shadow-sm"));
         assert!(class.contains("text-gray-900"));
         assert!(class.contains("dark:text-white"));
     }

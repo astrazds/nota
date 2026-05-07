@@ -400,6 +400,16 @@ impl AppState {
         }));
     }
 
+    pub fn show_save_notification(self, message: impl Into<String>, tone: NotificationTone) {
+        let can_replace = self
+            .notification
+            .get_untracked()
+            .is_none_or(|notification| is_save_notification(&notification.message));
+        if can_replace {
+            self.show_notification(message, tone);
+        }
+    }
+
     pub fn clear_notification(self, id: u64) {
         let should_clear = self
             .notification
@@ -483,6 +493,10 @@ impl AppState {
             self.is_sidebar_open.get_untracked(),
         )
     }
+}
+
+fn is_save_notification(message: &str) -> bool {
+    matches!(message, "Saving..." | "Saved")
 }
 
 fn main() {
@@ -863,6 +877,29 @@ mod tests {
 
             state.clear_notification(second.id);
             assert!(state.notification.get_untracked().is_none());
+        });
+    }
+
+    #[test]
+    fn save_notifications_do_not_replace_domain_notifications() {
+        with_test_state(Vec::new(), ViewportClass::Wide, true, |state| {
+            state.show_save_notification("Saving...", NotificationTone::Progress);
+            assert_eq!(
+                state.notification.get_untracked().unwrap().message,
+                "Saving..."
+            );
+
+            state.show_save_notification("Saved", NotificationTone::Success);
+            assert_eq!(state.notification.get_untracked().unwrap().message, "Saved");
+
+            state.show_notification("Backup imported", NotificationTone::Success);
+            let backup = state.notification.get_untracked().unwrap();
+
+            state.show_save_notification("Saving...", NotificationTone::Progress);
+            assert_eq!(state.notification.get_untracked().unwrap(), backup);
+
+            state.show_save_notification("Saved", NotificationTone::Success);
+            assert_eq!(state.notification.get_untracked().unwrap(), backup);
         });
     }
 }

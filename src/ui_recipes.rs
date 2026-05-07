@@ -2,7 +2,7 @@ use crate::theme::{ThemeState, ThemeSurface, ThemeText};
 
 pub fn search_hint() -> String {
     format!(
-        "absolute left-0 right-0 top-full z-30 mt-2 rounded-md border p-3 text-xs shadow-lg {} {}",
+        "mt-1.5 rounded-md border p-2 text-[11px] shadow-sm {} {}",
         ThemeSurface::EditorChrome.classes(),
         ThemeText::Primary.classes()
     )
@@ -153,10 +153,10 @@ mod tests {
         let selected = note_row(true);
         let idle = note_row(false);
 
-        assert!(search.contains("absolute"));
-        assert!(search.contains("top-full"));
-        assert!(search.contains("z-30"));
-        assert!(search.contains("shadow-lg"));
+        assert!(!search.contains("absolute"));
+        assert!(search.contains("mt-1.5"));
+        assert!(search.contains("p-2"));
+        assert!(search.contains("shadow-sm"));
         assert!(search.contains("text-gray-900"));
         assert!(search.contains("dark:text-white"));
 

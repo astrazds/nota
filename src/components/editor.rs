@@ -221,7 +221,7 @@ pub fn Editor() -> impl IntoView {
                                             </p>
                                         </div>
                                     </Show>
-                                    <div class="px-6 pt-7 pb-3 md:px-8 md:pt-8 space-y-3 border-b border-transparent">
+                                    <div class="pb-3 pl-20 pr-6 pt-7 md:px-8 md:pt-8 space-y-3 border-b border-transparent">
                                         <textarea
                                             node_ref=title_input_ref
                                             rows="1"
@@ -496,13 +496,13 @@ pub fn GlobalNotificationOutlet() -> impl IntoView {
 }
 
 fn notification_outlet_classes() -> &'static str {
-    "pointer-events-none fixed right-3 top-3 z-50 flex min-w-0 justify-end"
+    "pointer-events-none fixed bottom-16 right-3 z-50 flex min-w-0 justify-end sm:bottom-auto sm:top-3"
 }
 
 fn notification_classes(tone: NotificationTone) -> String {
     let tone_classes = match tone {
         NotificationTone::Progress => {
-            "border-apple-yellow/40 bg-apple-yellow/15 text-yellow-700 dark:bg-apple-yellow/20 dark:text-yellow-200"
+            "border-apple-yellow/40 bg-apple-yellow/10 text-yellow-700 dark:bg-apple-yellow/20 dark:text-yellow-200"
         }
         NotificationTone::Success => {
             "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200"
@@ -545,7 +545,10 @@ fn formatting_tools_classes() -> String {
 }
 
 fn formatting_tool_button_classes() -> String {
-    format!("p-1.5 rounded {}", ThemeState::ToolbarButton.classes())
+    format!(
+        "inline-flex h-9 min-w-[2.25rem] items-center justify-center rounded-md px-2.5 py-2 md:h-auto md:min-w-0 md:p-1.5 {}",
+        ThemeState::ToolbarButton.classes()
+    )
 }
 
 fn markdown_help_button_classes() -> String {
@@ -567,9 +570,13 @@ fn tag_input_classes() -> String {
     )
 }
 
+fn editable_tag_remove_button_classes() -> &'static str {
+    "ml-0.5 inline-flex h-9 w-9 items-center justify-center rounded-full px-0 leading-none opacity-70 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-apple-yellow md:ml-0 md:h-5 md:w-5 md:text-[0.625rem]"
+}
+
 fn editor_body_textarea_classes() -> String {
     format!(
-        "flex-1 px-6 pb-8 pt-3 md:px-8 text-base leading-7 focus:outline-none resize-none bg-transparent font-mono dark:text-gray-300 {}",
+        "flex-1 w-full max-w-[56rem] px-6 pb-8 pt-3 md:px-8 text-base leading-7 focus:outline-none resize-none bg-transparent font-mono dark:text-gray-300 {}",
         ThemeAccent::Selection.classes()
     )
 }
@@ -609,7 +616,7 @@ fn EditableTagList(
                                     {format!("#{tag}")}
                                     <button
                                         type="button"
-                                        class="ml-0.5 rounded-full px-1 leading-none opacity-70 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-apple-blue"
+                                        class=editable_tag_remove_button_classes()
                                         title=format!("Remove tag {tag_for_remove}")
                                         aria-label=format!("Remove tag {tag_for_remove}")
                                         on:click=move |_| {
@@ -689,7 +696,7 @@ mod tests {
         let preview = editor_view_button_classes(true, false);
         let help = markdown_help_button_classes();
 
-        assert!(footer.contains("noter-footer-height"));
+        assert!(footer.contains("h-[45px]"));
         assert!(footer.contains("px-3"));
         assert!(footer.contains("py-1.5"));
         assert!(footer.contains("text-[11px]"));
@@ -704,15 +711,15 @@ mod tests {
         assert!(sidebar.contains("w-11"));
         assert!(sidebar.contains("lg:hidden"));
         assert!(write.contains("inline-flex"));
-        assert!(write.contains("px-1.5"));
-        assert!(write.contains("py-0.5"));
-        assert!(write.contains("text-[11px]"));
-        assert!(preview.contains("px-1.5"));
-        assert!(preview.contains("py-0.5"));
-        assert!(preview.contains("text-[11px]"));
-        assert!(help.contains("px-1.5"));
-        assert!(help.contains("py-0.5"));
-        assert!(help.contains("text-[11px]"));
+        for classes in [&write, &preview, &help] {
+            assert!(classes.contains("h-9"));
+            assert!(classes.contains("md:px-1.5"));
+            assert!(classes.contains("md:py-0.5"));
+            assert!(classes.contains("md:text-[11px]"));
+        }
+        assert!(write.contains("min-w-[2.25rem]"));
+        assert!(preview.contains("min-w-[2.25rem]"));
+        assert!(help.contains("w-9"));
     }
 
     #[test]
@@ -736,7 +743,9 @@ mod tests {
         assert!(toolbar.contains("md:px-8"));
         assert!(!toolbar.contains("sticky"));
         assert!(button.contains("rounded"));
-        assert!(button.contains("p-1.5"));
+        assert!(button.contains("h-9"));
+        assert!(button.contains("min-w-[2.25rem]"));
+        assert!(button.contains("md:p-1.5"));
     }
 
     #[test]
@@ -753,11 +762,23 @@ mod tests {
     }
 
     #[test]
+    fn editable_tag_remove_buttons_are_compact_after_the_mobile_breakpoint() {
+        let button = editable_tag_remove_button_classes();
+
+        assert!(button.contains("h-9"));
+        assert!(button.contains("w-9"));
+        assert!(button.contains("md:h-5"));
+        assert!(button.contains("md:w-5"));
+        assert!(button.contains("md:text-[0.625rem]"));
+    }
+
+    #[test]
     fn editor_body_text_matches_preview_scale() {
         let editor_body = editor_body_textarea_classes();
         let preview = preview_pane_classes(false);
 
         assert!(editor_body.contains("text-base"));
+        assert!(editor_body.contains("max-w-[56rem]"));
         assert!(!editor_body.contains("md:text-lg"));
         assert!(preview.contains("prose-base"));
     }
@@ -778,7 +799,9 @@ mod tests {
         let error = notification_classes(NotificationTone::Error);
 
         assert!(outlet.contains("fixed"));
-        assert!(outlet.contains("top-3"));
+        assert!(outlet.contains("bottom-16"));
+        assert!(outlet.contains("sm:bottom-auto"));
+        assert!(outlet.contains("sm:top-3"));
         assert!(outlet.contains("right-3"));
         assert!(outlet.contains("z-50"));
         assert!(outlet.contains("pointer-events-none"));
@@ -793,7 +816,7 @@ mod tests {
             assert!(classes.contains("truncate"));
         }
 
-        assert!(progress.contains("bg-apple-yellow/15"));
+        assert!(progress.contains("bg-apple-yellow/10"));
         assert!(success.contains("bg-emerald-500/10"));
         assert!(error.contains("bg-red-500/10"));
     }

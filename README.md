@@ -2,11 +2,13 @@
 
 A local-first Markdown note-taking web app built with **Rust**, **Leptos**, and **Tailwind CSS**.
 
-Current app version: **0.8.0**.
+Current app version: **0.9.0**.
 
 ## Features
 
 - **Local-First Note Identity**: Quiet note-app structure with a scannable sidebar, calm writing surface, and warm accents.
+- **Documented Design System**: `PRODUCT.md`, `DESIGN.md`, and `.impeccable/design.json` capture the product register, typography, palette, component rules, and visual anti-patterns used by agents and contributors.
+- **Self-Hosted Typography**: Source Sans 3 carries the product UI, while Source Code Pro is reserved for Markdown/source editing. Fonts are bundled locally through Trunk and Tailwind, with no remote font provider.
 - **Markdown Support**: Markdown writing with explicit Write, Preview, and desktop Split view modes in a stable editor-area footer that matches the sidebar footer height and compact control rhythm.
   - Supports CommonMark plus tables, footnotes, strikethrough, and task lists.
   - Raw HTML in notes is rendered as text for safety.
@@ -28,7 +30,7 @@ Current app version: **0.8.0**.
 - **First-Run Flow**: Empty collections show a direct path to create the first note and focus the note title.
 - **Enhanced Editing**:
   - Matched Writing Surface and Preview body text scale for lower visual friction.
-  - Tag chips stay readable near the Note header and switch to a single edit input only when editing.
+  - Tag chips stay compact near the Note header, keep desktop remove controls visually small, preserve mobile touch targets, and switch to a single edit input only when editing.
   - Contextual formatting tools (Bold, Italic, Strikethrough, Task List, Insert Table) inside the Writing Surface after Note Metadata.
   - Markdown help modal
   - Floating global notification outlet for save, Backup, and import feedback above app chrome
@@ -103,7 +105,7 @@ npm run test:browser
 Tests cover core domain logic including:
 - **Backup & Restore**: Versioned Flat Collection backup export, validation, import preview, merge import, duplicate identity handling, backup health, and all-or-nothing failure behavior.
 - **Filtering & Sorting**: Real-time search, scoped query parsing, quoted phrase matching, text highlighting, render-ready note list projection, active tag filtering, and note pinning logic.
-- **Browser Visual Regressions**: Playwright coverage verifies Light/Dark Theme readability, Search Hint contrast, selected Note state, editor/sidebar footer height parity, compact footer controls, Preview/Split Note Title and Note Metadata ordering, Backup Controls placement, and floating Global Notification layering.
+- **Browser Visual Regressions**: Playwright coverage verifies Light/Dark Theme readability, Search Hint contrast, selected Note state, emitted Tailwind/style contracts, local Source font loading, editor/sidebar footer height parity, compact footer controls, compact desktop Tag chips, mobile touch targets, Preview/Split Note Title and Note Metadata ordering, Backup Controls placement, and floating Global Notification layering.
 - **Browser Workflow Regressions**: Playwright coverage exercises Quick Capture, Note Title editing, Note creation/edit/save, scoped Search, pinning, Tags, Formatting Tools, Preview safety, Backup export/import, Responsive Navigation, Markdown help, recoverable delete/restore, and Clear All.
 - **Formatting**: Named Markdown commands and UTF-16/UTF-8-safe selection handling.
 - **Note Logic**: Workspace behaviours for quick capture, note creation, selected note editing, recoverable delete/restore/individual clear/count-confirmed Clear All, delete confirmation, title extraction, date formatting, preview truncation, and deserialisation.
@@ -136,6 +138,9 @@ The app keeps high-leverage behaviour behind focused Rust Modules:
 ## Domain Docs
 
 - `CONTEXT.md` captures the product language used by agents and contributors.
+- `PRODUCT.md` captures the product register, users, purpose, brand personality, anti-references, design principles, and accessibility expectations.
+- `DESIGN.md` captures the Local Notebook visual system, including palette, typography, elevation, component rules, and do/don't guidance.
+- `.impeccable/design.json` mirrors the reusable design tokens and component examples used for UI review.
 - `docs/adr/` records accepted design and architecture decisions.
 
 ## License

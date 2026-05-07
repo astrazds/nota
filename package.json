@@ -1,6 +1,6 @@
 {
   "name": "noter",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "description": "A local-first Markdown note-taking web app built with Rust, Leptos, and Tailwind CSS.",
   "license": "MIT",
@@ -14,6 +14,8 @@
     "test:browser": "env -u NO_COLOR playwright test"
   },
   "dependencies": {
+    "@fontsource-variable/source-code-pro": "^5.2.7",
+    "@fontsource-variable/source-sans-3": "^5.2.9",
     "@tailwindcss/typography": "^0.5.19"
   },
   "devDependencies": {

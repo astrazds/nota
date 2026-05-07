@@ -10,14 +10,14 @@ pub fn search_hint() -> String {
 
 pub fn sidebar_footer() -> String {
     format!(
-        "noter-footer-height gap-x-2 gap-y-1 px-3 py-1.5 border-t border-apple-gray-300 dark:border-apple-dark-border flex flex-wrap items-center text-[11px] leading-4 {}",
+        "h-[45px] gap-x-2 gap-y-1 px-3 py-1.5 border-t border-apple-gray-300 dark:border-apple-dark-border flex flex-wrap items-center text-[11px] leading-4 {}",
         ThemeText::Subtle.classes()
     )
 }
 
 pub fn editor_footer() -> String {
     format!(
-        "noter-footer-height shrink-0 gap-x-2 gap-y-1 border-t border-apple-gray-300 px-3 py-1.5 text-[11px] leading-4 dark:border-apple-dark-border flex flex-wrap items-center justify-center {}",
+        "h-[45px] shrink-0 gap-x-2 gap-y-1 border-t border-apple-gray-300 px-3 py-1.5 text-[11px] leading-4 dark:border-apple-dark-border flex flex-wrap items-center justify-center {}",
         ThemeSurface::EditorChrome.classes()
     )
 }
@@ -39,13 +39,13 @@ pub fn compact_segmented_button(is_active: bool, is_desktop_only: bool) -> Strin
     };
 
     format!(
-        "{visibility} items-center justify-center rounded-md px-1.5 py-0.5 text-[11px] transition-all {state_classes}"
+        "{visibility} h-9 min-w-[2.25rem] items-center justify-center rounded-md px-3 text-xs transition-colors md:h-auto md:min-w-0 md:px-1.5 md:py-0.5 md:text-[11px] {state_classes}"
     )
 }
 
 pub fn compact_help_button() -> String {
     format!(
-        "inline-flex items-center justify-center rounded-md px-1.5 py-0.5 text-[11px] transition-colors {}",
+        "inline-flex h-9 w-9 items-center justify-center rounded-md px-0 text-xs transition-colors md:h-auto md:w-auto md:px-1.5 md:py-0.5 md:text-[11px] {}",
         ThemeState::SegmentedIdle.classes()
     )
 }
@@ -79,7 +79,7 @@ pub fn note_row(is_selected: bool) -> String {
     };
 
     format!(
-        "px-4 py-3 border-b cursor-pointer transition-all duration-200 ease-in-out group {state_classes}"
+        "px-4 py-3 border-b cursor-pointer transition-colors duration-200 ease-out group {state_classes}"
     )
 }
 
@@ -93,7 +93,7 @@ mod tests {
         let editor = editor_footer();
 
         for classes in [&sidebar, &editor] {
-            assert!(classes.contains("noter-footer-height"));
+            assert!(classes.contains("h-[45px]"));
             assert!(classes.contains("px-3"));
             assert!(classes.contains("py-1.5"));
             assert!(classes.contains("text-[11px]"));
@@ -122,7 +122,19 @@ mod tests {
         assert!(controls.contains("gap-x-2"));
         assert!(controls.contains("gap-y-1"));
 
-        for classes in [&idle, &active, &help, &backup, &danger] {
+        for classes in [&idle, &active, &help] {
+            assert!(classes.contains("rounded-md"));
+            assert!(classes.contains("h-9"));
+            assert!(classes.contains("md:px-1.5"));
+            assert!(classes.contains("md:py-0.5"));
+            assert!(classes.contains("md:text-[11px]"));
+        }
+
+        assert!(idle.contains("min-w-[2.25rem]"));
+        assert!(active.contains("min-w-[2.25rem]"));
+        assert!(help.contains("w-9"));
+
+        for classes in [&backup, &danger] {
             assert!(classes.contains("rounded-md"));
             assert!(classes.contains("px-1.5"));
             assert!(classes.contains("py-0.5"));

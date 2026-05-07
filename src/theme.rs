@@ -182,7 +182,7 @@ impl ThemeState {
                 "border-apple-gray-200 dark:border-apple-dark-border hover:bg-apple-gray-200 dark:hover:bg-white/5"
             }
             Self::NoteRowSelected => {
-                "border-apple-yellow bg-apple-yellow/25 shadow-inner ring-1 ring-apple-yellow/30 dark:border-apple-yellow dark:bg-apple-yellow/20 dark:ring-apple-yellow/30"
+                "border-apple-yellow bg-apple-yellow/10 ring-1 ring-apple-yellow/25 dark:border-apple-yellow dark:bg-apple-yellow/20 dark:ring-apple-yellow/25"
             }
             Self::NoteActionMenu => {
                 "border-apple-gray-200 bg-white dark:border-apple-dark-border dark:bg-apple-dark-sidebar"
@@ -350,7 +350,7 @@ mod tests {
         assert!(split_preview.contains("dark:text-white"));
         assert!(split_preview.contains("dark:prose-invert"));
 
-        assert!(selected_row.contains("bg-apple-yellow/25"));
+        assert!(selected_row.contains("bg-apple-yellow/10"));
         assert!(selected_row.contains("ring-1"));
         assert!(selected_row.contains("dark:bg-apple-yellow/20"));
     }

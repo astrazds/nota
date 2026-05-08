@@ -196,6 +196,22 @@ test("Light and Dark Theme keep core visual contracts readable", async ({ page }
   const darkHint = await visibleContrast(searchHint);
   expect(darkHint.color).toBe("rgb(255, 255, 255)");
   expect(darkHint.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+
+  for (const mode of ["Preview", "Split"]) {
+    await page.getByRole("button", { name: `${mode} mode` }).click();
+    const previewColors = await page.locator("article.prose").first().evaluate((article) => {
+      const pane = article.parentElement;
+      return {
+        paneBackground: getComputedStyle(pane).backgroundColor,
+        title: getComputedStyle(article.querySelector("h1")).color,
+        body: getComputedStyle(article.querySelector("p")).color,
+      };
+    });
+
+    expect(previewColors.paneBackground).not.toBe("rgb(255, 255, 255)");
+    expect(previewColors.title).toBe("rgb(255, 255, 255)");
+    expect(previewColors.body).toBe("rgb(209, 213, 219)");
+  }
 });
 
 test("Quick Capture keeps a new Note title editable instead of resetting to display fallback", async ({ page }) => {
@@ -240,6 +256,28 @@ test("Preview, Split, footers, Backup Controls, and notifications keep their lay
   const writeTitleScale = await page
     .getByPlaceholder("Note Title")
     .evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+  const writePaneLayout = await page.getByPlaceholder("Note Title").evaluate((element) => {
+    const pane = element.closest(".flex-1.flex.flex-col");
+    const paneBox = pane.getBoundingClientRect();
+    const titleBox = element.getBoundingClientRect();
+    return {
+      leftInset: titleBox.left - paneBox.left,
+      topInset: titleBox.top - paneBox.top,
+    };
+  });
+
+  await page.getByRole("button", { name: "Preview mode" }).click();
+  const fullPreviewLayout = await page.locator("article.prose").first().evaluate((article) => {
+    const pane = article.parentElement;
+    const paneBox = pane.getBoundingClientRect();
+    const articleBox = article.getBoundingClientRect();
+    return {
+      leftInset: articleBox.left - paneBox.left,
+      topInset: articleBox.top - paneBox.top,
+    };
+  });
+  expect(Math.abs(fullPreviewLayout.leftInset - writePaneLayout.leftInset)).toBeLessThanOrEqual(1);
+  expect(Math.abs(fullPreviewLayout.topInset - writePaneLayout.topInset)).toBeLessThanOrEqual(1);
 
   await page.getByRole("button", { name: "Split mode" }).click();
   const preview = page.locator(".prose").first();
@@ -257,6 +295,16 @@ test("Preview, Split, footers, Backup Controls, and notifications keep their lay
     };
   });
   expect(previewOrder).toEqual({ titleBeforeTags: true, tagsBeforeBody: true });
+
+  const splitPreviewLayout = await page.locator("article.prose").first().evaluate((article) => {
+    const pane = article.parentElement;
+    return {
+      leftInset: article.getBoundingClientRect().left - pane.getBoundingClientRect().left,
+      topInset: article.getBoundingClientRect().top - pane.getBoundingClientRect().top,
+    };
+  });
+  expect(Math.abs(splitPreviewLayout.leftInset - writePaneLayout.leftInset)).toBeLessThanOrEqual(1);
+  expect(Math.abs(splitPreviewLayout.topInset - writePaneLayout.topInset)).toBeLessThanOrEqual(1);
 
   const splitTitleScale = await page.evaluate(() => {
     const editorTitle = document.querySelector('textarea[placeholder="Note Title"]');

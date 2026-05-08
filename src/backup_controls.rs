@@ -129,19 +129,22 @@ pub(crate) fn SidebarBackupControls() -> impl IntoView {
     view! {
         <div class="contents">
             <div class=ui_recipes::sidebar_footer>
-                <div class="min-w-0 flex-1 basis-32 leading-4">
-                    <div>{move || format!("{} notes", state.note_count())}</div>
-                    <div>{move || state.backup_health_summary()}</div>
+                <div class="min-w-0 flex-1 leading-4">
+                    <div class=ui_recipes::backup_footer_label>"Backup"</div>
+                    <div class=ui_recipes::backup_footer_summary>
+                        {move || format!("{} notes. {}", state.note_count(), state.backup_health_summary())}
+                    </div>
                 </div>
-                <div class="ml-auto flex min-w-0 flex-none flex-wrap items-center justify-end gap-1.5">
+                <div class="ml-auto flex flex-none items-center justify-end gap-1.5">
                     <button
                         type="button"
                         class=ui_recipes::backup_footer_button
                         on:click=export_backup
+                        aria-label="Export backup"
                     >
                         "Export"
                     </button>
-                    <label class=ui_recipes::backup_footer_button>
+                    <label class=ui_recipes::backup_footer_button aria-label="Import backup">
                         "Import"
                         <input
                             type="file"
@@ -153,7 +156,7 @@ pub(crate) fn SidebarBackupControls() -> impl IntoView {
                 </div>
             </div>
             <Show when=move || pending_backup_import.get().is_some()>
-                <div class=move || format!("border-t border-apple-gray-300 px-4 py-3 text-xs dark:border-apple-dark-border {}", theme::ThemeSurface::EditorChrome.classes())>
+                <div class=ui_recipes::backup_import_preview>
                     {move || {
                         pending_backup_import
                             .get()

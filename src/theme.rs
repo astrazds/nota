@@ -165,7 +165,7 @@ pub enum ThemeState {
 impl ThemeState {
     pub fn classes(self) -> &'static str {
         match self {
-            Self::IconButton => "hover:bg-black/5 dark:hover:bg-white/5 transition-colors",
+            Self::IconButton => "hover:bg-apple-gray-200 dark:hover:bg-white/5 transition-colors",
             Self::SidebarToggle => {
                 "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
             }
@@ -176,7 +176,7 @@ impl ThemeState {
                 "border bg-apple-yellow/10 border-apple-yellow text-apple-yellow"
             }
             Self::ToolbarButton => {
-                "hover:bg-black/5 dark:hover:bg-white/5 text-gray-600 dark:text-gray-400"
+                "hover:bg-apple-gray-200 dark:hover:bg-white/5 text-gray-600 dark:text-gray-400"
             }
             Self::NoteRowIdle => {
                 "border-apple-gray-200 dark:border-apple-dark-border hover:bg-apple-gray-200 dark:hover:bg-white/5"
@@ -188,13 +188,13 @@ impl ThemeState {
                 "border-apple-gray-200 bg-white dark:border-apple-dark-border dark:bg-apple-dark-sidebar"
             }
             Self::NoteActionButton => {
-                "text-gray-400 hover:text-gray-700 hover:bg-black/10 dark:hover:text-gray-200 dark:hover:bg-white/10"
+                "text-gray-400 hover:text-gray-700 hover:bg-apple-gray-300/70 dark:hover:text-gray-200 dark:hover:bg-white/10"
             }
             Self::NoteMenuItem => {
-                "text-gray-700 hover:bg-black/5 dark:text-gray-200 dark:hover:bg-white/10"
+                "text-gray-700 hover:bg-apple-gray-200 dark:text-gray-200 dark:hover:bg-white/10"
             }
             Self::TagPill => {
-                "bg-black/5 text-gray-500 hover:bg-black/10 dark:bg-white/10 dark:text-gray-400 dark:hover:bg-white/20"
+                "bg-apple-gray-200/70 text-gray-500 hover:bg-apple-gray-300/70 dark:bg-white/10 dark:text-gray-400 dark:hover:bg-white/20"
             }
             Self::FilterPill => "bg-apple-yellow text-white",
             Self::SecondaryButton => {

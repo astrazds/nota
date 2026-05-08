@@ -28,6 +28,10 @@ _Avoid_: Output pane
 The primary single-pane view where a Note is edited.
 _Avoid_: Source pane
 
+**Pane Rhythm**:
+The shared inset, reading measure, type scale, and footer height that make Write, Preview, and Split feel like one workspace.
+_Avoid_: Per-mode layout personality
+
 **View Mode**:
 A user-selected way to see a Note, such as writing, previewing, or desktop-only split view.
 _Avoid_: Layout toggle
@@ -140,6 +144,7 @@ _Avoid_: Replace import by default
 - **Clear All** should be visible in the **Recently Deleted** summary row when recoverable Notes exist.
 - A **Note** shows **Note Metadata** near its header or details surface.
 - A **Preview** shows the **Note Title**, then read-only **Note Metadata**, then the Markdown body so Preview and Split view match the Writing Surface header order.
+- **Pane Rhythm** keeps the **Writing Surface**, full **Preview**, and Split panes aligned to the same content origin and readable measure.
 - A **Note** has a **Save Status** while it is being edited.
 - A **Global Notification** can show save, Backup, and import outcomes above the app chrome, then clear itself after a short delay.
 - A **Markdown Note App** prioritises creating, writing, finding, and organising **Notes** over exposing Markdown tooling.
@@ -212,6 +217,9 @@ _Avoid_: Replace import by default
 >
 > **Dev:** "Should tags disappear when previewing?"
 > **Domain expert:** "No — show read-only **Note Metadata** under the **Note Title** in **Preview** and Split view so organising context stays visible and matches the **Writing Surface**."
+>
+> **Dev:** "Should Preview be centred because it is read-only?"
+> **Domain expert:** "No — keep the same **Pane Rhythm** as the **Writing Surface** so changing **View Mode** does not feel like moving to a separate document."
 >
 > **Dev:** "Should Search syntax be permanently visible below Search?"
 > **Domain expert:** "No — use a **Search Hint** while Search is focused, then give the space back to the **Note List**."

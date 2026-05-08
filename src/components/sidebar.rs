@@ -26,16 +26,36 @@ fn search_syntax_hint_classes() -> String {
     ui_recipes::search_hint()
 }
 
-fn sidebar_title_classes() -> String {
-    format!("text-xl font-bold {}", ThemeText::Primary.classes())
+fn search_input_classes() -> String {
+    ui_recipes::search_input()
 }
 
-fn backup_footer_button_classes() -> String {
-    ui_recipes::backup_footer_button()
+fn search_clear_button_classes() -> String {
+    ui_recipes::search_clear_button()
+}
+
+fn search_syntax_hint_code_classes() -> String {
+    ui_recipes::search_hint_code()
+}
+
+fn sidebar_title_classes() -> String {
+    ui_recipes::app_title_text()
+}
+
+fn recovery_action_button_classes() -> String {
+    ui_recipes::recovery_action_button()
+}
+
+fn recovery_danger_button_classes() -> String {
+    ui_recipes::recovery_danger_button()
 }
 
 fn recently_deleted_clear_all_button_classes() -> String {
     ui_recipes::danger_footer_button()
+}
+
+fn recently_deleted_permanent_delete_label() -> &'static str {
+    "Delete forever"
 }
 
 fn should_show_clear_all_recently_deleted(count: usize) -> bool {
@@ -43,10 +63,7 @@ fn should_show_clear_all_recently_deleted(count: usize) -> bool {
 }
 
 fn note_list_title_classes() -> String {
-    format!(
-        "min-w-0 flex-1 truncate pr-2 font-semibold {}",
-        ThemeText::Primary.classes()
-    )
+    ui_recipes::note_list_title_text()
 }
 
 #[component]
@@ -62,6 +79,11 @@ pub fn Sidebar() -> impl IntoView {
     let search_input_value = RwSignal::new(state.note_search_input());
     let search_hint_open = RwSignal::new(false);
     let debounce_timeout: TimeoutState = Rc::new(RefCell::new(None));
+    let clear_search = move |_| {
+        state.edit_note_search(String::new());
+        state.commit_note_search();
+        search_input_value.set(String::new());
+    };
 
     Effect::new(move |_| {
         let _input = search_input_value.get();
@@ -154,7 +176,7 @@ pub fn Sidebar() -> impl IntoView {
                             placeholder="Search"
                             aria-label="Search notes"
                             aria-describedby="search-syntax-hint"
-                            class="w-full pl-10 pr-4 py-1.5 text-sm rounded-lg focus:outline-none transition-colors bg-black/5 text-gray-900 placeholder-gray-400 focus:bg-black/10 dark:bg-white/10 dark:text-white dark:placeholder-gray-500 dark:focus:bg-white/20"
+                            class=search_input_classes
                             prop:value=move || search_input_value.get()
                             on:focus=move |_| search_hint_open.set(true)
                             on:blur=move |_| search_hint_open.set(false)
@@ -164,6 +186,19 @@ pub fn Sidebar() -> impl IntoView {
                                 search_input_value.set(value);
                             }
                         />
+                        <Show when=move || !search_input_value.get().is_empty()>
+                            <button
+                                type="button"
+                                class=search_clear_button_classes
+                                title="Clear search"
+                                aria-label="Clear search"
+                                on:click=clear_search
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M10 8.586l3.293-3.293a1 1 0 111.414 1.414L11.414 10l3.293 3.293a1 1 0 01-1.414 1.414L10 11.414l-3.293 3.293a1 1 0 01-1.414-1.414L8.586 10 5.293 6.707A1 1 0 016.707 5.293L10 8.586z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        </Show>
                         <Show when=move || search_hint_open.get()>
                             <div
                                 id="search-syntax-hint"
@@ -172,10 +207,10 @@ pub fn Sidebar() -> impl IntoView {
                             >
                                 <div class="mb-1 font-medium">"Syntax"</div>
                                 <div class="flex flex-wrap gap-1" aria-label="Supported search syntax">
-                                    <code class="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">"\"phrase\""</code>
-                                    <code class="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">"title:plan"</code>
-                                    <code class="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">"tag:work"</code>
-                                    <code class="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">"is:pinned"</code>
+                                    <code class=search_syntax_hint_code_classes>"\"phrase\""</code>
+                                    <code class=search_syntax_hint_code_classes>"title:plan"</code>
+                                    <code class=search_syntax_hint_code_classes>"tag:work"</code>
+                                    <code class=search_syntax_hint_code_classes>"is:pinned"</code>
                                 </div>
                             </div>
                         </Show>
@@ -245,17 +280,19 @@ pub fn Sidebar() -> impl IntoView {
                                         </span>
                                         <button
                                             type="button"
-                                            class=backup_footer_button_classes
+                                            class=recovery_action_button_classes
                                             on:click=move |_| state.restore_recently_deleted_note(note.id)
                                         >
                                             "Restore"
                                         </button>
                                         <button
                                             type="button"
-                                            class=backup_footer_button_classes
+                                            class=recovery_danger_button_classes
                                             on:click=move |_| state.permanently_clear_recently_deleted_note(note.id)
+                                            title=format!("Delete {} forever", note.display_title())
+                                            aria-label=format!("Delete {} forever", note.display_title())
                                         >
-                                            "Clear"
+                                            {recently_deleted_permanent_delete_label()}
                                         </button>
                                     </div>
                                 </For>
@@ -369,7 +406,7 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
                     </Show>
                 </div>
             </div>
-            <div class="flex space-x-2 text-sm mt-1">
+            <div class=ui_recipes::note_list_meta_row>
                 <span class=move || format!("whitespace-nowrap {}", ThemeText::Muted.classes())>{display_date}</span>
                 <span class=move || format!("block truncate {}", ThemeText::Subtle.classes())>
                     {preview_highlights.iter().cloned()
@@ -414,8 +451,9 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
 mod tests {
     use super::{
         note_list_title_classes, recently_deleted_clear_all_button_classes,
-        search_syntax_hint_classes, should_show_clear_all_recently_deleted, sidebar_state_class,
-        sidebar_title_classes,
+        recently_deleted_permanent_delete_label, search_input_classes, search_syntax_hint_classes,
+        search_syntax_hint_code_classes, should_show_clear_all_recently_deleted,
+        sidebar_state_class, sidebar_title_classes,
     };
 
     #[test]
@@ -429,6 +467,8 @@ mod tests {
     #[test]
     fn search_syntax_hint_is_a_temporary_popup_not_permanent_sidebar_content() {
         let class = search_syntax_hint_classes();
+        let input = search_input_classes();
+        let code = search_syntax_hint_code_classes();
 
         assert!(class.contains("absolute"));
         assert!(class.contains("top-full"));
@@ -436,6 +476,11 @@ mod tests {
         assert!(class.contains("shadow-sm"));
         assert!(class.contains("text-gray-900"));
         assert!(class.contains("dark:text-white"));
+        assert!(input.contains("pr-10"));
+        assert!(input.contains("bg-apple-gray-200"));
+        assert!(!input.contains(&["bg", "black"].join("-")));
+        assert!(code.contains("bg-apple-gray-200"));
+        assert!(!code.contains(&["bg", "black"].join("-")));
     }
 
     #[test]
@@ -448,6 +493,7 @@ mod tests {
         assert!(button.contains("ml-auto"));
         assert!(button.contains("text-red"));
         assert!(button.contains("rounded-md"));
+        assert_eq!(recently_deleted_permanent_delete_label(), "Delete forever");
     }
 
     #[test]
@@ -456,6 +502,8 @@ mod tests {
 
         assert!(title.contains("text-gray-900"));
         assert!(title.contains("dark:text-white"));
+        assert!(title.contains("text-xl"));
+        assert!(title.contains("leading-[1.3]"));
     }
 
     #[test]
@@ -465,5 +513,7 @@ mod tests {
         assert!(title.contains("min-w-0"));
         assert!(title.contains("flex-1"));
         assert!(title.contains("truncate"));
+        assert!(title.contains("text-sm"));
+        assert!(title.contains("leading-5"));
     }
 }

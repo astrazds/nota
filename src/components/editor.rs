@@ -216,128 +216,132 @@ pub fn Editor() -> impl IntoView {
                             <Show when=move || state.editor_view_mode.get().surfaces().writing>
                                 <div class=move || format!("flex-1 flex flex-col overflow-hidden {}", ThemeSurface::WritingSurface.classes())>
                                     <Show when=move || hidden_by_filter_message.get().is_some()>
-                                        <div class=move || format!("mx-6 mt-5 rounded-md border px-3 py-2 text-sm md:mx-8 {}", ThemeSurface::EditorChrome.classes())>
+                                        <div class=hidden_filter_notice_classes>
                                             <p class=move || ThemeText::Muted.classes()>
                                                 {move || hidden_by_filter_message.get().unwrap_or(HIDDEN_BY_FILTER_MESSAGE)}
                                             </p>
                                         </div>
                                     </Show>
-                                    <div class="pb-3 pl-20 pr-6 pt-7 md:px-8 md:pt-8 space-y-3 border-b border-transparent">
-                                        <textarea
-                                            node_ref=title_input_ref
-                                            rows="1"
-                                            class=move || note_title_textarea_classes(is_split_view.get())
-                                            placeholder="Note Title"
-                                            prop:value=move || writing_model.get().map(|note| note.title).unwrap_or_default()
-                                            on:input=on_input_title
-                                        ></textarea>
-                                        <Show when=move || is_editing_tags.get() || writing_model.get().is_none_or(|note| note.tags.is_empty())>
-                                            <input
-                                                node_ref=tags_input_ref
-                                                type="text"
-                                                class=tag_input_classes
-                                                placeholder="Add tags"
-                                                prop:value=move || tags_input_value.get()
-                                                on:focus=move |_| is_editing_tags.set(true)
-                                                on:input=on_input_tags
-                                                on:keydown=on_tags_keydown
-                                                on:blur=move |_| {
-                                                    is_editing_tags.set(false);
-                                                    commit_tags_input();
-                                                }
-                                            />
-                                        </Show>
-                                        <Show when=move || !is_editing_tags.get() && writing_model.get().is_some_and(|note| !note.tags.is_empty())>
-                                            <EditableTagList selected_note=selected_note on_edit=start_editing_tags />
-                                        </Show>
-                                        <Show when=move || !tag_suggestions.get().is_empty()>
-                                            <div class=move || format!("max-w-xl overflow-hidden rounded-md border shadow-sm {}", ThemeSurface::EditorChrome.classes())>
-                                                {move || {
-                                                    tag_suggestions
-                                                        .get()
-                                                        .into_iter()
-                                                        .map(|suggestion| {
-                                                            let completed_input = suggestion.completed_input.clone();
-                                                            view! {
-                                                                <button
-                                                                    type="button"
-                                                                    class=move || format!("block w-full px-3 py-2 text-left text-sm transition-colors {}", ThemeState::SegmentedIdle.classes())
-                                                                    on:mousedown=move |ev| ev.prevent_default()
-                                                                    on:click=move |_| apply_tags_value(completed_input.clone())
-                                                                >
-                                                                    {format!("#{label}", label = suggestion.label)}
-                                                                </button>
-                                                            }
-                                                        })
-                                                        .collect_view()
-                                                }}
-                                            </div>
-                                        </Show>
-                                        <Show when=move || !tag_cleanup_plan.get().is_empty()>
-                                            <details class=move || format!("max-w-xl rounded-md border p-3 text-sm {}", ThemeSurface::EditorChrome.classes())>
-                                                <summary class="cursor-pointer select-none">
-                                                    "Review Tag cleanup"
-                                                </summary>
-                                                <div class="mt-2 space-y-2">
+                                    <div class=note_header_classes>
+                                        <div class=note_header_stack_classes>
+                                            <textarea
+                                                node_ref=title_input_ref
+                                                rows="1"
+                                                class=move || note_title_textarea_classes(is_split_view.get())
+                                                placeholder="Note Title"
+                                                prop:value=move || writing_model.get().map(|note| note.title).unwrap_or_default()
+                                                on:input=on_input_title
+                                            ></textarea>
+                                            <Show when=move || is_editing_tags.get() || writing_model.get().is_none_or(|note| note.tags.is_empty())>
+                                                <input
+                                                    node_ref=tags_input_ref
+                                                    type="text"
+                                                    class=tag_input_classes
+                                                    placeholder="Add tags"
+                                                    prop:value=move || tags_input_value.get()
+                                                    on:focus=move |_| is_editing_tags.set(true)
+                                                    on:input=on_input_tags
+                                                    on:keydown=on_tags_keydown
+                                                    on:blur=move |_| {
+                                                        is_editing_tags.set(false);
+                                                        commit_tags_input();
+                                                    }
+                                                />
+                                            </Show>
+                                            <Show when=move || !is_editing_tags.get() && writing_model.get().is_some_and(|note| !note.tags.is_empty())>
+                                                <EditableTagList selected_note=selected_note on_edit=start_editing_tags />
+                                            </Show>
+                                            <Show when=move || !tag_suggestions.get().is_empty()>
+                                                <div class=move || format!("max-w-xl overflow-hidden rounded-md border shadow-sm {}", ThemeSurface::EditorChrome.classes())>
                                                     {move || {
-                                                        tag_cleanup_plan
+                                                        tag_suggestions
                                                             .get()
-                                                            .changes
                                                             .into_iter()
-                                                            .take(4)
-                                                            .map(|change| {
+                                                            .map(|suggestion| {
+                                                                let completed_input = suggestion.completed_input.clone();
                                                                 view! {
-                                                                    <p class=move || ThemeText::Muted.classes()>
-                                                                        {format!(
-                                                                            "{} -> {}",
-                                                                            tags_to_input(&change.before),
-                                                                            tags_to_input(&change.after),
-                                                                        )}
-                                                                    </p>
+                                                                    <button
+                                                                        type="button"
+                                                                        class=move || format!("block w-full px-3 py-2 text-left text-sm transition-colors {}", ThemeState::SegmentedIdle.classes())
+                                                                        on:mousedown=move |ev| ev.prevent_default()
+                                                                        on:click=move |_| apply_tags_value(completed_input.clone())
+                                                                    >
+                                                                        {format!("#{label}", label = suggestion.label)}
+                                                                    </button>
                                                                 }
                                                             })
                                                             .collect_view()
                                                     }}
-                                                    <button
-                                                        type="button"
-                                                        class=move || format!("rounded-md px-3 py-1 text-sm {}", ThemeState::SegmentedIdle.classes())
-                                                        on:click=move |_| {
-                                                            let plan = tag_cleanup_plan.get_untracked();
-                                                            state.apply_tag_cleanup(&plan);
-                                                        }
-                                                    >
-                                                        "Apply cleanup"
-                                                    </button>
                                                 </div>
-                                            </details>
-                                        </Show>
+                                            </Show>
+                                            <Show when=move || !tag_cleanup_plan.get().is_empty()>
+                                                <details class=move || format!("max-w-xl rounded-md border p-3 text-sm {}", ThemeSurface::EditorChrome.classes())>
+                                                    <summary class="cursor-pointer select-none">
+                                                        "Review Tag cleanup"
+                                                    </summary>
+                                                    <div class="mt-2 space-y-2">
+                                                        {move || {
+                                                            tag_cleanup_plan
+                                                                .get()
+                                                                .changes
+                                                                .into_iter()
+                                                                .take(4)
+                                                                .map(|change| {
+                                                                    view! {
+                                                                        <p class=move || ThemeText::Muted.classes()>
+                                                                            {format!(
+                                                                                "{} -> {}",
+                                                                                tags_to_input(&change.before),
+                                                                                tags_to_input(&change.after),
+                                                                            )}
+                                                                        </p>
+                                                                    }
+                                                                })
+                                                                .collect_view()
+                                                        }}
+                                                        <button
+                                                            type="button"
+                                                            class=move || format!("rounded-md px-3 py-1 text-sm {}", ThemeState::SegmentedIdle.classes())
+                                                            on:click=move |_| {
+                                                                let plan = tag_cleanup_plan.get_untracked();
+                                                                state.apply_tag_cleanup(&plan);
+                                                            }
+                                                        >
+                                                            "Apply cleanup"
+                                                        </button>
+                                                    </div>
+                                                </details>
+                                            </Show>
+                                        </div>
                                     </div>
                                     <Show when=move || writing_model.get().is_some_and(|note| note.formatting_tools_visible)>
                                         <div class=formatting_tools_classes>
-                                            <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Bold) title="Bold" aria_label="Bold">
-                                                <span class="font-bold">B</span>
-                                            </ToolbarButton>
-                                            <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Italic) title="Italic" aria_label="Italic">
-                                                <span class="italic">I</span>
-                                            </ToolbarButton>
-                                            <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Strikethrough) title="Strikethrough" aria_label="Strikethrough">
-                                                <span class="line-through">S</span>
-                                            </ToolbarButton>
-                                            <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::TaskList) title="Task List" aria_label="Task list">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h4v4H4V6zm0 8h4v4H4v-4zm0 8h4v-4H4v4zM12 7h8M12 15h8M12 19h8" />
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 7.5l1.2 1.2L7.8 7" />
-                                                </svg>
-                                            </ToolbarButton>
-                                            <ToolbarButton
-                                                on_click=move |_| apply_format(MarkdownCommand::Table)
-                                                title="Insert Table"
-                                                aria_label="Insert table"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6h18v12H3V6zM3 12h18M9 6v12M15 6v12" />
-                                                </svg>
-                                            </ToolbarButton>
+                                            <div class=formatting_tools_row_classes>
+                                                <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Bold) title="Bold" aria_label="Bold">
+                                                    <span class="font-bold">B</span>
+                                                </ToolbarButton>
+                                                <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Italic) title="Italic" aria_label="Italic">
+                                                    <span class="italic">I</span>
+                                                </ToolbarButton>
+                                                <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::Strikethrough) title="Strikethrough" aria_label="Strikethrough">
+                                                    <span class="line-through">S</span>
+                                                </ToolbarButton>
+                                                <ToolbarButton on_click=move |_| apply_format(MarkdownCommand::TaskList) title="Task List" aria_label="Task list">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h4v4H4V6zm0 8h4v4H4v-4zm0 8h4v-4H4v4zM12 7h8M12 15h8M12 19h8" />
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 7.5l1.2 1.2L7.8 7" />
+                                                    </svg>
+                                                </ToolbarButton>
+                                                <ToolbarButton
+                                                    on_click=move |_| apply_format(MarkdownCommand::Table)
+                                                    title="Insert Table"
+                                                    aria_label="Insert table"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6h18v12H3V6zM3 12h18M9 6v12M15 6v12" />
+                                                    </svg>
+                                                </ToolbarButton>
+                                            </div>
                                         </div>
                                     </Show>
                                     <textarea
@@ -356,9 +360,11 @@ pub fn Editor() -> impl IntoView {
                                         preview_pane_classes(state.editor_view_mode.get() == EditorViewMode::Split)
                                     }
                                 >
-                                    <h1 class="text-3xl font-bold mb-4">{move || preview_model.get().map(|preview| preview.title).unwrap_or_default()}</h1>
-                                    <PreviewTagList tags=preview_tags />
-                                    <div inner_html=move || preview_model.get().map(|preview| preview.body_html).unwrap_or_default()></div>
+                                    <article class=preview_content_classes>
+                                        <h1 class=preview_title_classes>{move || preview_model.get().map(|preview| preview.title).unwrap_or_default()}</h1>
+                                        <PreviewTagList tags=preview_tags />
+                                        <div inner_html=move || preview_model.get().map(|preview| preview.body_html).unwrap_or_default()></div>
+                                    </article>
                                 </div>
                             </Show>
                         </div>
@@ -369,8 +375,8 @@ pub fn Editor() -> impl IntoView {
                                 <svg xmlns="http://www.w3.org/2000/svg" class=move || format!("h-16 w-16 mx-auto mb-5 {}", ThemeState::EmptyIllustration.classes()) fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4" />
                                 </svg>
-                                <h2 class=move || format!("text-2xl font-semibold {}", ThemeText::Primary.classes())>"Create your first note"</h2>
-                                <p class="mt-2 text-sm leading-6">"Start with a title, then write in Markdown when you need it."</p>
+                                <h2 class=ui_recipes::empty_state_title_text>"Create your first note"</h2>
+                                <p class=ui_recipes::empty_state_body_text>"Start with a title, then write in Markdown when you need it."</p>
                                 <button
                                     on:click=move |_| state.create_note()
                                     class=move || format!("mt-6 inline-flex items-center rounded-md px-4 py-2 text-sm font-semibold transition-colors {} {}", ThemeAccent::PrimaryFill.classes(), ThemeAccent::Focus.classes())
@@ -386,7 +392,7 @@ pub fn Editor() -> impl IntoView {
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 mx-auto opacity-20 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
-                                <p class="text-xl">No Note Selected</p>
+                                <p class=ui_recipes::empty_state_placeholder_text>No Note Selected</p>
                             </div>
                         </div>
                     }.into_any()
@@ -541,9 +547,13 @@ fn editor_view_controls_classes() -> &'static str {
 
 fn formatting_tools_classes() -> String {
     format!(
-        "flex items-center space-x-1 border-y border-apple-gray-200 px-6 py-1.5 md:px-8 dark:border-apple-dark-border {}",
+        "border-y border-apple-gray-200 px-6 py-1.5 md:px-8 dark:border-apple-dark-border {}",
         ThemeSurface::EditorChrome.classes()
     )
+}
+
+fn formatting_tools_row_classes() -> String {
+    format!("flex items-center gap-1 {}", ui_recipes::note_measure())
 }
 
 fn formatting_tool_button_classes() -> String {
@@ -557,14 +567,32 @@ fn markdown_help_button_classes() -> String {
     ui_recipes::compact_help_button()
 }
 
-fn note_title_textarea_classes(_is_split: bool) -> String {
-    let scale = "text-2xl md:text-3xl";
-
+fn hidden_filter_notice_classes() -> String {
     format!(
-        "w-full min-w-0 resize-none overflow-hidden break-words whitespace-pre-wrap [field-sizing:content] {scale} font-bold leading-tight focus:outline-none bg-transparent {} {}",
+        "mx-6 mt-5 max-w-[72ch] rounded-md border px-3 py-2 text-sm md:mx-8 {}",
+        ThemeSurface::EditorChrome.classes()
+    )
+}
+
+fn note_header_classes() -> &'static str {
+    "border-b border-transparent pb-3 pl-20 pr-6 pt-7 md:px-8 md:pt-8"
+}
+
+fn note_header_stack_classes() -> String {
+    format!("space-y-3 {}", ui_recipes::note_measure())
+}
+
+fn note_title_textarea_classes(_is_split: bool) -> String {
+    format!(
+        "w-full min-w-0 resize-none overflow-hidden break-words whitespace-pre-wrap [field-sizing:content] {} focus:outline-none bg-transparent {} {}",
+        ui_recipes::note_title_text(),
         ThemeText::Primary.classes(),
         ThemeText::Placeholder.classes()
     )
+}
+
+fn preview_title_classes() -> String {
+    format!("mb-4 {}", ui_recipes::preview_title_text())
 }
 
 fn tag_input_classes() -> String {
@@ -583,7 +611,9 @@ fn edit_tags_button_classes() -> String {
 
 fn editor_body_textarea_classes() -> String {
     format!(
-        "flex-1 w-full max-w-[56rem] px-6 pb-8 pt-3 md:px-8 text-base leading-7 focus:outline-none resize-none bg-transparent font-mono dark:text-gray-300 {}",
+        "flex-1 px-6 pb-8 pt-3 md:px-8 focus:outline-none resize-none bg-transparent dark:text-gray-300 {} {} {}",
+        ui_recipes::note_measure(),
+        ui_recipes::editor_body_text(),
         ThemeAccent::Selection.classes()
     )
 }
@@ -591,15 +621,19 @@ fn editor_body_textarea_classes() -> String {
 fn preview_pane_classes(is_split: bool) -> String {
     if is_split {
         format!(
-            "flex-1 px-6 pb-8 pt-7 md:px-8 md:pt-8 overflow-y-auto prose prose-base max-w-none break-words shadow-inner border-l transition-colors {}",
+            "flex-1 overflow-y-auto px-6 pb-8 pt-7 md:px-8 md:pt-8 shadow-inner border-l transition-colors {}",
             ThemeSurface::SplitPreview.classes()
         )
     } else {
         format!(
-            "flex-1 px-6 pb-8 pt-7 md:px-8 md:pt-8 overflow-y-auto prose prose-base max-w-none break-words transition-colors {}",
+            "flex-1 overflow-y-auto px-6 pb-8 pt-7 md:px-8 md:pt-8 transition-colors {}",
             ThemeSurface::Preview.classes()
         )
     }
+}
+
+fn preview_content_classes() -> &'static str {
+    ui_recipes::preview_body_text()
 }
 
 #[component]
@@ -732,17 +766,35 @@ mod tests {
     #[test]
     fn formatting_tools_live_inside_the_writing_surface() {
         let toolbar = formatting_tools_classes();
+        let toolbar_row = formatting_tools_row_classes();
         let button = formatting_tool_button_classes();
 
-        assert!(toolbar.contains("flex"));
         assert!(toolbar.contains("border-y"));
         assert!(toolbar.contains("px-6"));
         assert!(toolbar.contains("md:px-8"));
         assert!(!toolbar.contains("sticky"));
+        assert!(toolbar_row.contains("flex"));
+        assert!(toolbar_row.contains("gap-1"));
+        assert!(toolbar_row.contains("max-w-[72ch]"));
         assert!(button.contains("rounded"));
         assert!(button.contains("h-9"));
         assert!(button.contains("min-w-[2.25rem]"));
         assert!(button.contains("md:p-1.5"));
+    }
+
+    #[test]
+    fn note_header_and_filter_notice_share_the_editor_measure() {
+        let notice = hidden_filter_notice_classes();
+        let header = note_header_classes();
+        let header_stack = note_header_stack_classes();
+
+        assert!(notice.contains("max-w-[72ch]"));
+        assert!(notice.contains("mx-6"));
+        assert!(notice.contains("md:mx-8"));
+        assert!(header.contains("pl-20"));
+        assert!(header.contains("md:px-8"));
+        assert!(header_stack.contains("space-y-3"));
+        assert!(header_stack.contains("max-w-[72ch]"));
     }
 
     #[test]
@@ -762,11 +814,15 @@ mod tests {
     fn split_title_editor_keeps_the_same_note_header_scale_as_single_pane() {
         let single = note_title_textarea_classes(false);
         let split = note_title_textarea_classes(true);
+        let preview = preview_title_classes();
 
         assert!(single.contains("text-2xl"));
         assert!(single.contains("md:text-3xl"));
         assert!(split.contains("text-2xl"));
         assert!(split.contains("md:text-3xl"));
+        assert!(preview.contains("text-2xl"));
+        assert!(preview.contains("md:text-3xl"));
+        assert!(preview.contains("mb-4"));
     }
 
     #[test]
@@ -782,20 +838,31 @@ mod tests {
     #[test]
     fn editor_body_text_matches_preview_scale() {
         let editor_body = editor_body_textarea_classes();
-        let preview = preview_pane_classes(false);
+        let preview_pane = preview_pane_classes(false);
+        let preview_content = preview_content_classes();
 
         assert!(editor_body.contains("text-base"));
-        assert!(editor_body.contains("max-w-[56rem]"));
+        assert!(editor_body.contains("max-w-[72ch]"));
         assert!(!editor_body.contains("md:text-lg"));
-        assert!(preview.contains("prose-base"));
+        assert!(!preview_pane.contains("prose-base"));
+        assert!(preview_pane.contains("md:px-8"));
+        assert!(preview_pane.contains("md:pt-8"));
+        assert!(preview_content.contains("prose-base"));
+        assert!(preview_content.contains("max-w-[72ch]"));
+        assert!(!preview_content.contains("mx-auto"));
     }
 
     #[test]
     fn split_preview_uses_the_same_body_scale_as_preview() {
         let split_preview = preview_pane_classes(true);
+        let preview_content = preview_content_classes();
 
-        assert!(split_preview.contains("prose-base"));
         assert!(split_preview.contains("shadow-inner"));
+        assert!(split_preview.contains("md:px-8"));
+        assert!(split_preview.contains("md:pt-8"));
+        assert!(preview_content.contains("prose-base"));
+        assert!(preview_content.contains("max-w-[72ch]"));
+        assert!(!preview_content.contains("mx-auto"));
     }
 
     #[test]

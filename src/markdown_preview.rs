@@ -84,7 +84,10 @@ impl PreviewPipeline {
         let safe_title = escape_html(title);
         let body = self.render_body(title, content);
 
-        format!("<h1 class=\"text-3xl font-bold mb-4\">{safe_title}</h1>{body}")
+        format!(
+            "<h1 class=\"mb-4 {}\">{safe_title}</h1>{body}",
+            crate::ui_recipes::preview_title_text()
+        )
     }
 
     fn render_body(self, title: &str, content: &str) -> String {
@@ -426,7 +429,9 @@ mod tests {
             "# Markdown preview tour\n\nBody content",
         );
 
-        assert!(html.contains("<h1 class=\"text-3xl font-bold mb-4\">Markdown preview tour</h1>"));
+        assert!(html.contains(
+            "<h1 class=\"mb-4 text-2xl font-bold leading-tight md:text-3xl\">Markdown preview tour</h1>"
+        ));
         assert!(!html.contains("<h1>Markdown preview tour</h1>"));
         assert!(html.contains("<p>Body content</p>"));
     }
@@ -438,7 +443,7 @@ mod tests {
             "# Markdown preview tour\n\nBody content",
         );
 
-        assert!(!html.contains("text-3xl font-bold"));
+        assert!(!html.contains("md:text-3xl"));
         assert!(!html.contains("<h1>Markdown preview tour</h1>"));
         assert!(html.contains("<p>Body content</p>"));
     }
@@ -460,7 +465,7 @@ mod tests {
     fn markdown_preview_body_preserves_non_matching_content_h1() {
         let html = render_markdown_preview_body("Roadmap", "# Release notes\n\nBody content");
 
-        assert!(!html.contains("text-3xl font-bold"));
+        assert!(!html.contains("md:text-3xl"));
         assert!(html.contains("<h1>Release notes</h1>"));
         assert!(html.contains("<p>Body content</p>"));
     }
@@ -469,7 +474,9 @@ mod tests {
     fn markdown_preview_preserves_non_matching_first_content_h1() {
         let html = render_markdown_preview("Roadmap", "# Release notes\n\nBody content");
 
-        assert!(html.contains("<h1 class=\"text-3xl font-bold mb-4\">Roadmap</h1>"));
+        assert!(html.contains(
+            "<h1 class=\"mb-4 text-2xl font-bold leading-tight md:text-3xl\">Roadmap</h1>"
+        ));
         assert!(html.contains("<h1>Release notes</h1>"));
         assert!(html.contains("<p>Body content</p>"));
     }

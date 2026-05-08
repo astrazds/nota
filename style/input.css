@@ -53,3 +53,14 @@
 }
 
 @tailwind base; @tailwind components; @tailwind utilities;
+
+@layer base {
+  html {
+    font-kerning: normal;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-feature-settings: "kern" 1;
+  }
+}

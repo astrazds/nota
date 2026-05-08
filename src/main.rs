@@ -359,17 +359,14 @@ impl AppState {
 
     pub fn backup_health_summary(self) -> String {
         match self.backup_health() {
-            BackupHealth::Missing => "No backup yet".to_string(),
+            BackupHealth::Missing => "No backup exported".to_string(),
             BackupHealth::Recent {
                 last_successful_export_at,
-            } => format!(
-                "Last backup {}",
-                last_successful_export_at.format("%d/%m/%Y")
-            ),
+            } => format!("Backed up {}", last_successful_export_at.format("%d/%m/%Y")),
             BackupHealth::Stale {
                 last_successful_export_at,
             } => format!(
-                "Backup stale since {}",
+                "Backup stale {}",
                 last_successful_export_at.format("%d/%m/%Y")
             ),
         }

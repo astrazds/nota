@@ -15,6 +15,7 @@ Current app version: **0.9.1**.
   - Use 2 spaces at line-end for hard line breaks.
   - Preview suppresses a duplicate first content heading when it matches the Note Title.
   - Preview renders the Note Title and read-only Tags before the Markdown body, matching the editor header order.
+  - Write, Preview, and Split share a left-aligned pane rhythm, `72ch` reading measure, and Note Title scale so view switches do not reframe the note.
 - **Organisation Tools**:
   - **Search**: Real-time search bar (with debounce) to filter notes by title, content, or tags with text highlighting.
   - **Scoped Search**: Optional syntax for quoted phrases, `title:`, `tag:`, and `is:pinned` filters, shown as a focus-time hint while keeping Search focused on Notes.
@@ -26,10 +27,12 @@ Current app version: **0.9.1**.
 - **Backup & Restore**: Export a versioned Flat Collection backup, track the last successful export, and preview add/replace impact before safely merge-importing backups from compact sidebar footer controls.
 - **Debug Starter Notes**: Debug builds seed three representative notes when the browser has no saved notes yet, giving manual testing coverage for pinning, tags, rich Markdown, preview safety, search, and responsive editing.
 - **Tuned Themes**: Supports Light and Dark themes with coherent surfaces, borders, selection states, and accents.
+- **Polished Sidebar Utilities**: Search has a clear affordance, Recently Deleted actions use explicit recovery/destructive copy, and Backup controls sit in a compact labelled footer row.
 - **Responsive Design**: Optimised for desktop and mobile, with compact Responsive Navigation and editor-area View Mode Controls.
 - **First-Run Flow**: Empty collections show a direct path to create the first note and focus the note title.
 - **Enhanced Editing**:
   - Matched Writing Surface and Preview body text scale for lower visual friction.
+  - Preview prose uses the same readable body scale in Light, Dark, full Preview, and Split modes.
   - Tag chips stay compact near the Note header, defer removal to the Edit tags flow, preserve mobile touch targets, and switch to a single edit input only when editing.
   - Contextual formatting tools (Bold, Italic, Strikethrough, Task List, Insert Table) inside the Writing Surface after Note Metadata.
   - Markdown syntax modal
@@ -106,7 +109,7 @@ npm run test:browser
 Tests cover core domain logic including:
 - **Backup & Restore**: Versioned Flat Collection backup export, validation, import preview, merge import, duplicate identity handling, backup health, and all-or-nothing failure behavior.
 - **Filtering & Sorting**: Real-time search, scoped query parsing, quoted phrase matching, text highlighting, render-ready note list projection, active tag filtering, and note pinning logic.
-- **Browser Visual Regressions**: Playwright coverage verifies Light/Dark Theme readability, Search Hint contrast and placement, selected Note state, emitted Tailwind/style contracts, local Source font loading, editor/sidebar footer height parity, compact footer controls, compact desktop Tag chips, labelled desktop actions, mobile touch targets, startup notification quietness, Preview/Split Note Title consistency and Note Metadata ordering, Backup Controls placement, and floating Global Notification layering.
+- **Browser Visual Regressions**: Playwright coverage verifies Light/Dark Theme readability, Search Hint contrast and placement, selected Note state, emitted Tailwind/style contracts, local Source font loading, editor/sidebar footer height parity, compact footer controls, compact desktop Tag chips, labelled desktop actions, mobile touch targets, startup notification quietness, Preview/Split Note Title consistency, Note Metadata ordering, dark Preview/Split prose, Write/Preview/Split pane alignment, Backup Controls placement, and floating Global Notification layering.
 - **Browser Workflow Regressions**: Playwright coverage exercises Quick Capture, Note Title editing, Note creation/edit/save, scoped Search, pinning, Tags, Formatting Tools, Preview safety, Backup export/import, Responsive Navigation, Markdown syntax help, recoverable delete/restore, and Clear All.
 - **Formatting**: Named Markdown commands and UTF-16/UTF-8-safe selection handling.
 - **Note Logic**: Workspace behaviours for quick capture, note creation, selected note editing, recoverable delete/restore/individual clear/count-confirmed Clear All, delete confirmation, title extraction, date formatting, preview truncation, and deserialisation.
@@ -131,7 +134,7 @@ The app keeps high-leverage behaviour behind focused Rust Modules:
 - `app_runtime`: startup construction, runtime persistence orchestration, save snapshots, Theme/sidebar persistence, page flush wiring, and viewport reclassification.
 - `editor_view`: explicit Write, Preview, and Split view modes with viewport-aware behaviour.
 - `storage`: debounced save session, save lifecycle, active Notes persistence, Recently Deleted persistence, Backup Health metadata, and page lifecycle flushing.
-- `ui_recipes`: load-bearing visual recipes for shared footer rhythm, compact controls, Search Hint, Tag pills, selected Note rows, and Backup Controls while keeping `theme` semantic.
+- `ui_recipes`: load-bearing visual recipes for shared footer rhythm, compact controls, typography roles, pane measure, Search, Search Hint, Tag pills, selected Note rows, recovery controls, and Backup Controls while keeping `theme` semantic.
 - `writing_surface`: render-ready Writing Surface model, Preview Note Title/Note Metadata/body ordering, hidden-by-filter messaging, and formatting command application behind a selection-safe Interface.
 - `markdown_editing`: named Markdown commands, cheatsheet sections, and Unicode-safe caret handling.
 - `markdown_preview`: supported Markdown body rendering, duplicate title suppression, and preview safety policy. The Leptos preview pane owns the Note Title and read-only Tags so Preview and Split match the editor header order.

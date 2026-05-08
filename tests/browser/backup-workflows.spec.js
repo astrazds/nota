@@ -74,7 +74,7 @@ test("user can export a Backup and see Backup Health update", async ({ page }) =
 
   expect(download.suggestedFilename()).toMatch(/^noter-backup-\d{4}-\d{2}-\d{2}\.json$/);
   await expect(page.getByRole("status")).toContainText("Backup exported");
-  await expect(page.getByText(/Last backup \d{2}\/\d{2}\/\d{4}/)).toBeVisible();
+  await expect(page.getByText(/Backed up \d{2}\/\d{2}\/\d{4}/)).toBeVisible();
 });
 
 test("user previews, cancels, and confirms a Merge Import", async ({ page }, testInfo) => {

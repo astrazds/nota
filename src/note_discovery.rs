@@ -3,6 +3,8 @@ use crate::search_query::SearchQuery;
 use crate::tag_rules::{fold_case, note_has_active_tag};
 use uuid::Uuid;
 
+const MATCH_SNIPPET_CONTEXT_CHARS: usize = 24;
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct HighlightSegment {
     pub text: String,
@@ -20,6 +22,8 @@ pub struct NoteListRenderKey {
     pub is_selected: bool,
     pub title_highlights: Vec<HighlightSegment>,
     pub preview_highlights: Vec<HighlightSegment>,
+    pub tag_highlights: Vec<Vec<HighlightSegment>>,
+    pub uses_match_snippet: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,6 +37,8 @@ pub struct NoteListItem {
     pub is_selected: bool,
     pub title_highlights: Vec<HighlightSegment>,
     pub preview_highlights: Vec<HighlightSegment>,
+    pub tag_highlights: Vec<Vec<HighlightSegment>>,
+    pub uses_match_snippet: bool,
 }
 
 impl NoteListItem {
@@ -47,6 +53,8 @@ impl NoteListItem {
             is_selected: self.is_selected,
             title_highlights: self.title_highlights.clone(),
             preview_highlights: self.preview_highlights.clone(),
+            tag_highlights: self.tag_highlights.clone(),
+            uses_match_snippet: self.uses_match_snippet,
         }
     }
 }
@@ -74,6 +82,7 @@ pub fn project_note_list(
     let search_query = SearchQuery::parse(query);
     let title_highlight_terms = search_query.title_highlight_terms();
     let preview_highlight_terms = search_query.preview_highlight_terms();
+    let tag_highlight_terms = search_query.tag_highlight_terms();
     let has_active_filter =
         !search_query.is_empty() || active_tag.map(str::trim).is_some_and(|tag| !tag.is_empty());
     let rows: Vec<NoteListItem> =
@@ -82,21 +91,44 @@ pub fn project_note_list(
             .filter_map(|id| notes.iter().find(|note| note.id == id))
             .map(|note| {
                 let display_title = note.display_title().to_string();
-                let preview = note.preview();
+                let title_highlights =
+                    highlight_segments_for_terms(&display_title, &title_highlight_terms);
+                let tag_highlights: Vec<Vec<HighlightSegment>> = note
+                    .tags
+                    .iter()
+                    .map(|tag| highlight_segments_for_terms(tag, &tag_highlight_terms))
+                    .collect();
+                let title_explains_match = title_highlights.iter().any(|segment| segment.is_match);
+                let tags_explain_match = tag_highlights
+                    .iter()
+                    .flatten()
+                    .any(|segment| segment.is_match);
+                let (preview, preview_highlights, uses_match_snippet) =
+                    if title_explains_match || tags_explain_match {
+                        let preview = note.preview();
+                        let preview_highlights =
+                            highlight_segments_for_terms(&preview, &preview_highlight_terms);
+                        (preview, preview_highlights, false)
+                    } else if let Some(snippet) =
+                        match_snippet_for_terms(&note.content, &preview_highlight_terms)
+                    {
+                        snippet
+                    } else {
+                        let preview = note.preview();
+                        let preview_highlights =
+                            highlight_segments_for_terms(&preview, &preview_highlight_terms);
+                        (preview, preview_highlights, false)
+                    };
                 NoteListItem {
                     id: note.id,
                     display_date: note.display_date(),
                     tags: note.tags.clone(),
                     is_pinned: note.is_pinned,
                     is_selected: selected_id == Some(note.id),
-                    title_highlights: highlight_segments_for_terms(
-                        &display_title,
-                        &title_highlight_terms,
-                    ),
-                    preview_highlights: highlight_segments_for_terms(
-                        &preview,
-                        &preview_highlight_terms,
-                    ),
+                    title_highlights,
+                    preview_highlights,
+                    tag_highlights,
+                    uses_match_snippet,
                     display_title,
                     preview,
                 }
@@ -218,6 +250,72 @@ fn find_case_insensitive_match_ranges_for_terms(text: &str, terms: &[&str]) -> V
     }
 
     merged
+}
+
+fn match_snippet_for_terms(
+    text: &str,
+    terms: &[&str],
+) -> Option<(String, Vec<HighlightSegment>, bool)> {
+    let source = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    if source.is_empty() || terms.is_empty() {
+        return None;
+    }
+
+    let ranges = find_case_insensitive_match_ranges_for_terms(&source, terms);
+    let (match_start, match_end) = best_match_window_anchor(&source, terms, &ranges)?;
+
+    let boundaries = char_boundaries(&source);
+    let start_char =
+        byte_to_char_index(&boundaries, match_start).saturating_sub(MATCH_SNIPPET_CONTEXT_CHARS);
+    let end_char = (byte_to_char_index(&boundaries, match_end) + MATCH_SNIPPET_CONTEXT_CHARS)
+        .min(boundaries.len().saturating_sub(1));
+    let start = boundaries[start_char];
+    let end = boundaries[end_char];
+    let clipped_start = start > 0;
+    let clipped_end = end < source.len();
+    let mut snippet = String::new();
+    if clipped_start {
+        snippet.push_str("...");
+    }
+    snippet.push_str(source[start..end].trim());
+    if clipped_end {
+        snippet.push_str("...");
+    }
+    let highlights = highlight_segments_for_terms(&snippet, terms);
+
+    Some((snippet, highlights, true))
+}
+
+fn best_match_window_anchor(
+    source: &str,
+    terms: &[&str],
+    ranges: &[(usize, usize)],
+) -> Option<(usize, usize)> {
+    ranges.iter().copied().max_by_key(|(start, end)| {
+        let boundaries = char_boundaries(source);
+        let start_char =
+            byte_to_char_index(&boundaries, *start).saturating_sub(MATCH_SNIPPET_CONTEXT_CHARS);
+        let end_char = (byte_to_char_index(&boundaries, *end) + MATCH_SNIPPET_CONTEXT_CHARS)
+            .min(boundaries.len().saturating_sub(1));
+        let window = &source[boundaries[start_char]..boundaries[end_char]];
+        terms
+            .iter()
+            .filter(|term| !find_case_insensitive_match_ranges(window, term).is_empty())
+            .count()
+    })
+}
+
+fn char_boundaries(text: &str) -> Vec<usize> {
+    let mut boundaries: Vec<usize> = text.char_indices().map(|(idx, _)| idx).collect();
+    boundaries.push(text.len());
+    boundaries
+}
+
+fn byte_to_char_index(boundaries: &[usize], byte_index: usize) -> usize {
+    match boundaries.binary_search(&byte_index) {
+        Ok(index) => index,
+        Err(index) => index.saturating_sub(1),
+    }
 }
 
 fn find_case_insensitive_match_ranges(text: &str, query: &str) -> Vec<(usize, usize)> {
@@ -444,6 +542,90 @@ mod tests {
 
         assert!(projection.has_active_filter);
         assert!(projection.rows.is_empty());
+    }
+
+    #[test]
+    fn projects_matched_tags_without_preview_highlights_for_scoped_tag_search() {
+        let mut note = Note::new("Launch Plan".to_string(), "Review notes".to_string());
+        note.tags = vec!["Work".to_string(), "Product".to_string()];
+
+        let row = project_note_list(&[note], None, "tag:work", None)
+            .rows
+            .remove(0);
+
+        assert_eq!(
+            row.tag_highlights,
+            vec![
+                vec![HighlightSegment {
+                    text: "Work".to_string(),
+                    is_match: true,
+                }],
+                vec![HighlightSegment {
+                    text: "Product".to_string(),
+                    is_match: false,
+                }],
+            ]
+        );
+        assert_eq!(
+            row.preview_highlights,
+            vec![HighlightSegment {
+                text: "Review notes".to_string(),
+                is_match: false,
+            }]
+        );
+    }
+
+    #[test]
+    fn body_match_uses_compact_match_snippet_when_title_and_tags_do_not_explain() {
+        let mut note = Note::new(
+            "Release Plan".to_string(),
+            "Overview that does not explain the remembered phrase.\nLater review migration risks before launch with the team.".to_string(),
+        );
+        note.tags = vec!["Planning".to_string()];
+
+        let row = project_note_list(&[note], None, "\"migration risks\"", None)
+            .rows
+            .remove(0);
+
+        assert!(row.uses_match_snippet);
+        assert!(row.preview.starts_with("..."));
+        assert!(row.preview.contains("migration risks"));
+        assert!(
+            row.preview_highlights
+                .iter()
+                .any(|segment| segment.is_match && segment.text == "migration risks")
+        );
+    }
+
+    #[test]
+    fn title_explained_match_keeps_the_normal_preview() {
+        let note = Note::new(
+            "Migration Risks".to_string(),
+            "Overview stays visible.\nLater migration risks appear in the body.".to_string(),
+        );
+
+        let row = project_note_list(&[note], None, "migration risks", None)
+            .rows
+            .remove(0);
+
+        assert!(!row.uses_match_snippet);
+        assert_eq!(row.preview, "Overview stays visible.");
+    }
+
+    #[test]
+    fn body_match_snippet_prefers_the_window_that_explains_more_terms() {
+        let mut note = Note::new(
+            "Pinned Plan".to_string(),
+            "Alpha appears alone near the opening. This spacer keeps beta out of reach. Later alpha and beta appear together near launch.".to_string(),
+        );
+        note.is_pinned = true;
+
+        let row = project_note_list(&[note], None, "alpha is:pinned beta", None)
+            .rows
+            .remove(0);
+
+        assert!(row.uses_match_snippet);
+        assert!(row.preview.contains("alpha and beta"));
     }
 
     #[test]

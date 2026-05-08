@@ -100,6 +100,14 @@ _Avoid_: Sidebar footer content
 The primary discovery control for finding Notes by title, content, or Tags.
 _Avoid_: Command palette
 
+**Discovery Depth**:
+Improvements that help users find a Note they vaguely remember inside the Flat Collection, led by Search and supported by richer Note List feedback.
+_Avoid_: Folder hierarchy, semantic search by default
+
+**Match Snippet**:
+A compact Note List preview excerpt shown around a body Search match when the Note Title or visible Tags do not already explain why a Note matched. Match Snippets use plain and quoted Search terms, not scoped title or Tag terms, and should prefer the snippet window that explains the most matched terms while keeping the Note List scannable.
+_Avoid_: Full result excerpt, multiple expanded matches
+
 **Note List**:
 A scannable list of Notes optimised for recognition, selection, and lightweight filtering.
 _Avoid_: Card grid, tag dashboard
@@ -162,6 +170,17 @@ _Avoid_: Replace import by default
 - A **Preview** is a **View Mode**, not the default workspace.
 - A **Tag** supports filtering but does not define the primary navigation model.
 - **Search** is the primary way to discover existing **Notes**.
+- **Discovery Depth** should improve Search-led recognition inside the **Flat Collection** before adding new organisation models.
+- A **Match Snippet** should explain body Search matches when the normal **Note List** preview would not show why a **Note** matched.
+- A **Match Snippet** should not replace the normal **Note List** preview when the **Note Title** or visible **Tags** already explain the Search match.
+- A **Match Snippet** should replace the normal preview line with one compact excerpt, clipped with ellipses when needed, with matched terms highlighted and no extra body-match label.
+- Search match highlighting belongs in the **Note List** for this direction; selecting a **Note** should open the normal editor or preview without carrying highlight state into the document surface.
+- Matched **Tags** should be visibly explanatory in the **Note List** row without becoming primary navigation.
+- Active **Search** can show lightweight result status and empty-state explanation, but should not become a separate results page or filter dashboard.
+- Recent Search memory is out of scope for **Discovery Depth** until current Search results explain themselves clearly.
+- Keyboard navigation across filtered results is a later workflow slice, separate from first improving why each Search result matched.
+- **Discovery Depth** should have mobile parity for snippets, matched Tags, result status, and empty states, with compact rendering allowed to preserve **Note List** scan density.
+- The success bar for **Discovery Depth** is that a user can search a remembered phrase or Tag and understand every visible result without opening **Notes**.
 - A **Search Hint** can explain scoped syntax while Search is focused, but should not become permanent sidebar content.
 - The **Note List** should remain dense enough to scan several **Notes** at once.
 - An **Empty Collection** should lead to creating the first **Note**.

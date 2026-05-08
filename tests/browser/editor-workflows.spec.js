@@ -81,7 +81,24 @@ test("user can pin Notes and combine scoped Search filters", async ({ page }) =>
   await expect(navigation(page).getByText("Launch Plan", { exact: true })).toBeHidden();
 
   await page.getByPlaceholder("Search").fill("title:missing");
-  await expect(navigation(page).getByText("No notes found")).toBeVisible();
+  await expect(navigation(page).getByText("No notes match search: title:missing")).toBeVisible();
+});
+
+test("Search and Tag filters show result status and filtered-empty explanation", async ({ page }) => {
+  await seedCollection(page);
+
+  const sidebar = navigation(page);
+
+  await page.getByPlaceholder("Search").fill("launch");
+  await expect(sidebar.getByText("2 matches for search: launch")).toBeVisible();
+
+  await noteRow(page, "Archive").getByRole("button", { name: "Filter by tag Reference" }).click();
+  await expect(sidebar.getByText("1 match for search: launch in #Reference")).toBeVisible();
+
+  await page.getByPlaceholder("Search").fill("migration");
+  await expect(sidebar.getByText("0 matches for search: migration in #Reference")).toBeVisible();
+  await expect(sidebar.getByText("No notes match search: migration in #Reference")).toBeVisible();
+  await expect(sidebar.getByText("Try a different search term or clear the Tag filter.")).toBeVisible();
 });
 
 test("selected Note stays editable when hidden by Search or Tag filters", async ({ page }) => {
@@ -96,6 +113,36 @@ test("selected Note stays editable when hidden by Search or Tag filters", async 
 
   await page.getByPlaceholder("Note Title").fill("Launch Plan Edited");
   await expect(page.getByPlaceholder("Note Title")).toHaveValue("Launch Plan Edited");
+});
+
+test("selecting a Search result keeps highlights out of document surfaces", async ({ page }) => {
+  await seedCollection(page);
+
+  await page.getByPlaceholder("Search").fill("old");
+
+  const archiveRow = noteRow(page, "Archive");
+  await expect(archiveRow.locator("mark", { hasText: "Old" })).toBeVisible();
+  await archiveRow.click();
+
+  const writingSurface = page
+    .getByPlaceholder("Start typing...")
+    .locator("xpath=ancestor::div[contains(@class, 'flex-col')][1]");
+  await expect(page.getByPlaceholder("Search")).toHaveValue("old");
+  await expect(page.getByPlaceholder("Note Title")).toHaveValue("Archive");
+  await expect(page.getByPlaceholder("Start typing...")).toHaveValue("Old launch details.");
+  await expect(writingSurface.locator("mark")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Preview mode" }).click();
+  const preview = page.locator(".prose").first();
+  await expect(preview.getByRole("heading", { name: "Archive" })).toBeVisible();
+  await expect(preview.getByText("Old launch details.")).toBeVisible();
+  await expect(preview.locator("mark")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Split mode" }).click();
+  await expect(page.getByPlaceholder("Note Title")).toHaveValue("Archive");
+  await expect(page.getByPlaceholder("Start typing...")).toHaveValue("Old launch details.");
+  await expect(writingSurface.locator("mark")).toHaveCount(0);
+  await expect(preview.locator("mark")).toHaveCount(0);
 });
 
 test("user can accept tag suggestions and remove Tags while editing metadata", async ({ page }) => {
@@ -178,6 +225,7 @@ test("Preview renders Markdown features while keeping unsafe input inert", async
 
 test("keyboard Quick Capture and Markdown help are available from the editor", async ({ page }) => {
   await seedCollection(page);
+  await expect(page.getByPlaceholder("Note Title")).toBeVisible();
 
   await page.keyboard.press("Control+N");
   await expect(page.getByPlaceholder("Note Title")).toBeFocused();

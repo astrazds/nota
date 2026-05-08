@@ -81,10 +81,10 @@ pub fn Editor() -> impl IntoView {
     });
 
     Effect::new(move |_| {
-        if state.focus_intent() == FocusIntent::NoteTitle {
-            if let Some(input) = title_input_ref.get() {
-                let _ = input.focus();
-            }
+        if state.focus_intent() == FocusIntent::NoteTitle
+            && let Some(input) = title_input_ref.get()
+        {
+            let _ = input.focus();
             state.take_focus_intent();
         }
     });

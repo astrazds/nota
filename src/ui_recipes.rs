@@ -7,7 +7,7 @@ const PANE_TOP_INSET_CLASS: &str = "pt-7 md:pt-8";
 
 pub fn search_hint() -> String {
     format!(
-        "absolute left-0 right-0 top-full z-30 mt-1.5 rounded-md border p-2 text-[11px] shadow-sm {} {}",
+        "pointer-events-none absolute left-0 right-0 top-full z-30 mt-1.5 rounded-md border p-2 text-[11px] shadow-sm {} {}",
         ThemeSurface::EditorChrome.classes(),
         ThemeText::Primary.classes()
     )
@@ -280,6 +280,7 @@ mod tests {
         let idle = note_row(false);
 
         assert!(search.contains("absolute"));
+        assert!(search.contains("pointer-events-none"));
         assert!(search.contains("top-full"));
         assert!(search.contains("z-30"));
         assert!(search.contains("p-2"));

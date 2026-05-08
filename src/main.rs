@@ -32,7 +32,8 @@ use leptos::prelude::*;
 use model::Note;
 use note_discovery::{NoteListItem, NoteListProjection, SelectedNoteVisibility};
 use note_list_interaction::{
-    NoteActionControls, NoteListCommand, NoteListDisplayState, NoteListInteraction,
+    NoteActionControls, NoteListCommand, NoteListDisplayState, NoteListFilteredEmptyMessage,
+    NoteListInteraction, NoteListResultStatus,
 };
 use note_workspace::{FocusIntent, NoteWorkspace, WorkspaceDisplayState};
 use responsive_navigation::{
@@ -123,6 +124,19 @@ impl AppState {
         self.note_list_interaction
             .get()
             .display_state(self.workspace.get().notes().len(), projection)
+    }
+
+    pub fn note_list_result_status(
+        self,
+        projection: &NoteListProjection,
+    ) -> Option<NoteListResultStatus> {
+        self.note_list_interaction
+            .get()
+            .result_status(self.workspace.get().notes().len(), projection)
+    }
+
+    pub fn note_list_filtered_empty_message(self) -> NoteListFilteredEmptyMessage {
+        self.note_list_interaction.get().filtered_empty_message()
     }
 
     pub fn selected_note_is_hidden_by_filter(self) -> bool {

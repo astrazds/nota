@@ -68,6 +68,47 @@ impl NoteListInteraction {
         }
     }
 
+    pub fn result_status(
+        &self,
+        total_notes: usize,
+        projection: &NoteListProjection,
+    ) -> Option<NoteListResultStatus> {
+        if total_notes == 0 || !projection.has_active_filter {
+            return None;
+        }
+
+        let context = self.active_filter_context();
+        Some(NoteListResultStatus {
+            text: format!(
+                "{} {} {}",
+                projection.rows.len(),
+                match_noun(projection.rows.len()),
+                context
+            ),
+        })
+    }
+
+    pub fn filtered_empty_message(&self) -> NoteListFilteredEmptyMessage {
+        let search = self.trimmed_committed_search();
+        let tag = self.trimmed_active_tag();
+
+        let title = match (search, tag) {
+            (Some(search), Some(tag)) => format!("No notes match search: {search} in #{tag}"),
+            (Some(search), None) => format!("No notes match search: {search}"),
+            (None, Some(tag)) => format!("No notes tagged #{tag}"),
+            (None, None) => "No notes found".to_string(),
+        };
+
+        let body = match (search, tag) {
+            (Some(_), Some(_)) => "Try a different search term or clear the Tag filter.",
+            (Some(_), None) => "Try a different search term.",
+            (None, Some(_)) => "Clear the Tag filter to return to all Notes.",
+            (None, None) => "Try a different search term.",
+        };
+
+        NoteListFilteredEmptyMessage { title, body }
+    }
+
     pub fn select_row(&self, id: Uuid) -> NoteListCommand {
         NoteListCommand::SelectNote(id)
     }
@@ -78,6 +119,27 @@ impl NoteListInteraction {
             pin_command: NoteListCommand::TogglePin(row.id),
             delete_command: NoteListCommand::RequestDelete(row.id),
         }
+    }
+
+    fn active_filter_context(&self) -> String {
+        match (self.trimmed_committed_search(), self.trimmed_active_tag()) {
+            (Some(search), Some(tag)) => format!("for search: {search} in #{tag}"),
+            (Some(search), None) => format!("for search: {search}"),
+            (None, Some(tag)) => format!("in #{tag}"),
+            (None, None) => "shown".to_string(),
+        }
+    }
+
+    fn trimmed_committed_search(&self) -> Option<&str> {
+        let search = self.committed_search.trim();
+        (!search.is_empty()).then_some(search)
+    }
+
+    fn trimmed_active_tag(&self) -> Option<&str> {
+        self.active_tag
+            .as_deref()
+            .map(str::trim)
+            .filter(|tag| !tag.is_empty())
     }
 }
 
@@ -96,10 +158,25 @@ pub enum NoteListCommand {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NoteListResultStatus {
+    pub text: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NoteListFilteredEmptyMessage {
+    pub title: String,
+    pub body: &'static str,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NoteActionControls {
     pub pin_label: &'static str,
     pub pin_command: NoteListCommand,
     pub delete_command: NoteListCommand,
+}
+
+fn match_noun(count: usize) -> &'static str {
+    if count == 1 { "match" } else { "matches" }
 }
 
 #[cfg(test)]
@@ -171,6 +248,52 @@ mod tests {
         assert_eq!(
             actions.delete_command,
             NoteListCommand::RequestDelete(note.id)
+        );
+    }
+
+    #[test]
+    fn active_search_and_tag_filters_explain_visible_results_and_filtered_empty_state() {
+        let mut launch = Note::new("Launch Plan".to_string(), "Ship the release".to_string());
+        launch.tags = vec!["Work".to_string()];
+        let mut groceries = Note::new("Groceries".to_string(), "Buy apples".to_string());
+        groceries.tags = vec!["Personal".to_string()];
+        let notes = vec![launch, groceries];
+
+        let mut interaction = NoteListInteraction::default();
+        let unfiltered = interaction.project_notes(&notes, None);
+        assert_eq!(interaction.result_status(notes.len(), &unfiltered), None);
+
+        interaction.edit_search("launch".to_string());
+        interaction.commit_search();
+        let search_projection = interaction.project_notes(&notes, None);
+        assert_eq!(
+            interaction.result_status(notes.len(), &search_projection),
+            Some(NoteListResultStatus {
+                text: "1 match for search: launch".to_string(),
+            })
+        );
+
+        interaction.select_tag("Personal".to_string());
+        let filtered_empty = interaction.project_notes(&notes, None);
+        assert_eq!(
+            interaction.result_status(notes.len(), &filtered_empty),
+            Some(NoteListResultStatus {
+                text: "0 matches for search: launch in #Personal".to_string(),
+            })
+        );
+        assert_eq!(
+            interaction.filtered_empty_message(),
+            NoteListFilteredEmptyMessage {
+                title: "No notes match search: launch in #Personal".to_string(),
+                body: "Try a different search term or clear the Tag filter.",
+            }
+        );
+
+        let empty_collection = interaction.project_notes(&[], None);
+        assert_eq!(interaction.result_status(0, &empty_collection), None);
+        assert_eq!(
+            interaction.display_state(0, &empty_collection),
+            NoteListDisplayState::EmptyCollection
         );
     }
 }

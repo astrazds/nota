@@ -1,6 +1,6 @@
 {
   "name": "noter",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "private": true,
   "description": "A local-first Markdown note-taking web app built with Rust, Leptos, and Tailwind CSS.",
   "license": "MIT",

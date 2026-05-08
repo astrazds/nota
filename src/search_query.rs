@@ -41,6 +41,17 @@ impl SearchQuery {
             })
             .collect()
     }
+
+    pub fn tag_highlight_terms(&self) -> Vec<&str> {
+        self.terms
+            .iter()
+            .filter_map(|term| match term {
+                SearchTerm::AnyText(pattern) => Some(pattern.original.as_str()),
+                SearchTerm::Tag(tag) => Some(tag.as_str()),
+                SearchTerm::Title(_) | SearchTerm::IsPinned => None,
+            })
+            .collect()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

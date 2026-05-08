@@ -66,6 +66,10 @@ fn note_list_title_classes() -> String {
     ui_recipes::note_list_title_text()
 }
 
+fn note_list_result_status_classes() -> String {
+    format!("text-xs leading-5 {}", ThemeText::Muted.classes())
+}
+
 #[component]
 pub fn Sidebar() -> impl IntoView {
     let state = use_context::<AppState>().expect("state not found");
@@ -73,6 +77,11 @@ pub fn Sidebar() -> impl IntoView {
     let add_note = move |_| state.create_note();
 
     let note_projection = Memo::new(move |_| state.note_list_projection());
+    let note_result_status = Memo::new(move |_| {
+        let projection = note_projection.get();
+        state.note_list_result_status(&projection)
+    });
+    let filtered_empty_message = Memo::new(move |_| state.note_list_filtered_empty_message());
     let available_tags = Memo::new(move |_| state.available_tags());
     let recently_deleted_notes = Memo::new(move |_| state.recently_deleted_notes());
 
@@ -229,6 +238,19 @@ pub fn Sidebar() -> impl IntoView {
                             </button>
                         </div>
                     </Show>
+                    <Show when=move || note_result_status.get().is_some()>
+                        <p
+                            class=note_list_result_status_classes
+                            aria-live="polite"
+                        >
+                            {move || {
+                                note_result_status
+                                    .get()
+                                    .map(|status| status.text)
+                                    .unwrap_or_default()
+                            }}
+                        </p>
+                    </Show>
                 </div>
                 <div class="flex-1 overflow-y-auto pb-4">
                     <Show when=move || !note_projection.get().rows.is_empty()>
@@ -245,8 +267,8 @@ pub fn Sidebar() -> impl IntoView {
                         state.note_list_display_state(&projection) == NoteListDisplayState::FilteredEmpty
                     }>
                         <div class=move || format!("p-8 text-center {}", ThemeText::Subtle.classes())>
-                            <p>No notes found</p>
-                            <p class="text-sm mt-1">Try a different search term</p>
+                            <p>{move || filtered_empty_message.get().title}</p>
+                            <p class="text-sm mt-1">{move || filtered_empty_message.get().body}</p>
                         </div>
                     </Show>
                     <Show when=move || !recently_deleted_notes.get().is_empty()>
@@ -312,6 +334,7 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
     let id = item.id;
     let title_highlights = item.title_highlights.clone();
     let preview_highlights = item.preview_highlights.clone();
+    let tag_highlights = item.tag_highlights.clone();
     let display_date = item.display_date.clone();
     let tags = item.tags.clone();
     let tags_for_visibility = tags.clone();
@@ -423,8 +446,10 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
             <Show when=move || !tags_for_visibility.is_empty()>
                 <div class="mt-1.5 flex flex-wrap gap-1">
                     {tags.iter()
-                        .map(|tag| {
+                        .zip(tag_highlights.iter())
+                        .map(|(tag, highlights)| {
                             let tag_for_click = tag.clone();
+                            let tag_segments = highlights.clone();
                             view! {
                                 <button
                                     class=ui_recipes::tag_pill
@@ -435,7 +460,16 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
                                     title=tag.clone()
                                     aria-label=format!("Filter by tag {tag}")
                                 >
-                                    {format!("#{tag}")}
+                                    <span aria-hidden="true">"#"</span>
+                                    {tag_segments.into_iter()
+                                        .map(|segment| {
+                                            if segment.is_match {
+                                                view! { <mark class=move || ThemeAccent::Highlight.classes()>{segment.text}</mark> }.into_any()
+                                            } else {
+                                                view! { <span>{segment.text}</span> }.into_any()
+                                            }
+                                        })
+                                        .collect_view()}
                                 </button>
                             }
                                 .into_any()

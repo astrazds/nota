@@ -1,5 +1,10 @@
 use crate::theme::{ThemeState, ThemeSurface, ThemeText};
 
+const COMPACT_FOOTER_HEIGHT_CLASS: &str = "h-[45px]";
+const NOTE_MEASURE_CLASS: &str = "w-full max-w-[72ch]";
+const PANE_INLINE_INSET_CLASS: &str = "px-6 md:px-8";
+const PANE_TOP_INSET_CLASS: &str = "pt-7 md:pt-8";
+
 pub fn search_hint() -> String {
     format!(
         "absolute left-0 right-0 top-full z-30 mt-1.5 rounded-md border p-2 text-[11px] shadow-sm {} {}",
@@ -73,12 +78,21 @@ pub fn preview_body_text() -> &'static str {
 }
 
 pub fn note_measure() -> &'static str {
-    "w-full max-w-[72ch]"
+    NOTE_MEASURE_CLASS
+}
+
+pub fn pane_inline_inset() -> &'static str {
+    PANE_INLINE_INSET_CLASS
+}
+
+pub fn pane_top_inset() -> &'static str {
+    PANE_TOP_INSET_CLASS
 }
 
 pub fn sidebar_footer() -> String {
     format!(
-        "h-[45px] shrink-0 gap-2 px-3 py-1.5 border-t border-apple-gray-300 dark:border-apple-dark-border flex items-center justify-between text-[11px] leading-4 {}",
+        "{} shrink-0 gap-2 px-3 py-1.5 border-t border-apple-gray-300 dark:border-apple-dark-border flex items-center justify-between text-[11px] leading-4 {}",
+        COMPACT_FOOTER_HEIGHT_CLASS,
         ThemeText::Subtle.classes()
     )
 }
@@ -106,7 +120,8 @@ pub fn backup_import_preview() -> String {
 
 pub fn editor_footer() -> String {
     format!(
-        "h-[45px] shrink-0 gap-x-2 gap-y-1 border-t border-apple-gray-300 px-3 py-1.5 text-[11px] leading-4 dark:border-apple-dark-border flex flex-wrap items-center justify-center {}",
+        "{} shrink-0 gap-x-2 gap-y-1 border-t border-apple-gray-300 px-3 py-1.5 text-[11px] leading-4 dark:border-apple-dark-border flex flex-wrap items-center justify-center {}",
+        COMPACT_FOOTER_HEIGHT_CLASS,
         ThemeSurface::EditorChrome.classes()
     )
 }
@@ -196,7 +211,7 @@ mod tests {
         let editor = editor_footer();
 
         for classes in [&sidebar, &editor] {
-            assert!(classes.contains("h-[45px]"));
+            assert_eq!(classes.matches(COMPACT_FOOTER_HEIGHT_CLASS).count(), 1);
             assert!(classes.contains("px-3"));
             assert!(classes.contains("py-1.5"));
             assert!(classes.contains("text-[11px]"));
@@ -321,7 +336,9 @@ mod tests {
         assert!(preview_body_text().contains("prose-yellow"));
         assert!(preview_body_text().contains("dark:prose-invert"));
         assert!(preview_body_text().contains("max-w-[72ch]"));
-        assert!(note_measure().contains("max-w-[72ch]"));
+        assert_eq!(note_measure(), NOTE_MEASURE_CLASS);
+        assert_eq!(pane_inline_inset(), PANE_INLINE_INSET_CLASS);
+        assert_eq!(pane_top_inset(), PANE_TOP_INSET_CLASS);
         assert!(backup_import_preview().contains("text-xs"));
         assert!(backup_import_preview().contains("leading-5"));
     }

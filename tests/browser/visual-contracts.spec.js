@@ -135,8 +135,8 @@ test("Markdown syntax modal keeps dense reference content accessible", async ({ 
   const closeBox = await dialog
     .getByRole("button", { name: "Close markdown syntax" })
     .evaluate((element) => element.getBoundingClientRect().toJSON());
-  expect(closeBox.width).toBeGreaterThanOrEqual(40);
-  expect(closeBox.height).toBeGreaterThanOrEqual(40);
+  expect(closeBox.width).toBeGreaterThanOrEqual(44);
+  expect(closeBox.height).toBeGreaterThanOrEqual(44);
 
   const sections = await dialog.locator("h3,h4").evaluateAll((headings) =>
     headings.map((heading) => heading.textContent.trim()),
@@ -364,17 +364,33 @@ test("mobile editor chrome avoids title collisions and keeps touch controls reac
 });
 
 test("desktop Writing Surface keeps a readable editing measure inside the wide workspace", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
   await seedNotes(page);
 
   const body = page.getByPlaceholder("Start typing...");
   const measure = await body.evaluate((element) => {
+    const title = document.querySelector('textarea[placeholder="Note Title"]').closest(".space-y-3");
+    const toolbar = Array.from(document.querySelectorAll("div")).find(
+      (candidate) =>
+        candidate.className.includes("max-w-[72ch]") &&
+        candidate.textContent.includes("B") &&
+        candidate.textContent.includes("I"),
+    );
     const styles = getComputedStyle(element);
+    const titleBox = title.getBoundingClientRect();
+    const toolbarBox = toolbar.getBoundingClientRect();
+    const bodyBox = element.getBoundingClientRect();
     return {
-      width: element.getBoundingClientRect().width,
+      titleLeft: titleBox.left,
+      toolbarLeft: toolbarBox.left,
+      bodyLeft: bodyBox.left,
+      width: bodyBox.width,
       maxWidth: styles.maxWidth,
     };
   });
 
   expect(measure.width).toBeLessThanOrEqual(920);
   expect(measure.maxWidth).not.toBe("none");
+  expect(Math.abs(measure.bodyLeft - measure.titleLeft)).toBeLessThanOrEqual(1);
+  expect(Math.abs(measure.bodyLeft - measure.toolbarLeft)).toBeLessThanOrEqual(1);
 });

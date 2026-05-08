@@ -18,6 +18,7 @@ Implementation notes:
 - Browser tests live under `tests/browser/` and run with `npm run test:browser`.
 - Workflow specs are grouped by product area: Backup, editor, Note workflows, Responsive Navigation, and visual contracts.
 - The browser coverage starts a local `trunk serve` process on port 1420 through `playwright.config.js`.
+- Browser coverage runs with one Playwright worker so Trunk/Tailwind startup and rebuild work cannot race visual-contract pages that assert emitted CSS, footer height, Search Hint contrast, touch targets, and Pane Rhythm.
 - Backup Health persistence remains browser storage on wasm targets; native tests verify AppState updates without touching `web_sys::window()`.
 - The architecture Modules are intentionally conservative: each wraps existing product behaviour behind a deeper Interface instead of adding folders, sync, command palette behaviour, or destructive Backup replacement.
 

@@ -25,7 +25,7 @@ pub fn CheatsheetModal(show: RwSignal<bool>) -> impl IntoView {
                 <button
                     on:click=move |_| close_modal()
                     aria-label="Close markdown syntax"
-                    class=move || format!("inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors {}", ThemeState::SidebarToggle.classes())
+                    class=move || format!("inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md transition-colors sm:h-10 sm:w-10 {}", ThemeState::SidebarToggle.classes())
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -40,7 +40,7 @@ pub fn CheatsheetModal(show: RwSignal<bool>) -> impl IntoView {
         view! {
             <button
                 on:click=move |_| close_modal()
-                class=move || format!("min-h-10 rounded-md px-6 py-2 font-semibold transition-colors shadow-sm {}", ThemeAccent::PrimaryFill.classes())
+                class=move || format!("min-h-11 rounded-md px-6 py-2 font-semibold transition-colors shadow-sm sm:min-h-10 {}", ThemeAccent::PrimaryFill.classes())
             >
                 "Close"
             </button>

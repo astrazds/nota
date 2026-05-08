@@ -2,7 +2,7 @@
 
 A local-first Markdown note-taking web app built with **Rust**, **Leptos**, and **Tailwind CSS**.
 
-Current app version: **0.9.1**.
+Current app version: **0.9.2**.
 
 ## Features
 
@@ -105,6 +105,8 @@ npm run build
 npx impeccable detect --json --fast src index.html
 npm run test:browser
 ```
+
+Browser tests run through a single Playwright worker because Trunk/Tailwind emits load-bearing CSS for visual contracts during startup; serial browser coverage keeps the rendered UI checks deterministic.
 
 Tests cover core domain logic including:
 - **Backup & Restore**: Versioned Flat Collection backup export, validation, import preview, merge import, duplicate identity handling, backup health, and all-or-nothing failure behavior.

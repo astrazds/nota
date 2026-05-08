@@ -344,13 +344,15 @@ pub fn Editor() -> impl IntoView {
                                             </div>
                                         </div>
                                     </Show>
-                                    <textarea
-                                        node_ref=content_area_ref
-                                        class=editor_body_textarea_classes
-                                        placeholder="Start typing..."
-                                        prop:value=move || writing_model.get().map(|note| note.content).unwrap_or_default()
-                                        on:input=on_input_content
-                                    ></textarea>
+                                    <div class=editor_body_frame_classes>
+                                        <textarea
+                                            node_ref=content_area_ref
+                                            class=editor_body_textarea_classes
+                                            placeholder="Start typing..."
+                                            prop:value=move || writing_model.get().map(|note| note.content).unwrap_or_default()
+                                            on:input=on_input_content
+                                        ></textarea>
+                                    </div>
                                 </div>
                             </Show>
 
@@ -547,7 +549,8 @@ fn editor_view_controls_classes() -> &'static str {
 
 fn formatting_tools_classes() -> String {
     format!(
-        "border-y border-apple-gray-200 px-6 py-1.5 md:px-8 dark:border-apple-dark-border {}",
+        "border-y border-apple-gray-200 py-1.5 dark:border-apple-dark-border {} {}",
+        ui_recipes::pane_inline_inset(),
         ThemeSurface::EditorChrome.classes()
     )
 }
@@ -609,9 +612,16 @@ fn edit_tags_button_classes() -> String {
     )
 }
 
+fn editor_body_frame_classes() -> String {
+    format!(
+        "flex-1 min-h-0 pb-8 pt-3 {}",
+        ui_recipes::pane_inline_inset()
+    )
+}
+
 fn editor_body_textarea_classes() -> String {
     format!(
-        "flex-1 px-6 pb-8 pt-3 md:px-8 focus:outline-none resize-none bg-transparent dark:text-gray-300 {} {} {}",
+        "block h-full focus:outline-none resize-none bg-transparent dark:text-gray-300 {} {} {}",
         ui_recipes::note_measure(),
         ui_recipes::editor_body_text(),
         ThemeAccent::Selection.classes()
@@ -621,12 +631,16 @@ fn editor_body_textarea_classes() -> String {
 fn preview_pane_classes(is_split: bool) -> String {
     if is_split {
         format!(
-            "flex-1 overflow-y-auto px-6 pb-8 pt-7 md:px-8 md:pt-8 shadow-inner border-l transition-colors {}",
+            "flex-1 overflow-y-auto pb-8 shadow-inner border-l transition-colors {} {} {}",
+            ui_recipes::pane_inline_inset(),
+            ui_recipes::pane_top_inset(),
             ThemeSurface::SplitPreview.classes()
         )
     } else {
         format!(
-            "flex-1 overflow-y-auto px-6 pb-8 pt-7 md:px-8 md:pt-8 transition-colors {}",
+            "flex-1 overflow-y-auto pb-8 transition-colors {} {} {}",
+            ui_recipes::pane_inline_inset(),
+            ui_recipes::pane_top_inset(),
             ThemeSurface::Preview.classes()
         )
     }

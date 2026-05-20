@@ -2,6 +2,7 @@ use crate::backup::{BackupError, BackupImport, import_flat_collection_backup};
 use crate::model::Note;
 use crate::note_collection::NoteCollection;
 use crate::note_discovery::{NoteListProjection, project_note_list};
+use crate::storage_recovery::StorageRecoveryState;
 use crate::tag_rules::{TagCleanupPlan, plan_collection_tag_cleanup};
 use uuid::Uuid;
 
@@ -13,6 +14,7 @@ pub struct NoteWorkspace {
     focus_intent: FocusIntent,
     delete_confirmation: Option<DeleteConfirmation>,
     clear_all_recently_deleted_confirmation_count: Option<usize>,
+    storage_recovery: Option<StorageRecoveryState>,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -30,6 +32,7 @@ struct DeleteConfirmation {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WorkspaceDisplayState {
+    StorageRecovery,
     EmptyCollection,
     NoNoteSelected,
     NoteSelected,
@@ -45,6 +48,7 @@ impl NoteWorkspace {
             focus_intent: FocusIntent::None,
             delete_confirmation: None,
             clear_all_recently_deleted_confirmation_count: None,
+            storage_recovery: None,
         }
     }
 
@@ -57,6 +61,19 @@ impl NoteWorkspace {
             focus_intent: FocusIntent::None,
             delete_confirmation: None,
             clear_all_recently_deleted_confirmation_count: None,
+            storage_recovery: None,
+        }
+    }
+
+    pub fn new_with_storage_recovery(storage_recovery: StorageRecoveryState) -> Self {
+        Self {
+            notes: Vec::new(),
+            recently_deleted_notes: Vec::new(),
+            selected_id: None,
+            focus_intent: FocusIntent::None,
+            delete_confirmation: None,
+            clear_all_recently_deleted_confirmation_count: None,
+            storage_recovery: Some(storage_recovery),
         }
     }
 
@@ -77,6 +94,10 @@ impl NoteWorkspace {
     }
 
     pub fn display_state(&self) -> WorkspaceDisplayState {
+        if self.storage_recovery.is_some() {
+            return WorkspaceDisplayState::StorageRecovery;
+        }
+
         if self.notes.is_empty() {
             return WorkspaceDisplayState::EmptyCollection;
         }
@@ -86,6 +107,10 @@ impl NoteWorkspace {
         } else {
             WorkspaceDisplayState::NoNoteSelected
         }
+    }
+
+    pub fn storage_recovery(&self) -> Option<&StorageRecoveryState> {
+        self.storage_recovery.as_ref()
     }
 
     pub fn create_note(&mut self) {
@@ -151,7 +176,36 @@ impl NoteWorkspace {
         self.selected_id = imported
             .selected_id
             .or_else(|| self.notes.first().map(|note| note.id));
+        self.storage_recovery = None;
         Ok(imported)
+    }
+
+    pub fn restore_previous_snapshot(&mut self) -> bool {
+        let Some(snapshot) = self
+            .storage_recovery
+            .as_ref()
+            .and_then(|recovery| recovery.previous_snapshot.clone())
+        else {
+            return false;
+        };
+
+        self.notes = snapshot.notes;
+        self.recently_deleted_notes = snapshot.recently_deleted_notes;
+        self.selected_id = self.notes.first().map(|note| note.id);
+        self.storage_recovery = None;
+        true
+    }
+
+    pub fn start_empty_after_storage_recovery(&mut self) -> bool {
+        if self.storage_recovery.take().is_none() {
+            return false;
+        }
+
+        self.notes.clear();
+        self.recently_deleted_notes.clear();
+        self.selected_id = None;
+        self.focus_intent = FocusIntent::None;
+        true
     }
 
     pub fn request_delete(&mut self, id: Uuid) -> bool {
@@ -288,6 +342,7 @@ impl NoteWorkspace {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage_recovery::{PreviousSnapshot, StorageRecoveryState};
 
     #[test]
     fn creating_a_note_updates_selection_and_focus_intent_inside_the_workspace() {
@@ -408,10 +463,12 @@ mod tests {
     #[test]
     fn imports_a_flat_collection_backup_and_selects_the_first_imported_note() {
         let imported_note = Note::new("Imported".to_string(), "Backup content".to_string());
+        let deleted_note = Note::new("Deleted".to_string(), "Still recoverable".to_string());
         let backup_json =
             crate::backup::export_flat_collection_backup(std::slice::from_ref(&imported_note))
                 .unwrap();
-        let mut workspace = NoteWorkspace::new(Vec::new());
+        let mut workspace =
+            NoteWorkspace::new_with_recently_deleted(Vec::new(), vec![deleted_note.clone()]);
 
         let imported = workspace
             .import_flat_collection_backup(&backup_json)
@@ -420,6 +477,71 @@ mod tests {
         assert_eq!(imported.selected_id, Some(imported_note.id));
         assert_eq!(workspace.selected_id(), Some(imported_note.id));
         assert_eq!(workspace.notes(), &[imported_note]);
+        assert_eq!(workspace.recently_deleted_notes(), &[deleted_note]);
+    }
+
+    #[test]
+    fn storage_recovery_blocks_normal_empty_state_until_user_chooses_a_path() {
+        let recovery = StorageRecoveryState {
+            corrupt_notes_json: Some("{not valid json".to_string()),
+            corrupt_recently_deleted_notes_json: None,
+            previous_snapshot: None,
+        };
+        let workspace = NoteWorkspace::new_with_storage_recovery(recovery.clone());
+
+        assert_eq!(
+            workspace.display_state(),
+            WorkspaceDisplayState::StorageRecovery
+        );
+        assert_eq!(workspace.storage_recovery(), Some(&recovery));
+        assert!(workspace.notes().is_empty());
+        assert!(workspace.recently_deleted_notes().is_empty());
+    }
+
+    #[test]
+    fn storage_recovery_can_restore_the_previous_collection_pair() {
+        let active_note = Note::new("Previous active".to_string(), "Known good".to_string());
+        let deleted_note = Note::new("Previous deleted".to_string(), "Recoverable".to_string());
+        let mut workspace = NoteWorkspace::new_with_storage_recovery(StorageRecoveryState {
+            corrupt_notes_json: Some("{not valid json".to_string()),
+            corrupt_recently_deleted_notes_json: None,
+            previous_snapshot: Some(PreviousSnapshot {
+                notes: vec![active_note.clone()],
+                recently_deleted_notes: vec![deleted_note.clone()],
+            }),
+        });
+
+        assert!(workspace.restore_previous_snapshot());
+
+        assert_eq!(workspace.notes(), std::slice::from_ref(&active_note));
+        assert_eq!(workspace.recently_deleted_notes(), &[deleted_note]);
+        assert_eq!(workspace.selected_id(), Some(active_note.id));
+        assert_eq!(
+            workspace.display_state(),
+            WorkspaceDisplayState::NoteSelected
+        );
+        assert!(workspace.storage_recovery().is_none());
+    }
+
+    #[test]
+    fn storage_recovery_can_start_empty_without_a_previous_snapshot() {
+        let mut workspace = NoteWorkspace::new_with_storage_recovery(StorageRecoveryState {
+            corrupt_notes_json: Some("{not valid json".to_string()),
+            corrupt_recently_deleted_notes_json: Some("{also invalid".to_string()),
+            previous_snapshot: None,
+        });
+
+        assert!(!workspace.restore_previous_snapshot());
+        assert!(workspace.start_empty_after_storage_recovery());
+
+        assert_eq!(
+            workspace.display_state(),
+            WorkspaceDisplayState::EmptyCollection
+        );
+        assert!(workspace.notes().is_empty());
+        assert!(workspace.recently_deleted_notes().is_empty());
+        assert_eq!(workspace.selected_id(), None);
+        assert!(workspace.storage_recovery().is_none());
     }
 
     #[test]

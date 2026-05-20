@@ -1,5 +1,9 @@
 use crate::AppState;
 use crate::NotificationTone;
+use crate::backup_controls::{
+    PendingBackupImport, cancel_pending_backup_import, confirm_pending_backup_import,
+    import_backup_from_input_event,
+};
 use crate::components::CheatsheetModal;
 use crate::editor_view::EditorViewMode;
 use crate::model::Note;
@@ -24,6 +28,7 @@ type NotificationTimeout = Rc<RefCell<Option<(i32, Closure<dyn FnMut()>)>>>;
 pub fn Editor() -> impl IntoView {
     let state = use_context::<AppState>().expect("state not found");
     let show_cheatsheet = RwSignal::new(false);
+    let recovery_pending_backup_import = RwSignal::new(None::<PendingBackupImport>);
 
     let title_input_ref = NodeRef::<leptos::html::Textarea>::new();
     let tags_input_ref = NodeRef::<leptos::html::Input>::new();
@@ -211,6 +216,101 @@ pub fn Editor() -> impl IntoView {
 
             <div class="flex-1 flex overflow-hidden">
                 {move || match workspace_display_state.get() {
+                    WorkspaceDisplayState::StorageRecovery => view! {
+                        <div class=move || format!("flex-1 flex items-center justify-center px-6 {}", ThemeState::EmptyState.classes())>
+                            <div class="w-full max-w-md text-center">
+                                <h2 class=ui_recipes::empty_state_title_text>"Saved Notes could not be loaded"</h2>
+                                <p class=ui_recipes::empty_state_body_text>
+                                    "Choose a recovery path to continue using Noter."
+                                </p>
+                                <div class="mt-6 flex flex-wrap items-center justify-center gap-2">
+                                    <button
+                                        type="button"
+                                        disabled=move || !state.has_previous_snapshot()
+                                        class=move || {
+                                            let state_classes = if state.has_previous_snapshot() {
+                                                ThemeAccent::PrimaryFill.classes().to_string()
+                                            } else {
+                                                "cursor-not-allowed bg-gray-200 text-gray-400 dark:bg-white/10 dark:text-gray-600".to_string()
+                                            };
+                                            format!("inline-flex min-h-10 items-center rounded-md px-4 py-2 text-sm font-semibold transition-colors {state_classes}")
+                                        }
+                                        on:click=move |_| state.restore_previous_snapshot()
+                                    >
+                                        "Restore previous snapshot"
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class=move || format!("inline-flex min-h-10 items-center rounded-md px-4 py-2 text-sm font-semibold transition-colors {}", ThemeState::SecondaryButton.classes())
+                                        on:click=move |_| state.start_empty_after_storage_recovery()
+                                    >
+                                        "Start empty"
+                                    </button>
+                                    <label class=move || format!("inline-flex min-h-10 cursor-pointer items-center rounded-md px-4 py-2 text-sm font-semibold transition-colors {}", ThemeState::SegmentedIdle.classes())>
+                                        "Import Backup"
+                                        <input
+                                            type="file"
+                                            accept="application/json,.json"
+                                            class="sr-only"
+                                            on:change=move |ev| {
+                                                import_backup_from_input_event(
+                                                    state,
+                                                    recovery_pending_backup_import,
+                                                    ev,
+                                                );
+                                            }
+                                        />
+                                    </label>
+                                </div>
+                                <Show when=move || recovery_pending_backup_import.get().is_some()>
+                                    <div class=move || format!("mt-4 rounded-md border p-3 text-sm {}", ThemeSurface::EditorChrome.classes())>
+                                        {move || {
+                                            recovery_pending_backup_import
+                                                .get()
+                                                .map(|pending| {
+                                                    view! {
+                                                        <div class="flex flex-wrap items-center justify-center gap-2">
+                                                            <span class=move || ThemeText::Primary.classes()>
+                                                                {format!(
+                                                                    "Import {} notes: {} new, {} replace",
+                                                                    pending.preview.total_imported_notes,
+                                                                    pending.preview.notes_to_add,
+                                                                    pending.preview.notes_to_replace
+                                                                )}
+                                                            </span>
+                                                            <button
+                                                                type="button"
+                                                                class=move || format!("rounded-md px-3 py-1 text-sm {}", ThemeState::SegmentedIdle.classes())
+                                                                on:click=move |_| {
+                                                                    confirm_pending_backup_import(
+                                                                        state,
+                                                                        recovery_pending_backup_import,
+                                                                    );
+                                                                }
+                                                            >
+                                                                "Import"
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                class=move || format!("rounded-md px-3 py-1 text-sm {}", ThemeState::SegmentedIdle.classes())
+                                                                on:click=move |_| {
+                                                                    cancel_pending_backup_import(
+                                                                        state,
+                                                                        recovery_pending_backup_import,
+                                                                    );
+                                                                }
+                                                            >
+                                                                "Cancel"
+                                                            </button>
+                                                        </div>
+                                                    }
+                                                })
+                                        }}
+                                    </div>
+                                </Show>
+                            </div>
+                        </div>
+                    }.into_any(),
                     WorkspaceDisplayState::NoteSelected => view! {
                         <div class="flex-1 flex overflow-hidden divide-x divide-apple-gray-200 dark:divide-apple-dark-border">
                             <Show when=move || state.editor_view_mode.get().surfaces().writing>

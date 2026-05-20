@@ -128,6 +128,22 @@ _Avoid_: Sync, cloud backup
 Lightweight metadata about the last successful Backup export, used to show whether the user has a recent local recovery point.
 _Avoid_: Sync status
 
+**Storage Recovery**:
+The startup state shown when browser-saved Notes or Recently Deleted payloads cannot be parsed, requiring the user to choose Restore previous snapshot, Start empty, or Import Backup before normal editing resumes.
+_Avoid_: Silent reset, automatic data loss
+
+**Previous Snapshot**:
+The last valid active Notes and Recently Deleted collection pair preserved before a safe save writes the next collection.
+_Avoid_: Undo history, version history
+
+**Corrupt Payload Quarantine**:
+The preserved copy of corrupt browser storage payloads after the user chooses to start empty, used for diagnostics rather than normal app loading.
+_Avoid_: Backup, recovery point
+
+**Diagnostics Surface**:
+A secondary support surface for Product Metadata, storage mode, Backup Health, and corrupt-payload quarantine state.
+_Avoid_: Sidebar footer metadata, primary navigation
+
 **Backup Controls**:
 Compact Export and Import actions for Backup, placed in the sidebar footer as a secondary utility row.
 _Avoid_: Backup dropdown
@@ -189,6 +205,12 @@ _Avoid_: Replace import by default
 - **Responsive Navigation** keeps the **Note List** available without interrupting the **Writing Surface**.
 - A **Backup** preserves the **Flat Collection** outside browser storage.
 - **Backup Health** describes the recency of the user's last successful **Backup** export without implying sync.
+- Missing or stale **Backup Health** should be actionable in **Backup Controls** without becoming a warning banner.
+- **Storage Recovery** should block normal editing until the user chooses an explicit recovery path.
+- A **Previous Snapshot** covers active Notes and **Recently Deleted** together.
+- **Corrupt Payload Quarantine** preserves broken browser payloads only after the user chooses to start empty.
+- **Diagnostics Surface** owns **Product Metadata** and storage diagnostics outside the primary note workflow.
+- **Storage Recovery** should keep **Backup Import Preview** and **Merge Import** available because Backup remains the explicit user-owned recovery mechanism.
 - **Backup Controls** belong in the sidebar footer as secondary utilities, not in primary navigation.
 - A **Backup Import Preview** should appear before a **Merge Import** changes the **Flat Collection**.
 - A **Merge Import** restores Notes from a **Backup** without destructively replacing the current **Flat Collection**.
@@ -272,6 +294,15 @@ _Avoid_: Replace import by default
 >
 > **Dev:** "Should Backup Health behave like sync status?"
 > **Domain expert:** "No — **Backup Health** only reflects the last successful local export recovery point."
+>
+> **Dev:** "Should corrupt saved Notes fall back to starter notes or an empty collection?"
+> **Domain expert:** "No — show **Storage Recovery** so the user explicitly restores a **Previous Snapshot**, starts empty, or imports a **Backup**."
+>
+> **Dev:** "Should starting empty discard corrupt browser payloads immediately?"
+> **Domain expert:** "No — use **Corrupt Payload Quarantine** so diagnostics can still explain that recovery happened."
+>
+> **Dev:** "Should app version and storage mode live in the Backup footer?"
+> **Domain expert:** "No — put **Product Metadata** and storage details in a **Diagnostics Surface**."
 
 ## Flagged ambiguities
 
@@ -301,3 +332,7 @@ _Avoid_: Replace import by default
 - "Backup import" could imply destructive replacement — resolved: backup v1 uses **Merge Import** and leaves replace import out of scope until a clear workflow needs it.
 - "Backup import" could feel blind — resolved: use **Backup Import Preview** to confirm add/replace impact before applying a **Merge Import**.
 - "Backup status" could imply cloud sync — resolved: **Backup Health** only tracks last successful local export metadata.
+- "Corrupt startup" could silently reset user data — resolved: use **Storage Recovery** with explicit Restore previous snapshot, Start empty, and Import Backup paths.
+- "Previous notes" could imply full history — resolved: a **Previous Snapshot** is one last-known-good active/Recently Deleted collection pair, not version history.
+- "Start empty" could destroy evidence of the corrupt payload — resolved: use **Corrupt Payload Quarantine** for diagnostics after the user chooses that path.
+- "Diagnostics" could become persistent app chrome — resolved: keep Product Metadata and storage diagnostics in a secondary **Diagnostics Surface**.

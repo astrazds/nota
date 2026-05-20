@@ -14,6 +14,7 @@ mod responsive_navigation;
 mod sample_notes;
 mod search_query;
 mod storage;
+mod storage_recovery;
 mod tag_rules;
 mod theme;
 mod ui_recipes;
@@ -40,9 +41,11 @@ use responsive_navigation::{
     ResponsiveNavigation, StoredNoteListState, ViewportClass, normalize_view_mode,
 };
 use storage::{
-    SaveStatus, load_backup_health_record, load_dark_mode, load_notes, load_recently_deleted_notes,
-    load_sidebar_open, save_backup_health_record,
+    SaveStatus, has_quarantined_corrupt_payloads, load_backup_health_record,
+    load_collection_startup, load_dark_mode, load_sidebar_open, quarantine_corrupt_payloads,
+    save_backup_health_record, save_note_collection,
 };
+use storage_recovery::{CollectionStartup, StorageRecoveryState};
 use tag_rules::{TagCleanupPlan, TagSuggestion, collect_note_tags, suggest_existing_tags};
 use theme::ThemeSurface;
 use uuid::Uuid;
@@ -111,6 +114,15 @@ impl AppState {
 
     pub fn workspace_display_state(self) -> WorkspaceDisplayState {
         self.workspace.get().display_state()
+    }
+
+    pub fn storage_recovery(self) -> Option<StorageRecoveryState> {
+        self.workspace.get().storage_recovery().cloned()
+    }
+
+    pub fn has_previous_snapshot(self) -> bool {
+        self.storage_recovery()
+            .is_some_and(|recovery| recovery.previous_snapshot.is_some())
     }
 
     pub fn note_list_projection(self) -> NoteListProjection {
@@ -305,6 +317,42 @@ impl AppState {
         }
     }
 
+    pub fn restore_previous_snapshot(self) {
+        let restored = self
+            .workspace
+            .try_update(NoteWorkspace::restore_previous_snapshot)
+            .unwrap_or(false);
+        if restored {
+            self.note_selected();
+            self.mark_notes_changed();
+            save_note_collection(
+                &self.notes_untracked(),
+                &self.recently_deleted_notes_untracked(),
+            );
+            self.show_notification("Previous snapshot restored", NotificationTone::Success);
+        }
+    }
+
+    pub fn start_empty_after_storage_recovery(self) {
+        if let Some(recovery) = self.storage_recovery() {
+            quarantine_corrupt_payloads(&recovery);
+        }
+
+        let started_empty = self
+            .workspace
+            .try_update(NoteWorkspace::start_empty_after_storage_recovery)
+            .unwrap_or(false);
+        if started_empty {
+            self.mark_notes_changed();
+            save_note_collection(&[], &[]);
+            self.show_notification("Started empty collection", NotificationTone::Success);
+        }
+    }
+
+    pub fn has_quarantined_corrupt_payloads(self) -> bool {
+        has_quarantined_corrupt_payloads()
+    }
+
     pub fn update_selected_title(self, title: String) {
         let updated = self
             .workspace
@@ -373,14 +421,14 @@ impl AppState {
 
     pub fn backup_health_summary(self) -> String {
         match self.backup_health() {
-            BackupHealth::Missing => "No backup exported".to_string(),
+            BackupHealth::Missing => "No backup yet. Export now".to_string(),
             BackupHealth::Recent {
                 last_successful_export_at,
             } => format!("Backed up {}", last_successful_export_at.format("%d/%m/%Y")),
             BackupHealth::Stale {
                 last_successful_export_at,
             } => format!(
-                "Backup stale {}",
+                "Backup stale {}. Export now",
                 last_successful_export_at.format("%d/%m/%Y")
             ),
         }
@@ -440,6 +488,10 @@ impl AppState {
                 ))
             })?;
         self.mark_notes_changed();
+        save_note_collection(
+            &self.notes_untracked(),
+            &self.recently_deleted_notes_untracked(),
+        );
         Ok(())
     }
 
@@ -520,13 +572,24 @@ fn main() {
 
 #[component]
 fn App() -> impl IntoView {
+    let collection_startup = load_collection_startup();
+    let (notes, recently_deleted_notes, storage_recovery) = match collection_startup {
+        CollectionStartup::Ready {
+            notes,
+            recently_deleted_notes,
+        } => (notes, recently_deleted_notes, None),
+        CollectionStartup::Recovery(storage_recovery) => {
+            (Vec::new(), Vec::new(), Some(storage_recovery))
+        }
+    };
     let state = AppState::from_startup(AppRuntimeStartup {
-        notes: load_notes(),
-        recently_deleted_notes: load_recently_deleted_notes(),
+        notes,
+        recently_deleted_notes,
         is_dark_mode: load_dark_mode(),
         viewport_class: current_viewport_class(),
         stored_note_list_state: StoredNoteListState::from_is_open(load_sidebar_open()),
         backup_health_record: load_backup_health_record(),
+        storage_recovery,
     });
     provide_context(state);
     install_viewport_listener(state);
@@ -627,6 +690,7 @@ mod tests {
                 viewport_class,
                 stored_note_list_state: StoredNoteListState::from_is_open(is_sidebar_open),
                 backup_health_record: None,
+                storage_recovery: None,
             });
 
             test(state)
@@ -646,6 +710,7 @@ mod tests {
                 viewport_class: ViewportClass::Wide,
                 stored_note_list_state: StoredNoteListState::Open,
                 backup_health_record: None,
+                storage_recovery: None,
             });
 
             test(state)
@@ -836,6 +901,25 @@ mod tests {
             assert_eq!(state.notes_untracked(), vec![imported_note.clone()]);
             assert_eq!(state.selected_id(), Some(imported_note.id));
             assert_eq!(state.notes_save_revision.get_untracked(), 1);
+        });
+    }
+
+    #[test]
+    fn backup_health_summary_makes_missing_and_stale_backups_actionable() {
+        with_test_state(Vec::new(), ViewportClass::Wide, true, |state| {
+            assert_eq!(state.backup_health_summary(), "No backup yet. Export now");
+
+            let stale_export_at = Utc::now() - chrono::Duration::days(15);
+            state.backup_health_record.set(Some(BackupHealthRecord {
+                last_successful_export_at: stale_export_at,
+            }));
+            assert_eq!(
+                state.backup_health_summary(),
+                format!(
+                    "Backup stale {}. Export now",
+                    stale_export_at.format("%d/%m/%Y")
+                )
+            );
         });
     }
 

@@ -1,6 +1,9 @@
 use crate::backup::BackupHealthRecord;
 use crate::model::Note;
 use crate::sample_notes::debug_starter_notes;
+#[cfg(target_arch = "wasm32")]
+use crate::storage_recovery::plan_collection_save_from_json;
+use crate::storage_recovery::{CollectionStartup, StorageRecoveryState, StoredCollectionPayload};
 use gloo_storage::errors::StorageError;
 use gloo_storage::{LocalStorage, Storage};
 use leptos::prelude::{RwSignal, Set, window};
@@ -13,6 +16,12 @@ use web_sys::console;
 
 const STORAGE_KEY: &str = "noter-notes";
 const RECENTLY_DELETED_STORAGE_KEY: &str = "noter-recently-deleted-notes";
+const PREVIOUS_STORAGE_KEY: &str = "noter-notes-previous";
+const PREVIOUS_RECENTLY_DELETED_STORAGE_KEY: &str = "noter-recently-deleted-notes-previous";
+#[cfg(target_arch = "wasm32")]
+const CORRUPT_STORAGE_KEY: &str = "noter-notes-corrupt-last";
+#[cfg(target_arch = "wasm32")]
+const CORRUPT_RECENTLY_DELETED_STORAGE_KEY: &str = "noter-recently-deleted-notes-corrupt-last";
 const BACKUP_HEALTH_KEY: &str = "noter-backup-health";
 const DARK_MODE_KEY: &str = "noter-dark-mode";
 const SIDEBAR_OPEN_KEY: &str = "noter-sidebar-open";
@@ -27,52 +36,57 @@ pub enum SaveStatus {
     Saved,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum StartupDecision {
-    MissingStorage,
-    DebugStarterNotes(Vec<Note>),
-    SavedEmptyCollection,
-    SavedCollection(Vec<Note>),
-    CorruptSavedData,
-}
-
-impl StartupDecision {
-    pub fn into_notes(self) -> Vec<Note> {
-        match self {
-            Self::MissingStorage | Self::SavedEmptyCollection | Self::CorruptSavedData => {
-                Vec::new()
-            }
-            Self::DebugStarterNotes(notes) | Self::SavedCollection(notes) => notes,
-        }
-    }
-}
-
 #[derive(Debug, Default, Clone)]
 pub struct SaveSession {
     timeout: SaveTimeout,
 }
 
 impl SaveSession {
-    pub fn schedule_notes_save(&self, notes_to_save: Vec<Note>, status: RwSignal<SaveStatus>) {
-        schedule_notes_save(&self.timeout, notes_to_save, status);
+    pub fn schedule_collection_save(
+        &self,
+        notes_to_save: Vec<Note>,
+        recently_deleted_notes_to_save: Vec<Note>,
+        status: RwSignal<SaveStatus>,
+    ) {
+        schedule_collection_save(
+            &self.timeout,
+            notes_to_save,
+            recently_deleted_notes_to_save,
+            status,
+        );
     }
 
-    pub fn flush_pending_save(&self, notes_to_save: Vec<Note>, status: RwSignal<SaveStatus>) {
-        flush_pending_save(&self.timeout, notes_to_save, status);
+    pub fn flush_pending_collection_save(
+        &self,
+        notes_to_save: Vec<Note>,
+        recently_deleted_notes_to_save: Vec<Note>,
+        status: RwSignal<SaveStatus>,
+    ) {
+        flush_pending_collection_save(
+            &self.timeout,
+            notes_to_save,
+            recently_deleted_notes_to_save,
+            status,
+        );
     }
 
     pub fn install_page_flush_listeners(
         &self,
-        notes: impl Fn() -> Vec<Note> + Clone + 'static,
+        collection: impl Fn() -> (Vec<Note>, Vec<Note>) + Clone + 'static,
         status: RwSignal<SaveStatus>,
     ) {
         if let Some(win) = web_sys::window()
             && let Some(doc) = win.document()
         {
             let session_for_visibility = self.clone();
-            let notes_for_visibility = notes.clone();
+            let collection_for_visibility = collection.clone();
             let visibility_listener = Closure::wrap(Box::new(move |_ev: web_sys::Event| {
-                session_for_visibility.flush_pending_save(notes_for_visibility(), status);
+                let (notes, recently_deleted_notes) = collection_for_visibility();
+                session_for_visibility.flush_pending_collection_save(
+                    notes,
+                    recently_deleted_notes,
+                    status,
+                );
             }) as Box<dyn FnMut(_)>);
             for event_name in DOCUMENT_PAGE_FLUSH_EVENTS {
                 let _ = doc.add_event_listener_with_callback(
@@ -82,9 +96,14 @@ impl SaveSession {
             }
 
             let session_for_unload = self.clone();
-            let notes_for_unload = notes.clone();
+            let collection_for_unload = collection.clone();
             let unload_listener = Closure::wrap(Box::new(move |_ev: web_sys::Event| {
-                session_for_unload.flush_pending_save(notes_for_unload(), status);
+                let (notes, recently_deleted_notes) = collection_for_unload();
+                session_for_unload.flush_pending_collection_save(
+                    notes,
+                    recently_deleted_notes,
+                    status,
+                );
             }) as Box<dyn FnMut(_)>);
             for event_name in WINDOW_PAGE_FLUSH_EVENTS {
                 let _ = win.add_event_listener_with_callback(
@@ -150,49 +169,31 @@ fn log_browser_storage_error(operation: &str, key: &str, error: &wasm_bindgen::J
     console::error_1(&message.into());
 }
 
-pub fn load_notes() -> Vec<Note> {
+pub fn load_collection_startup() -> CollectionStartup {
     let adapter = BrowserNotesStorage;
-    let decision =
-        decide_notes_startup(adapter.load_notes_json().as_deref(), debug_starter_notes());
+    let startup = crate::storage_recovery::decide_collection_startup(
+        StoredCollectionPayload {
+            notes_json: adapter.load_notes_json(),
+            recently_deleted_notes_json: adapter.load_recently_deleted_notes_json(),
+        },
+        StoredCollectionPayload {
+            notes_json: adapter.load_previous_notes_json(),
+            recently_deleted_notes_json: adapter.load_previous_recently_deleted_notes_json(),
+        },
+        debug_starter_notes(),
+    );
 
-    if matches!(decision, StartupDecision::CorruptSavedData) {
+    if matches!(startup, CollectionStartup::Recovery(_)) {
         let message = format!("Storage error (load {STORAGE_KEY}): corrupt saved Notes");
         console::error_1(&message.into());
     }
 
-    decision.into_notes()
-}
-
-pub fn load_recently_deleted_notes() -> Vec<Note> {
-    let adapter = BrowserNotesStorage;
-    decide_recently_deleted_startup(adapter.load_recently_deleted_notes_json().as_deref())
+    startup
 }
 
 pub fn load_backup_health_record() -> Option<BackupHealthRecord> {
     let adapter = BrowserNotesStorage;
     decide_backup_health_startup(adapter.load_backup_health_json().as_deref())
-}
-
-fn decide_notes_startup(saved_json: Option<&str>, starter_notes: Vec<Note>) -> StartupDecision {
-    let Some(saved_json) = saved_json else {
-        return if starter_notes.is_empty() {
-            StartupDecision::MissingStorage
-        } else {
-            StartupDecision::DebugStarterNotes(starter_notes)
-        };
-    };
-
-    match serde_json::from_str::<Vec<Note>>(saved_json) {
-        Ok(notes) if notes.is_empty() => StartupDecision::SavedEmptyCollection,
-        Ok(notes) => StartupDecision::SavedCollection(notes),
-        Err(_) => StartupDecision::CorruptSavedData,
-    }
-}
-
-fn decide_recently_deleted_startup(saved_json: Option<&str>) -> Vec<Note> {
-    saved_json
-        .and_then(|json| serde_json::from_str::<Vec<Note>>(json).ok())
-        .unwrap_or_default()
 }
 
 fn decide_backup_health_startup(saved_json: Option<&str>) -> Option<BackupHealthRecord> {
@@ -203,48 +204,51 @@ struct BrowserNotesStorage;
 
 impl BrowserNotesStorage {
     fn load_notes_json(&self) -> Option<String> {
+        self.load_json(STORAGE_KEY)
+    }
+
+    fn load_recently_deleted_notes_json(&self) -> Option<String> {
+        self.load_json(RECENTLY_DELETED_STORAGE_KEY)
+    }
+
+    fn load_previous_notes_json(&self) -> Option<String> {
+        self.load_json(PREVIOUS_STORAGE_KEY)
+    }
+
+    fn load_previous_recently_deleted_notes_json(&self) -> Option<String> {
+        self.load_json(PREVIOUS_RECENTLY_DELETED_STORAGE_KEY)
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn load_corrupt_notes_json(&self) -> Option<String> {
+        self.load_json(CORRUPT_STORAGE_KEY)
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn load_corrupt_recently_deleted_notes_json(&self) -> Option<String> {
+        self.load_json(CORRUPT_RECENTLY_DELETED_STORAGE_KEY)
+    }
+
+    fn load_json(&self, key: &str) -> Option<String> {
         web_sys::window()
             .and_then(|window| window.local_storage().ok().flatten())
-            .and_then(|storage| match storage.get_item(STORAGE_KEY) {
+            .and_then(|storage| match storage.get_item(key) {
                 Ok(value) => value,
                 Err(error) => {
-                    log_browser_storage_error("load", STORAGE_KEY, &error);
+                    log_browser_storage_error("load", key, &error);
                     None
                 }
             })
     }
 
-    fn save_notes(&self, notes: &[Note]) {
+    #[cfg(target_arch = "wasm32")]
+    fn save_note_collection(&self, notes: &[Note], recently_deleted_notes: &[Note]) {
         let Ok(notes_json) = serde_json::to_string(notes) else {
             let message = format!("Storage error (save {STORAGE_KEY}): could not serialise Notes");
             console::error_1(&message.into());
             return;
         };
-
-        if let Some(storage) =
-            web_sys::window().and_then(|window| window.local_storage().ok().flatten())
-            && let Err(error) = storage.set_item(STORAGE_KEY, &notes_json)
-        {
-            log_browser_storage_error("save", STORAGE_KEY, &error);
-        }
-    }
-
-    fn load_recently_deleted_notes_json(&self) -> Option<String> {
-        web_sys::window()
-            .and_then(|window| window.local_storage().ok().flatten())
-            .and_then(
-                |storage| match storage.get_item(RECENTLY_DELETED_STORAGE_KEY) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        log_browser_storage_error("load", RECENTLY_DELETED_STORAGE_KEY, &error);
-                        None
-                    }
-                },
-            )
-    }
-
-    fn save_recently_deleted_notes(&self, notes: &[Note]) {
-        let Ok(notes_json) = serde_json::to_string(notes) else {
+        let Ok(recently_deleted_notes_json) = serde_json::to_string(recently_deleted_notes) else {
             let message = format!(
                 "Storage error (save {RECENTLY_DELETED_STORAGE_KEY}): could not serialise Notes"
             );
@@ -252,12 +256,34 @@ impl BrowserNotesStorage {
             return;
         };
 
-        if let Some(storage) =
-            web_sys::window().and_then(|window| window.local_storage().ok().flatten())
-            && let Err(error) = storage.set_item(RECENTLY_DELETED_STORAGE_KEY, &notes_json)
-        {
-            log_browser_storage_error("save", RECENTLY_DELETED_STORAGE_KEY, &error);
+        let current = StoredCollectionPayload {
+            notes_json: self.load_notes_json(),
+            recently_deleted_notes_json: self.load_recently_deleted_notes_json(),
+        };
+        let Ok(plan) =
+            plan_collection_save_from_json(current, notes_json, recently_deleted_notes_json)
+        else {
+            let message = format!("Storage error (save {STORAGE_KEY}): invalid next Notes payload");
+            console::error_1(&message.into());
+            return;
+        };
+
+        if let Some(previous_notes_json) = plan.previous_notes_json {
+            self.save_raw(PREVIOUS_STORAGE_KEY, &previous_notes_json);
         }
+        if let Some(previous_recently_deleted_notes_json) =
+            plan.previous_recently_deleted_notes_json
+        {
+            self.save_raw(
+                PREVIOUS_RECENTLY_DELETED_STORAGE_KEY,
+                &previous_recently_deleted_notes_json,
+            );
+        }
+        self.save_raw(STORAGE_KEY, &plan.next_notes_json);
+        self.save_raw(
+            RECENTLY_DELETED_STORAGE_KEY,
+            &plan.next_recently_deleted_notes_json,
+        );
     }
 
     fn load_backup_health_json(&self) -> Option<String> {
@@ -270,6 +296,16 @@ impl BrowserNotesStorage {
                     None
                 }
             })
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn save_raw(&self, key: &str, value: &str) {
+        if let Some(storage) =
+            web_sys::window().and_then(|window| window.local_storage().ok().flatten())
+            && let Err(error) = storage.set_item(key, value)
+        {
+            log_browser_storage_error("save", key, &error);
+        }
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -297,12 +333,52 @@ impl BrowserNotesStorage {
     }
 }
 
-pub fn save_notes(notes: &[Note]) {
-    BrowserNotesStorage.save_notes(notes);
+pub fn save_note_collection(notes: &[Note], recently_deleted_notes: &[Note]) {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = notes;
+        let _ = recently_deleted_notes;
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    BrowserNotesStorage.save_note_collection(notes, recently_deleted_notes);
 }
 
-pub fn save_recently_deleted_notes(notes: &[Note]) {
-    BrowserNotesStorage.save_recently_deleted_notes(notes);
+pub fn quarantine_corrupt_payloads(recovery: &StorageRecoveryState) {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = recovery;
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        let adapter = BrowserNotesStorage;
+        if let Some(corrupt_notes_json) = &recovery.corrupt_notes_json {
+            adapter.save_raw(CORRUPT_STORAGE_KEY, corrupt_notes_json);
+        }
+        if let Some(corrupt_recently_deleted_notes_json) =
+            &recovery.corrupt_recently_deleted_notes_json
+        {
+            adapter.save_raw(
+                CORRUPT_RECENTLY_DELETED_STORAGE_KEY,
+                corrupt_recently_deleted_notes_json,
+            );
+        }
+    }
+}
+
+pub fn has_quarantined_corrupt_payloads() -> bool {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        false
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        let adapter = BrowserNotesStorage;
+        adapter.load_corrupt_notes_json().is_some()
+            || adapter.load_corrupt_recently_deleted_notes_json().is_some()
+    }
 }
 
 pub fn save_backup_health_record(record: BackupHealthRecord) {
@@ -313,9 +389,10 @@ pub fn save_backup_health_record(record: BackupHealthRecord) {
     BrowserNotesStorage.save_backup_health_record(record);
 }
 
-fn flush_pending_save(
+fn flush_pending_collection_save(
     timeout: &SaveTimeout,
     notes_to_save: Vec<Note>,
+    recently_deleted_notes_to_save: Vec<Note>,
     status: RwSignal<SaveStatus>,
 ) {
     let had_pending_save = if let Some((id, _)) = timeout.borrow_mut().take() {
@@ -324,7 +401,7 @@ fn flush_pending_save(
     } else {
         false
     };
-    save_notes(&notes_to_save);
+    save_note_collection(&notes_to_save, &recently_deleted_notes_to_save);
     let mut lifecycle = SaveLifecycle::default();
     if had_pending_save {
         lifecycle.note_changed();
@@ -336,9 +413,10 @@ fn flush_pending_save(
     );
 }
 
-fn schedule_notes_save(
+fn schedule_collection_save(
     timeout: &SaveTimeout,
     notes_to_save: Vec<Note>,
+    recently_deleted_notes_to_save: Vec<Note>,
     status: RwSignal<SaveStatus>,
 ) {
     let mut lifecycle = SaveLifecycle::default();
@@ -349,7 +427,7 @@ fn schedule_notes_save(
     }
 
     let closure = Closure::wrap(Box::new(move || {
-        save_notes(&notes_to_save);
+        save_note_collection(&notes_to_save, &recently_deleted_notes_to_save);
         let mut lifecycle = SaveLifecycle::default();
         lifecycle.note_changed();
         status.set(lifecycle.save_completed());
@@ -442,67 +520,6 @@ mod tests {
         assert_eq!(lifecycle.note_changed(), SaveStatus::Saving);
         assert_eq!(lifecycle.flush_pending(), Some(SaveStatus::Saved));
         assert_eq!(lifecycle.flush_pending(), None);
-    }
-
-    #[test]
-    fn startup_uses_saved_empty_collection_instead_of_starter_notes() {
-        let starter_note = Note::new("Starter".to_string(), "Only for first run".to_string());
-
-        let decision = decide_notes_startup(Some("[]"), vec![starter_note]);
-
-        assert_eq!(decision, StartupDecision::SavedEmptyCollection);
-        assert_eq!(decision.into_notes(), Vec::new());
-    }
-
-    #[test]
-    fn startup_distinguishes_missing_storage_from_debug_starter_notes() {
-        assert_eq!(
-            decide_notes_startup(None, Vec::new()),
-            StartupDecision::MissingStorage
-        );
-
-        let starter_note = Note::new("Starter".to_string(), "Debug first run".to_string());
-        assert_eq!(
-            decide_notes_startup(None, vec![starter_note.clone()]),
-            StartupDecision::DebugStarterNotes(vec![starter_note])
-        );
-    }
-
-    #[test]
-    fn startup_uses_saved_notes_when_storage_contains_a_collection() {
-        let saved_note = Note::new("Saved".to_string(), "Existing note".to_string());
-        let saved_json = serde_json::to_string(&vec![saved_note.clone()]).unwrap();
-        let starter_note = Note::new("Starter".to_string(), "Not used".to_string());
-
-        let decision = decide_notes_startup(Some(&saved_json), vec![starter_note]);
-
-        assert_eq!(decision, StartupDecision::SavedCollection(vec![saved_note]));
-    }
-
-    #[test]
-    fn startup_treats_corrupt_saved_data_as_distinct_from_first_run() {
-        let starter_note = Note::new("Starter".to_string(), "Not used".to_string());
-
-        let decision = decide_notes_startup(Some("{not valid json"), vec![starter_note]);
-
-        assert_eq!(decision, StartupDecision::CorruptSavedData);
-        assert_eq!(decision.into_notes(), Vec::new());
-    }
-
-    #[test]
-    fn recently_deleted_startup_uses_empty_collection_for_missing_or_corrupt_storage() {
-        let deleted_note = Note::new("Deleted".to_string(), "Recover me".to_string());
-        let saved_json = serde_json::to_string(&vec![deleted_note.clone()]).unwrap();
-
-        assert_eq!(decide_recently_deleted_startup(None), Vec::<Note>::new());
-        assert_eq!(
-            decide_recently_deleted_startup(Some(&saved_json)),
-            vec![deleted_note]
-        );
-        assert_eq!(
-            decide_recently_deleted_startup(Some("{not valid json")),
-            Vec::<Note>::new()
-        );
     }
 
     #[test]

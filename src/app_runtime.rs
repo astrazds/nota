@@ -8,9 +8,8 @@ use crate::responsive_navigation::{
     NoteListPersistence, ResponsiveNavigation, StoredNoteListState, ViewportClass,
     normalize_view_mode,
 };
-use crate::storage::{
-    SaveSession, SaveStatus, save_dark_mode, save_recently_deleted_notes, save_sidebar_open,
-};
+use crate::storage::{SaveSession, SaveStatus, save_dark_mode, save_sidebar_open};
+use crate::storage_recovery::StorageRecoveryState;
 use leptos::prelude::*;
 use std::cell::Cell;
 use std::rc::Rc;
@@ -23,6 +22,7 @@ pub struct AppRuntimeStartup {
     pub viewport_class: ViewportClass,
     pub stored_note_list_state: StoredNoteListState,
     pub backup_health_record: Option<BackupHealthRecord>,
+    pub storage_recovery: Option<StorageRecoveryState>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,10 +44,14 @@ impl AppState {
             ResponsiveNavigation::initial(startup.viewport_class, startup.stored_note_list_state);
 
         Self {
-            workspace: RwSignal::new(NoteWorkspace::new_with_recently_deleted(
-                startup.notes,
-                startup.recently_deleted_notes,
-            )),
+            workspace: RwSignal::new(if let Some(storage_recovery) = startup.storage_recovery {
+                NoteWorkspace::new_with_storage_recovery(storage_recovery)
+            } else {
+                NoteWorkspace::new_with_recently_deleted(
+                    startup.notes,
+                    startup.recently_deleted_notes,
+                )
+            }),
             notes_save_revision: RwSignal::new(0),
             is_dark_mode: RwSignal::new(startup.is_dark_mode),
             viewport_class: RwSignal::new(startup.viewport_class),
@@ -143,15 +147,17 @@ pub fn install_runtime_persistence(state: AppState) -> SaveSession {
         if is_initial_notes_effect.replace(false) {
             return;
         }
-        save_session_for_effect.schedule_notes_save(snapshot.notes, state.save_status);
-        save_recently_deleted_notes(&snapshot.recently_deleted_notes);
+        save_session_for_effect.schedule_collection_save(
+            snapshot.notes,
+            snapshot.recently_deleted_notes,
+            state.save_status,
+        );
     });
 
     save_session.install_page_flush_listeners(
         move || {
             let snapshot = state.persistence_snapshot();
-            save_recently_deleted_notes(&snapshot.recently_deleted_notes);
-            snapshot.notes
+            (snapshot.notes, snapshot.recently_deleted_notes)
         },
         state.save_status,
     );
@@ -186,6 +192,7 @@ mod tests {
                 viewport_class: ViewportClass::Compact,
                 stored_note_list_state: StoredNoteListState::Closed,
                 backup_health_record: Some(backup_health_record),
+                storage_recovery: None,
             });
 
             let snapshot = state.persistence_snapshot();
@@ -212,6 +219,7 @@ mod tests {
                 viewport_class: ViewportClass::Wide,
                 stored_note_list_state: StoredNoteListState::Closed,
                 backup_health_record: None,
+                storage_recovery: None,
             });
 
             state.set_editor_view_mode(EditorViewMode::Split);

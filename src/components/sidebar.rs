@@ -1,5 +1,6 @@
 use crate::AppState;
 use crate::backup_controls::SidebarBackupControls;
+use crate::components::Modal;
 use crate::note_discovery::NoteListItem;
 use crate::note_list_interaction::{NoteListDisplayState, SEARCH_DEBOUNCE_MS};
 use crate::theme::{ThemeAccent, ThemeState, ThemeSurface, ThemeText};
@@ -42,6 +43,22 @@ fn sidebar_title_classes() -> String {
     ui_recipes::app_title_text()
 }
 
+fn app_version_label() -> String {
+    format!("Noter {}", env!("CARGO_PKG_VERSION"))
+}
+
+fn storage_mode_label() -> &'static str {
+    "Local browser storage"
+}
+
+fn corrupt_payload_status(has_quarantined_payloads: bool) -> &'static str {
+    if has_quarantined_payloads {
+        "Corrupt payload quarantined"
+    } else {
+        "No corrupt payload quarantine"
+    }
+}
+
 fn recovery_action_button_classes() -> String {
     ui_recipes::recovery_action_button()
 }
@@ -75,6 +92,7 @@ pub fn Sidebar() -> impl IntoView {
     let state = use_context::<AppState>().expect("state not found");
 
     let add_note = move |_| state.create_note();
+    let show_diagnostics = RwSignal::new(false);
 
     let note_projection = Memo::new(move |_| state.note_list_projection());
     let note_result_status = Memo::new(move |_| {
@@ -84,6 +102,9 @@ pub fn Sidebar() -> impl IntoView {
     let filtered_empty_message = Memo::new(move |_| state.note_list_filtered_empty_message());
     let available_tags = Memo::new(move |_| state.available_tags());
     let recently_deleted_notes = Memo::new(move |_| state.recently_deleted_notes());
+    let diagnostics_backup_health = Memo::new(move |_| state.backup_health_summary());
+    let diagnostics_corrupt_payload_status =
+        Memo::new(move |_| corrupt_payload_status(state.has_quarantined_corrupt_payloads()));
 
     let search_input_value = RwSignal::new(state.note_search_input());
     let search_hint_open = RwSignal::new(false);
@@ -158,6 +179,16 @@ pub fn Sidebar() -> impl IntoView {
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                                </svg>
+                            </button>
+                            <button
+                                on:click=move |_| show_diagnostics.set(true)
+                                title="About Noter"
+                                class=move || format!("p-2 rounded-full {}", ThemeState::IconButton.classes())
+                                aria-label="About Noter"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 17h.01M12 13v-3m0 11a9 9 0 100-18 9 9 0 000 18z" />
                                 </svg>
                             </button>
                             <button
@@ -323,8 +354,79 @@ pub fn Sidebar() -> impl IntoView {
                     </Show>
                 </div>
                 <SidebarBackupControls />
+                <Show when=move || show_diagnostics.get()>
+                    <DiagnosticsModal
+                        show=show_diagnostics
+                        backup_health=diagnostics_backup_health
+                        corrupt_payload_status=diagnostics_corrupt_payload_status
+                    />
+                </Show>
             </Show>
         </div>
+    }
+}
+
+#[component]
+fn DiagnosticsModal(
+    show: RwSignal<bool>,
+    backup_health: Memo<String>,
+    corrupt_payload_status: Memo<&'static str>,
+) -> impl IntoView {
+    let dismiss = move || show.set(false);
+    let header = Box::new(move || {
+        view! {
+            <div>
+                <h2
+                    id="diagnostics-modal-title"
+                    class=move || format!("text-xl font-bold {}", ThemeText::Primary.classes())
+                >
+                    "About Noter"
+                </h2>
+                <p
+                    id="diagnostics-modal-description"
+                    class=move || format!("mt-2 text-sm {}", ThemeText::Muted.classes())
+                >
+                    {app_version_label()}
+                </p>
+            </div>
+        }
+        .into_any()
+    });
+    let footer = Box::new(move || {
+        view! {
+            <button
+                data-modal-cancel="true"
+                type="button"
+                on:click=move |_| dismiss()
+                class=move || format!("min-h-10 px-5 py-2 font-semibold rounded-md transition-colors {}", ThemeState::SecondaryButton.classes())
+            >
+                "Close"
+            </button>
+        }
+        .into_any()
+    });
+    let header_clone = header.clone();
+    let footer_clone = footer.clone();
+
+    view! {
+        <Modal
+            on_dismiss=dismiss
+            max_width_class="max-w-md"
+            header=header_clone.clone()
+            footer=footer_clone.clone()
+            labelledby="diagnostics-modal-title"
+            describedby="diagnostics-modal-description"
+            initial_focus_selector="[data-modal-cancel='true']"
+        >
+            <dl class="grid gap-4 p-6 text-sm sm:grid-cols-[max-content_1fr]">
+                <dt class=move || format!("font-medium {}", ThemeText::Muted.classes())>"Storage"</dt>
+                <dd class=move || ThemeText::Primary.classes()>{storage_mode_label()}</dd>
+                <dt class=move || format!("font-medium {}", ThemeText::Muted.classes())>"Backup Health"</dt>
+                <dd class=move || ThemeText::Primary.classes()>{move || backup_health.get()}</dd>
+                <dt class=move || format!("font-medium {}", ThemeText::Muted.classes())>"Recovery"</dt>
+                <dd class=move || ThemeText::Primary.classes()>{move || corrupt_payload_status.get()}</dd>
+            </dl>
+        </Modal>
     }
 }
 
@@ -484,10 +586,11 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
 #[cfg(test)]
 mod tests {
     use super::{
-        note_list_title_classes, recently_deleted_clear_all_button_classes,
-        recently_deleted_permanent_delete_label, search_input_classes, search_syntax_hint_classes,
-        search_syntax_hint_code_classes, should_show_clear_all_recently_deleted,
-        sidebar_state_class, sidebar_title_classes,
+        app_version_label, corrupt_payload_status, note_list_title_classes,
+        recently_deleted_clear_all_button_classes, recently_deleted_permanent_delete_label,
+        search_input_classes, search_syntax_hint_classes, search_syntax_hint_code_classes,
+        should_show_clear_all_recently_deleted, sidebar_state_class, sidebar_title_classes,
+        storage_mode_label,
     };
 
     #[test]
@@ -538,6 +641,17 @@ mod tests {
         assert!(title.contains("dark:text-white"));
         assert!(title.contains("text-xl"));
         assert!(title.contains("leading-[1.3]"));
+    }
+
+    #[test]
+    fn diagnostics_labels_expose_release_storage_and_quarantine_state() {
+        assert!(app_version_label().starts_with("Noter "));
+        assert_eq!(storage_mode_label(), "Local browser storage");
+        assert_eq!(corrupt_payload_status(true), "Corrupt payload quarantined");
+        assert_eq!(
+            corrupt_payload_status(false),
+            "No corrupt payload quarantine"
+        );
     }
 
     #[test]

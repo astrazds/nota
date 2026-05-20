@@ -195,7 +195,7 @@ pub(crate) fn SidebarBackupControls() -> impl IntoView {
     }
 }
 
-fn import_backup_from_input_event(
+pub(crate) fn import_backup_from_input_event(
     state: AppState,
     pending_backup_import: RwSignal<Option<PendingBackupImport>>,
     ev: web_sys::Event,
@@ -321,6 +321,7 @@ mod tests {
             viewport_class: ViewportClass::Wide,
             stored_note_list_state: StoredNoteListState::Open,
             backup_health_record: None,
+            storage_recovery: None,
         })
     }
 

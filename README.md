@@ -2,7 +2,7 @@
 
 A local-first Markdown note-taking web app built with **Rust**, **Leptos**, and **Tailwind CSS**.
 
-Current app version: **0.9.3**.
+Current app version: **1.0.0**.
 
 ## Features
 
@@ -21,10 +21,12 @@ Current app version: **0.9.3**.
   - **Scoped Search**: Optional syntax for quoted phrases, `title:`, `tag:`, and `is:pinned` filters, shown as a focus-time hint while keeping Search focused on Notes.
   - **Tags**: Lightweight Note Metadata with autocomplete, normalization, compact read-only Tag pills, preview visibility beneath the Note Title, and reviewed cleanup for secondary filtering without folders or notebooks.
   - **Pinning**: Pin important notes to the top of your list.
-- **Local Persistence**: Automatically persists notes to your browser's `LocalStorage` with debounced saves while typing.
+- **Local Persistence**: Automatically persists notes to your browser's `LocalStorage` with debounced saves while typing, preserving the previous valid active/Recently Deleted collection snapshot before each safe save.
 - **Quick Capture**: Create a new Note from the sidebar, empty state, or `Ctrl/Cmd+N`; compact viewports return directly to the Writing Surface with the Note Title focused.
 - **Recoverable Delete**: Deleted Notes move to Recently Deleted so accidental deletes can be restored, individually cleared, or cleared all at once after a count-specific confirmation.
-- **Backup & Restore**: Export a versioned Flat Collection backup, track the last successful export, and preview add/replace impact before safely merge-importing backups from compact sidebar footer controls.
+- **Storage Recovery**: If saved Notes or Recently Deleted payloads become corrupt, Noter starts in a recovery state with Restore previous snapshot, Start empty, and Import Backup paths before normal editing resumes.
+- **Backup & Restore**: Export a versioned Flat Collection backup, track the last successful export with actionable stale/missing Backup Health nudges, and preview add/replace impact before safely merge-importing backups from compact sidebar footer controls.
+- **Diagnostics**: About Noter exposes version, storage mode, Backup Health, and corrupt-payload quarantine state without adding persistent metadata to the main note workflow.
 - **Debug Starter Notes**: Debug builds seed three representative notes when the browser has no saved notes yet, giving manual testing coverage for pinning, tags, rich Markdown, preview safety, search, and responsive editing.
 - **Tuned Themes**: Supports Light and Dark themes with coherent surfaces, borders, selection states, and accents.
 - **Polished Sidebar Utilities**: Search has a clear affordance, Recently Deleted actions use explicit recovery/destructive copy, and Backup controls sit in a compact labelled footer row.
@@ -109,14 +111,15 @@ npm run test:browser
 Browser tests run through a single Playwright worker because Trunk/Tailwind emits load-bearing CSS for visual contracts during startup; serial browser coverage keeps the rendered UI checks deterministic.
 
 Tests cover core domain logic including:
-- **Backup & Restore**: Versioned Flat Collection backup export, validation, import preview, merge import, duplicate identity handling, backup health, and all-or-nothing failure behavior.
+- **Backup & Restore**: Versioned Flat Collection backup export, validation, import preview, merge import, duplicate identity handling, actionable backup health, and all-or-nothing failure behavior.
+- **Storage Recovery**: Startup corrupt-payload detection, previous snapshot restore, start-empty quarantine, and Backup import availability during recovery.
 - **Filtering & Sorting**: Real-time search, scoped query parsing, quoted phrase matching, title/Tag highlighting, compact body Match Snippets, render-ready note list projection, active Search/Tag result status, filtered-empty explanations, active tag filtering, and note pinning logic.
 - **Browser Visual Regressions**: Playwright coverage verifies Light/Dark Theme readability, Search Hint contrast and placement, selected Note state, emitted Tailwind/style contracts, local Source font loading, editor/sidebar footer height parity, compact footer controls, compact desktop Tag chips, labelled desktop actions, mobile touch targets, startup notification quietness, Preview/Split Note Title consistency, Note Metadata ordering, dark Preview/Split prose, Write/Preview/Split pane alignment, Backup Controls placement, and floating Global Notification layering.
 - **Browser Workflow Regressions**: Playwright coverage exercises Quick Capture, Note Title editing, Note creation/edit/save, scoped Search, pinning, Tags, Formatting Tools, Preview safety, Backup export/import, Responsive Navigation, Markdown syntax help, recoverable delete/restore, and Clear All.
 - **Formatting**: Named Markdown commands and UTF-16/UTF-8-safe selection handling.
 - **Note Logic**: Workspace behaviours for quick capture, note creation, selected note editing, recoverable delete/restore/individual clear/count-confirmed Clear All, delete confirmation, title extraction, date formatting, preview truncation, and deserialisation.
 - **Tags**: Parsing, display formatting, autocomplete suggestions, normalization, individual removal, cleanup planning, case-insensitive matching, collection, and sorting.
-- **Persistence**: Save lifecycle and save session behaviour for debounced LocalStorage saves, Recently Deleted storage, and Backup Health metadata.
+- **Persistence**: Save lifecycle and save session behaviour for debounced LocalStorage saves, previous snapshot preservation, corrupt-payload recovery, Recently Deleted storage, and Backup Health metadata.
 - **Starter Notes**: Debug-only sample notes cover pinning, tags, rich Markdown, preview safety, long previews, and responsive editing checks.
 - **Preview Rendering & Safety**: Title/body separation, duplicate heading suppression, raw HTML escaping, safe URL policy, and supported Markdown preview dialect on the same body-rendering path used by the app.
 - **Unicode Support**: Proper handling of multi-byte characters in character counting, preview truncation, formatting, and search highlighting.
@@ -130,12 +133,13 @@ The app keeps high-leverage behaviour behind focused Rust Modules:
 - `tag_rules`: tag parsing, display formatting, collection, sorting, and case-insensitive matching.
 - `backup`: versioned Flat Collection backup export/import, import preview, backup health assessment, validation, and merge behavior.
 - `backup_controls`: sidebar Backup Controls, browser download/FileReader adapters, pending import preview state, and Backup Global Notification outcomes.
+- `storage_recovery`: collection startup classification, previous snapshot restore payloads, and safe save planning for active Notes plus Recently Deleted Notes.
 - `search_query`: scoped Search parsing and Note matching for quoted phrases, `title:`, `tag:`, and `is:pinned`.
 - `note_workspace`: selected note lookup, empty collection display state, note creation, selected note editing, recoverable delete/restore/individual clear/count-confirmed Clear All, delete confirmation target naming, and pinning behaviours.
 - `note_discovery`: the primary Note List projection Interface for Search integration, active Tag filtering, selected Note visibility, ordering, display fields, render keys, and highlight segments.
 - `app_runtime`: startup construction, runtime persistence orchestration, save snapshots, Theme/sidebar persistence, page flush wiring, and viewport reclassification.
 - `editor_view`: explicit Write, Preview, and Split view modes with viewport-aware behaviour.
-- `storage`: debounced save session, save lifecycle, active Notes persistence, Recently Deleted persistence, Backup Health metadata, and page lifecycle flushing.
+- `storage`: debounced save session, save lifecycle, active Notes persistence, Recently Deleted persistence, previous snapshot persistence, corrupt-payload quarantine, Backup Health metadata, and page lifecycle flushing.
 - `ui_recipes`: load-bearing visual recipes for shared footer rhythm, compact controls, typography roles, pane measure, Search, Search Hint, Tag pills, selected Note rows, recovery controls, and Backup Controls while keeping `theme` semantic.
 - `writing_surface`: render-ready Writing Surface model, Preview Note Title/Note Metadata/body ordering, hidden-by-filter messaging, and formatting command application behind a selection-safe Interface.
 - `markdown_editing`: named Markdown commands, cheatsheet sections, and Unicode-safe caret handling.

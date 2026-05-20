@@ -171,6 +171,7 @@ Noter is flat by default. Depth is conveyed mostly through tonal layering, borde
 - **Primary:** Warm Capture Yellow fill with high-contrast text, compact padding, and semibold label weight.
 - **Hover / Focus:** Yellow darkens on hover; focus uses a 2px Warm Capture Yellow ring with offset.
 - **Secondary / Danger:** Secondary buttons use paper-gray fills. Danger buttons use Recovery Red only for destructive confirmation.
+- **Icon Buttons:** Sidebar utility icons use shared theme-aware neutral foregrounds plus matching hover foreground/background states in Light and Dark Themes. Do not rely on inherited text color for standalone icons.
 
 ### Chips
 - **Style:** Rounded pills (9999px radius), soft neutral fill, muted text, compact 2px by 8px padding.

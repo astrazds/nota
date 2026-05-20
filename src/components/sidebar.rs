@@ -43,6 +43,10 @@ fn sidebar_title_classes() -> String {
     ui_recipes::app_title_text()
 }
 
+fn diagnostics_button_classes() -> String {
+    format!("p-2 rounded-full {}", ThemeState::IconButton.classes())
+}
+
 fn app_version_label() -> String {
     format!("Noter {}", env!("CARGO_PKG_VERSION"))
 }
@@ -184,7 +188,7 @@ pub fn Sidebar() -> impl IntoView {
                             <button
                                 on:click=move |_| show_diagnostics.set(true)
                                 title="About Noter"
-                                class=move || format!("p-2 rounded-full {}", ThemeState::IconButton.classes())
+                                class=diagnostics_button_classes
                                 aria-label="About Noter"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
@@ -586,11 +590,11 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
 #[cfg(test)]
 mod tests {
     use super::{
-        app_version_label, corrupt_payload_status, note_list_title_classes,
-        recently_deleted_clear_all_button_classes, recently_deleted_permanent_delete_label,
-        search_input_classes, search_syntax_hint_classes, search_syntax_hint_code_classes,
-        should_show_clear_all_recently_deleted, sidebar_state_class, sidebar_title_classes,
-        storage_mode_label,
+        app_version_label, corrupt_payload_status, diagnostics_button_classes,
+        note_list_title_classes, recently_deleted_clear_all_button_classes,
+        recently_deleted_permanent_delete_label, search_input_classes, search_syntax_hint_classes,
+        search_syntax_hint_code_classes, should_show_clear_all_recently_deleted,
+        sidebar_state_class, sidebar_title_classes, storage_mode_label,
     };
 
     #[test]
@@ -652,6 +656,19 @@ mod tests {
             corrupt_payload_status(false),
             "No corrupt payload quarantine"
         );
+    }
+
+    #[test]
+    fn diagnostics_button_icon_matches_theme_aware_sidebar_icon_controls() {
+        let button = diagnostics_button_classes();
+
+        assert!(button.contains("rounded-full"));
+        assert!(button.contains("text-gray-500"));
+        assert!(button.contains("hover:text-gray-700"));
+        assert!(button.contains("dark:text-gray-400"));
+        assert!(button.contains("dark:hover:text-gray-200"));
+        assert!(button.contains("hover:bg-apple-gray-200"));
+        assert!(button.contains("dark:hover:bg-white/5"));
     }
 
     #[test]

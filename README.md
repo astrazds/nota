@@ -2,12 +2,12 @@
 
 A local-first Markdown note-taking web app built with **Rust**, **Leptos**, and **Tailwind CSS**.
 
-Current app version: **1.0.0**.
+Current app version: **1.0.1**.
 
 ## Features
 
-- **Local-First Note Identity**: Quiet note-app structure with a scannable sidebar, calm writing surface, and warm accents.
-- **Documented Design System**: `PRODUCT.md`, `DESIGN.md`, and `.impeccable/design.json` capture the product register, typography, palette, component rules, and visual anti-patterns used by agents and contributors.
+- **Local-First Note Identity**: Quiet note-app structure with a scannable Frame A sidebar, calm writing surface, compact editor footer, warm selected Note state, and paper-neutral popup models.
+- **Documented Design System**: `PRODUCT.md`, `DESIGN.md`, `docs/brand-toolkit.md`, and `.impeccable/design.json` capture the product register, brand direction, typography, palette, component rules, and visual anti-patterns used by agents and contributors.
 - **Self-Hosted Typography**: Source Sans 3 carries the product UI, while Source Code Pro is reserved for Markdown/source editing. Fonts are bundled locally through Trunk and Tailwind, with no remote font provider.
 - **Markdown Support**: Markdown writing with explicit Write, Preview, and desktop Split view modes in a stable editor-area footer that matches the sidebar footer height and compact control rhythm.
   - Supports CommonMark plus tables, footnotes, strikethrough, and task lists.
@@ -34,14 +34,14 @@ Current app version: **1.0.0**.
 - **First-Run Flow**: Empty collections show a direct path to create the first note and focus the note title.
 - **Enhanced Editing**:
   - Matched Writing Surface and Preview body text scale for lower visual friction.
-  - Preview prose uses the same readable body scale in Light, Dark, full Preview, and Split modes.
-  - Tag chips stay compact near the Note header, defer removal to the Edit tags flow, preserve mobile touch targets, and switch to a single edit input only when editing.
+  - Preview prose uses the same readable body scale in Light, Dark, full Preview, and Split modes, with tinted dark-theme prose rather than pure white.
+  - Tag chips stay compact near the Note header, defer removal to the Edit tags flow, preserve 44px mobile touch targets where they become controls, and switch to a single edit input only when editing.
   - Contextual formatting tools (Bold, Italic, Strikethrough, Task List, Insert Table) inside the Writing Surface after Note Metadata.
-  - Markdown syntax modal
+  - Markdown syntax modal uses the shared paper-neutral popup model with dialog semantics on the popup panel.
   - Floating global notification outlet for save, Backup, and import feedback above app chrome
 - **Stable Note Actions**: Pin/unpin and delete are available from a note action menu instead of hover-only controls.
 - **Delete Confirmation**: Modal confirmation uses the "Move to Recently Deleted?" frame, names the target Note, and defaults keyboard focus to Cancel before recoverable or permanent removal.
-- **Accessibility**: ARIA labels on interactive elements.
+- **Accessibility**: ARIA labels on interactive elements, panel-owned dialog semantics for popups, and mobile touch-target coverage for compact editor controls.
 
 ## Technology Stack
 
@@ -114,7 +114,7 @@ Tests cover core domain logic including:
 - **Backup & Restore**: Versioned Flat Collection backup export, validation, import preview, merge import, duplicate identity handling, actionable backup health, and all-or-nothing failure behavior.
 - **Storage Recovery**: Startup corrupt-payload detection, previous snapshot restore, start-empty quarantine, and Backup import availability during recovery.
 - **Filtering & Sorting**: Real-time search, scoped query parsing, quoted phrase matching, title/Tag highlighting, compact body Match Snippets, render-ready note list projection, active Search/Tag result status, filtered-empty explanations, active tag filtering, and note pinning logic.
-- **Browser Visual Regressions**: Playwright coverage verifies Light/Dark Theme readability, Search Hint contrast and placement, selected Note state, emitted Tailwind/style contracts, local Source font loading, editor/sidebar footer height parity, compact footer controls, compact desktop Tag chips, labelled desktop actions, mobile touch targets, startup notification quietness, Preview/Split Note Title consistency, Note Metadata ordering, dark Preview/Split prose, Write/Preview/Split pane alignment, Backup Controls placement, and floating Global Notification layering.
+- **Browser Visual Regressions**: Playwright coverage verifies Light/Dark Theme readability, Search Hint contrast and placement, selected Note state, emitted Tailwind/style contracts, local Source font loading, Frame A material surfaces, editor/sidebar footer height parity, compact footer controls, compact desktop Tag chips, labelled desktop actions, 44px mobile touch targets, popup panel dialog semantics, startup notification quietness, Preview/Split Note Title consistency, Note Metadata ordering, dark Preview/Split prose, Write/Preview/Split pane alignment, Backup Controls placement, and floating Global Notification layering.
 - **Browser Workflow Regressions**: Playwright coverage exercises Quick Capture, Note Title editing, Note creation/edit/save, scoped Search, pinning, Tags, Formatting Tools, Preview safety, Backup export/import, Responsive Navigation, Markdown syntax help, recoverable delete/restore, and Clear All.
 - **Formatting**: Named Markdown commands and UTF-16/UTF-8-safe selection handling.
 - **Note Logic**: Workspace behaviours for quick capture, note creation, selected note editing, recoverable delete/restore/individual clear/count-confirmed Clear All, delete confirmation, title extraction, date formatting, preview truncation, and deserialisation.
@@ -150,6 +150,7 @@ The app keeps high-leverage behaviour behind focused Rust Modules:
 - `CONTEXT.md` captures the product language used by agents and contributors.
 - `PRODUCT.md` captures the product register, users, purpose, brand personality, anti-references, design principles, and accessibility expectations.
 - `DESIGN.md` captures the Local Notebook visual system, including palette, typography, elevation, component rules, and do/don't guidance.
+- `docs/brand-toolkit.md` captures Noter's brand promise, voice, logo/mark direction, external surface guidance, and brand checks.
 - `.impeccable/design.json` mirrors the reusable design tokens and component examples used for UI review.
 - `docs/adr/` records accepted design and architecture decisions.
 

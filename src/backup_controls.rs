@@ -1,4 +1,4 @@
-use crate::backup::{BackupImportPreview, backup_file_name};
+use crate::backup::{BackupHealth, BackupImportPreview, backup_file_name};
 use crate::{AppState, NotificationTone, theme, ui_recipes};
 use chrono::{DateTime, Utc};
 use leptos::prelude::*;
@@ -125,14 +125,20 @@ pub(crate) fn SidebarBackupControls() -> impl IntoView {
     let cancel_backup_import = move |_| {
         cancel_pending_backup_import(state, pending_backup_import);
     };
+    let backup_status_label = move || match state.backup_health() {
+        BackupHealth::Missing => "No backup yet".to_string(),
+        BackupHealth::Recent { .. } => "Up to date".to_string(),
+        BackupHealth::Stale { .. } => "Backup stale".to_string(),
+    };
 
     view! {
         <div class="contents">
             <div class=ui_recipes::sidebar_footer>
-                <div class="min-w-0 flex-1 leading-4">
+                <div class="min-w-0 flex-1 leading-4" title=move || state.backup_health_summary()>
                     <div class=ui_recipes::backup_footer_label>"Backup"</div>
                     <div class=ui_recipes::backup_footer_summary>
-                        {move || format!("{} notes. {}", state.note_count(), state.backup_health_summary())}
+                        <span class=ui_recipes::backup_footer_status_dot aria-hidden="true"></span>
+                        <span class="truncate">{move || backup_status_label()}</span>
                     </div>
                 </div>
                 <div class="ml-auto flex flex-none items-center justify-end gap-1.5">

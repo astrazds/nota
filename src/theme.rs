@@ -73,27 +73,25 @@ pub enum ThemeSurface {
 impl ThemeSurface {
     pub fn classes(self) -> &'static str {
         match self {
-            Self::RootApp => {
-                "bg-white text-gray-900 dark:bg-apple-dark-bg dark:text-white transition-colors duration-300"
-            }
+            Self::RootApp => "transition-colors duration-300",
             Self::Sidebar => {
-                "bg-apple-gray-100 border-apple-gray-300 dark:bg-apple-dark-sidebar dark:border-apple-dark-border"
+                "bg-apple-notebook-sidebar border-apple-notebook-borderStrong dark:bg-apple-notebook-darkSidebar dark:border-apple-notebook-darkBorder"
             }
             Self::EditorChrome => {
-                "bg-white border-apple-gray-200 dark:bg-apple-dark-bg dark:border-apple-dark-border transition-colors"
+                "bg-apple-notebook-surface border-apple-notebook-border dark:bg-apple-notebook-darkSurface dark:border-apple-notebook-darkBorder transition-colors"
             }
-            Self::WritingSurface => "bg-white dark:bg-apple-dark-bg",
+            Self::WritingSurface => "bg-apple-notebook-surface dark:bg-apple-notebook-darkSurface",
             Self::Preview => {
-                "bg-white text-gray-900 prose-yellow dark:bg-apple-dark-bg dark:text-white dark:prose-invert"
+                "bg-apple-notebook-surface text-apple-notebook-graphite prose-yellow dark:bg-apple-notebook-darkSurface dark:text-apple-notebook-frame dark:prose-invert"
             }
             Self::SplitPreview => {
-                "bg-apple-gray-100 text-gray-900 prose-yellow border-apple-gray-300 dark:bg-apple-dark-sidebar dark:text-white dark:prose-invert dark:border-apple-dark-border"
+                "bg-apple-notebook-frame text-apple-notebook-graphite prose-yellow border-apple-notebook-border dark:bg-apple-notebook-darkSidebar dark:text-apple-notebook-frame dark:prose-invert dark:border-apple-notebook-darkBorder"
             }
             Self::ModalPanel => {
-                "bg-white border-apple-gray-200 dark:bg-apple-dark-sidebar dark:border-apple-dark-border"
+                "bg-apple-notebook-surface border-apple-notebook-border dark:bg-apple-notebook-darkSidebar dark:border-apple-notebook-darkBorder"
             }
             Self::ModalChrome => {
-                "bg-apple-gray-100 border-apple-gray-200 dark:bg-white/5 dark:border-apple-dark-border"
+                "bg-apple-notebook-sidebar border-apple-notebook-border dark:bg-white/5 dark:border-apple-notebook-darkBorder"
             }
         }
     }
@@ -110,10 +108,10 @@ pub enum ThemeText {
 impl ThemeText {
     pub fn classes(self) -> &'static str {
         match self {
-            Self::Primary => "text-gray-900 dark:text-white",
-            Self::Muted => "text-gray-500 dark:text-gray-400",
+            Self::Primary => "text-apple-notebook-graphite dark:text-apple-notebook-frame",
+            Self::Muted => "text-apple-notebook-muted dark:text-gray-400",
             Self::Subtle => "text-gray-400 dark:text-gray-500",
-            Self::Placeholder => "placeholder:text-gray-300 dark:placeholder:text-gray-600",
+            Self::Placeholder => "placeholder:text-gray-400 dark:placeholder:text-gray-600",
         }
     }
 }
@@ -130,12 +128,14 @@ pub enum ThemeAccent {
 impl ThemeAccent {
     pub fn classes(self) -> &'static str {
         match self {
-            Self::PrimaryText => "text-apple-yellow hover:text-yellow-600",
+            Self::PrimaryText => {
+                "text-amber-700 hover:text-amber-800 dark:text-apple-notebook-amber dark:hover:text-amber-300"
+            }
             Self::PrimaryFill => "bg-apple-yellow text-white hover:bg-yellow-600",
-            Self::Selection => "selection:bg-apple-yellow/30",
-            Self::Highlight => "bg-apple-yellow/30",
+            Self::Selection => "selection:bg-apple-notebook-selected",
+            Self::Highlight => "bg-apple-notebook-selected",
             Self::Focus => {
-                "focus:outline-none focus:ring-2 focus:ring-apple-yellow focus:ring-offset-2 dark:focus:ring-offset-apple-dark-bg"
+                "focus:outline-none focus:ring-2 focus:ring-apple-notebook-amber focus:ring-offset-2 dark:focus:ring-offset-apple-notebook-darkSurface"
             }
         }
     }
@@ -143,7 +143,6 @@ impl ThemeAccent {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ThemeState {
-    IconButton,
     SidebarToggle,
     SegmentedIdle,
     SegmentedActive,
@@ -165,42 +164,39 @@ pub enum ThemeState {
 impl ThemeState {
     pub fn classes(self) -> &'static str {
         match self {
-            Self::IconButton => {
-                "text-gray-500 hover:text-gray-700 hover:bg-apple-gray-200 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-white/5 transition-colors"
-            }
             Self::SidebarToggle => {
                 "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
             }
             Self::SegmentedIdle => {
-                "border bg-white border-gray-200 text-gray-500 hover:border-gray-300 dark:bg-white/5 dark:border-apple-dark-border dark:text-gray-400 dark:hover:border-gray-500"
+                "border bg-apple-notebook-surface border-apple-notebook-border text-apple-notebook-muted hover:border-apple-notebook-borderStrong dark:bg-white/5 dark:border-apple-notebook-darkBorder dark:text-gray-400 dark:hover:border-gray-500"
             }
             Self::SegmentedActive => {
-                "border bg-apple-yellow/10 border-apple-yellow text-apple-yellow"
+                "border bg-apple-notebook-selected border-apple-notebook-amberBorder text-amber-800 dark:bg-apple-notebook-amber/20 dark:border-apple-notebook-amber dark:text-apple-notebook-amber"
             }
             Self::ToolbarButton => {
-                "hover:bg-apple-gray-200 dark:hover:bg-white/5 text-gray-600 dark:text-gray-400"
+                "hover:bg-apple-notebook-border dark:hover:bg-white/5 text-apple-notebook-muted dark:text-gray-400"
             }
             Self::NoteRowIdle => {
-                "border-apple-gray-200 dark:border-apple-dark-border hover:bg-apple-gray-200 dark:hover:bg-white/5"
+                "border-apple-notebook-border dark:border-apple-notebook-darkBorder hover:bg-apple-notebook-border dark:hover:bg-white/5"
             }
             Self::NoteRowSelected => {
-                "border-apple-yellow bg-apple-yellow/10 ring-1 ring-apple-yellow/25 dark:border-apple-yellow dark:bg-apple-yellow/20 dark:ring-apple-yellow/25"
+                "border-apple-notebook-amberBorder bg-apple-notebook-selected ring-1 ring-apple-notebook-amber/30 dark:border-apple-notebook-amber dark:bg-apple-notebook-amber/25 dark:ring-apple-notebook-amber/25"
             }
             Self::NoteActionMenu => {
-                "border-apple-gray-200 bg-white dark:border-apple-dark-border dark:bg-apple-dark-sidebar"
+                "border-apple-notebook-border bg-apple-notebook-surface dark:border-apple-notebook-darkBorder dark:bg-apple-notebook-darkSidebar"
             }
             Self::NoteActionButton => {
-                "text-gray-400 hover:text-gray-700 hover:bg-apple-gray-300/70 dark:hover:text-gray-200 dark:hover:bg-white/10"
+                "text-gray-400 hover:text-apple-notebook-graphite hover:bg-apple-notebook-border dark:hover:text-gray-200 dark:hover:bg-white/10"
             }
             Self::NoteMenuItem => {
-                "text-gray-700 hover:bg-apple-gray-200 dark:text-gray-200 dark:hover:bg-white/10"
+                "text-apple-notebook-graphite hover:bg-apple-notebook-border dark:text-gray-200 dark:hover:bg-white/10"
             }
             Self::TagPill => {
-                "bg-apple-gray-200/70 text-gray-500 hover:bg-apple-gray-300/70 dark:bg-white/10 dark:text-gray-400 dark:hover:bg-white/20"
+                "bg-apple-notebook-border text-apple-notebook-muted hover:bg-apple-notebook-borderStrong dark:bg-white/10 dark:text-gray-400 dark:hover:bg-white/20"
             }
-            Self::FilterPill => "bg-apple-yellow text-white",
+            Self::FilterPill => "bg-apple-notebook-amber text-apple-notebook-graphite",
             Self::SecondaryButton => {
-                "bg-gray-200 text-gray-700 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 dark:bg-white/10 dark:text-gray-300 dark:hover:bg-white/20"
+                "bg-apple-notebook-border text-apple-notebook-graphite hover:bg-apple-notebook-borderStrong focus:outline-none focus:ring-2 focus:ring-apple-notebook-amber dark:bg-white/10 dark:text-gray-300 dark:hover:bg-white/20"
             }
             Self::DangerButton => {
                 "bg-red-500 text-white hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400"
@@ -263,7 +259,6 @@ mod tests {
             ThemeAccent::Selection.classes(),
             ThemeAccent::Highlight.classes(),
             ThemeAccent::Focus.classes(),
-            ThemeState::IconButton.classes(),
             ThemeState::SidebarToggle.classes(),
             ThemeState::SegmentedIdle.classes(),
             ThemeState::SegmentedActive.classes(),
@@ -342,18 +337,18 @@ mod tests {
         let split_preview = ThemeSurface::SplitPreview.classes();
         let selected_row = ThemeState::NoteRowSelected.classes();
 
-        assert!(preview.contains("text-gray-900"));
-        assert!(preview.contains("dark:text-white"));
+        assert!(preview.contains("text-apple-notebook-graphite"));
+        assert!(preview.contains("dark:text-apple-notebook-frame"));
         assert!(preview.contains("dark:prose-invert"));
 
-        assert!(split_preview.contains("bg-apple-gray-100"));
-        assert!(split_preview.contains("text-gray-900"));
-        assert!(split_preview.contains("dark:bg-apple-dark-sidebar"));
-        assert!(split_preview.contains("dark:text-white"));
+        assert!(split_preview.contains("bg-apple-notebook-frame"));
+        assert!(split_preview.contains("text-apple-notebook-graphite"));
+        assert!(split_preview.contains("dark:bg-apple-notebook-darkSidebar"));
+        assert!(split_preview.contains("dark:text-apple-notebook-frame"));
         assert!(split_preview.contains("dark:prose-invert"));
 
-        assert!(selected_row.contains("bg-apple-yellow/10"));
+        assert!(selected_row.contains("bg-apple-notebook-selected"));
         assert!(selected_row.contains("ring-1"));
-        assert!(selected_row.contains("dark:bg-apple-yellow/20"));
+        assert!(selected_row.contains("dark:bg-apple-notebook-amber/25"));
     }
 }

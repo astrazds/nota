@@ -37,6 +37,18 @@ pub fn Editor() -> impl IntoView {
     let is_editing_tags = RwSignal::new(false);
 
     let selected_note = Memo::new(move |_| state.selected_note());
+    let footer_metrics = Memo::new(move |_| {
+        selected_note
+            .get()
+            .map(|note| {
+                (
+                    note_line_count(&note.content),
+                    note.word_count(),
+                    note.character_count(),
+                )
+            })
+            .unwrap_or_default()
+    });
     let workspace_display_state = Memo::new(move |_| state.workspace_display_state());
     let selected_note_is_hidden_by_filter =
         Memo::new(move |_| state.selected_note_is_hidden_by_filter());
@@ -198,7 +210,13 @@ pub fn Editor() -> impl IntoView {
     };
 
     view! {
-        <div class="flex-1 flex flex-col h-full overflow-hidden relative transition-colors duration-300">
+        <div
+            data-testid="editor-frame"
+            class=move || format!(
+                "min-w-0 flex-1 flex flex-col h-full overflow-hidden relative rounded-lg border shadow-sm transition-colors duration-300 lg:rounded-l-none {}",
+                ThemeSurface::EditorChrome.classes()
+            )
+        >
             <CheatsheetModal show=show_cheatsheet />
 
             <div class="pointer-events-none absolute left-3 top-3 z-20 lg:hidden">
@@ -324,33 +342,35 @@ pub fn Editor() -> impl IntoView {
                                     </Show>
                                     <div class=note_header_classes>
                                         <div class=note_header_stack_classes>
-                                            <textarea
-                                                node_ref=title_input_ref
-                                                rows="1"
-                                                class=move || note_title_textarea_classes(is_split_view.get())
-                                                placeholder="Note Title"
-                                                prop:value=move || writing_model.get().map(|note| note.title).unwrap_or_default()
-                                                on:input=on_input_title
-                                            ></textarea>
-                                            <Show when=move || is_editing_tags.get() || writing_model.get().is_none_or(|note| note.tags.is_empty())>
-                                                <input
-                                                    node_ref=tags_input_ref
-                                                    type="text"
-                                                    class=tag_input_classes
-                                                    placeholder="Add tags"
-                                                    prop:value=move || tags_input_value.get()
-                                                    on:focus=move |_| is_editing_tags.set(true)
-                                                    on:input=on_input_tags
-                                                    on:keydown=on_tags_keydown
-                                                    on:blur=move |_| {
-                                                        is_editing_tags.set(false);
-                                                        commit_tags_input();
-                                                    }
-                                                />
-                                            </Show>
-                                            <Show when=move || !is_editing_tags.get() && writing_model.get().is_some_and(|note| !note.tags.is_empty())>
-                                                <EditableTagList selected_note=selected_note on_edit=start_editing_tags />
-                                            </Show>
+                                            <div class=note_title_row_classes>
+                                                <textarea
+                                                    node_ref=title_input_ref
+                                                    rows="1"
+                                                    class=move || note_title_textarea_classes(is_split_view.get())
+                                                    placeholder="Note Title"
+                                                    prop:value=move || writing_model.get().map(|note| note.title).unwrap_or_default()
+                                                    on:input=on_input_title
+                                                ></textarea>
+                                                <Show when=move || is_editing_tags.get() || writing_model.get().is_none_or(|note| note.tags.is_empty())>
+                                                    <input
+                                                        node_ref=tags_input_ref
+                                                        type="text"
+                                                        class=tag_input_classes
+                                                        placeholder="Add tags"
+                                                        prop:value=move || tags_input_value.get()
+                                                        on:focus=move |_| is_editing_tags.set(true)
+                                                        on:input=on_input_tags
+                                                        on:keydown=on_tags_keydown
+                                                        on:blur=move |_| {
+                                                            is_editing_tags.set(false);
+                                                            commit_tags_input();
+                                                        }
+                                                    />
+                                                </Show>
+                                                <Show when=move || !is_editing_tags.get() && writing_model.get().is_some_and(|note| !note.tags.is_empty())>
+                                                    <EditableTagList selected_note=selected_note on_edit=start_editing_tags />
+                                                </Show>
+                                            </div>
                                             <Show when=move || !tag_suggestions.get().is_empty()>
                                                 <div class=move || format!("max-w-xl overflow-hidden rounded-md border shadow-sm {}", ThemeSurface::EditorChrome.classes())>
                                                     {move || {
@@ -502,51 +522,77 @@ pub fn Editor() -> impl IntoView {
             </div>
 
             <div class=editor_area_footer_classes>
-                <div class=editor_view_controls_classes>
+                <div class=editor_footer_stats_classes>
+                    <span>{move || format!("Lines {}", footer_metrics.get().0)}</span>
+                    <span>{move || format!("Words {}", footer_metrics.get().1)}</span>
+                    <span>{move || format!("Characters {}", footer_metrics.get().2)}</span>
+                </div>
+                <div class=editor_footer_mode_group_classes>
+                    <span class=editor_footer_mode_label_classes>"Mode"</span>
+                    <div class=editor_view_controls_classes>
+                        <button
+                            on:click=move |_| state.set_editor_view_mode(EditorViewMode::Write)
+                            title="Write"
+                            aria-label="Write mode"
+                            aria-pressed=move || state.editor_view_mode.get() == EditorViewMode::Write
+                            class=move || editor_view_button_classes(
+                                state.editor_view_mode.get() == EditorViewMode::Write,
+                                false,
+                            )
+                        >
+                            "Write"
+                        </button>
+                        <button
+                            on:click=move |_| state.set_editor_view_mode(EditorViewMode::Preview)
+                            title="Preview"
+                            aria-label="Preview mode"
+                            aria-pressed=move || state.editor_view_mode.get() == EditorViewMode::Preview
+                            class=move || editor_view_button_classes(
+                                state.editor_view_mode.get() == EditorViewMode::Preview,
+                                false,
+                            )
+                        >
+                            "Preview"
+                        </button>
+                        <button
+                            on:click=move |_| state.set_editor_view_mode(EditorViewMode::Split)
+                            title="Split"
+                            aria-label="Split mode"
+                            aria-pressed=move || state.editor_view_mode.get() == EditorViewMode::Split
+                            class=move || editor_view_button_classes(
+                                state.editor_view_mode.get() == EditorViewMode::Split,
+                                true,
+                            )
+                        >
+                            "Split"
+                        </button>
+                        <button
+                            on:click=move |_| show_cheatsheet.set(true)
+                            title="Markdown Help"
+                            aria-label="Show markdown cheatsheet"
+                            class=markdown_help_button_classes
+                        >
+                            <span class="md:hidden">"?"</span>
+                            <span class="hidden md:inline">"Help"</span>
+                        </button>
+                    </div>
+                </div>
+                <div class=editor_footer_meta_classes>
+                    <span>"1:1"</span>
                     <button
-                        on:click=move |_| state.set_editor_view_mode(EditorViewMode::Write)
-                        title="Write"
-                        aria-label="Write mode"
-                        aria-pressed=move || state.editor_view_mode.get() == EditorViewMode::Write
-                        class=move || editor_view_button_classes(
-                            state.editor_view_mode.get() == EditorViewMode::Write,
-                            false,
-                        )
+                        type="button"
+                        title="Focus editor"
+                        aria-label="Focus editor"
+                        class=footer_focus_button_classes
+                        on:click=move |_| {
+                            if let Some(textarea) = content_area_ref.get() {
+                                let _ = textarea.focus();
+                            }
+                        }
                     >
-                        "Write"
-                    </button>
-                    <button
-                        on:click=move |_| state.set_editor_view_mode(EditorViewMode::Preview)
-                        title="Preview"
-                        aria-label="Preview mode"
-                        aria-pressed=move || state.editor_view_mode.get() == EditorViewMode::Preview
-                        class=move || editor_view_button_classes(
-                            state.editor_view_mode.get() == EditorViewMode::Preview,
-                            false,
-                        )
-                    >
-                        "Preview"
-                    </button>
-                    <button
-                        on:click=move |_| state.set_editor_view_mode(EditorViewMode::Split)
-                        title="Split"
-                        aria-label="Split mode"
-                        aria-pressed=move || state.editor_view_mode.get() == EditorViewMode::Split
-                        class=move || editor_view_button_classes(
-                            state.editor_view_mode.get() == EditorViewMode::Split,
-                            true,
-                        )
-                    >
-                        "Split"
-                    </button>
-                    <button
-                        on:click=move |_| show_cheatsheet.set(true)
-                        title="Markdown Help"
-                        aria-label="Show markdown cheatsheet"
-                        class=markdown_help_button_classes
-                    >
-                        <span class="md:hidden">"?"</span>
-                        <span class="hidden md:inline">"Help"</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 3h6v6m0-6l-7 7M9 21H3v-6m0 6l7-7" />
+                        </svg>
                     </button>
                 </div>
             </div>
@@ -647,9 +693,37 @@ fn editor_view_controls_classes() -> &'static str {
     ui_recipes::compact_controls()
 }
 
+fn editor_footer_stats_classes() -> String {
+    ui_recipes::editor_footer_stats()
+}
+
+fn editor_footer_mode_group_classes() -> &'static str {
+    ui_recipes::editor_footer_mode_group()
+}
+
+fn editor_footer_mode_label_classes() -> String {
+    ui_recipes::editor_footer_mode_label()
+}
+
+fn editor_footer_meta_classes() -> String {
+    ui_recipes::editor_footer_meta()
+}
+
+fn footer_focus_button_classes() -> String {
+    ui_recipes::compact_icon_button()
+}
+
+fn note_line_count(content: &str) -> usize {
+    if content.is_empty() {
+        0
+    } else {
+        content.lines().count()
+    }
+}
+
 fn formatting_tools_classes() -> String {
     format!(
-        "border-y border-apple-gray-200 py-1.5 dark:border-apple-dark-border {} {}",
+        "border-y border-apple-notebook-border py-1.5 dark:border-apple-notebook-darkBorder {} {}",
         ui_recipes::pane_inline_inset(),
         ThemeSurface::EditorChrome.classes()
     )
@@ -661,7 +735,7 @@ fn formatting_tools_row_classes() -> String {
 
 fn formatting_tool_button_classes() -> String {
     format!(
-        "inline-flex h-9 min-w-[2.25rem] items-center justify-center rounded-md px-2.5 py-2 md:h-auto md:min-w-0 md:p-1.5 {}",
+        "inline-flex h-9 min-w-[2.25rem] items-center justify-center rounded-md px-2.5 py-2 md:h-6 md:min-w-0 md:p-1 {}",
         ThemeState::ToolbarButton.classes()
     )
 }
@@ -678,16 +752,20 @@ fn hidden_filter_notice_classes() -> String {
 }
 
 fn note_header_classes() -> &'static str {
-    "border-b border-transparent pb-3 pl-20 pr-6 pt-7 md:px-8 md:pt-8"
+    "border-b border-transparent pb-2 pl-20 pr-6 pt-4 md:px-8 md:pt-5"
 }
 
 fn note_header_stack_classes() -> String {
-    format!("space-y-3 {}", ui_recipes::note_measure())
+    format!("space-y-2 {}", ui_recipes::note_measure())
+}
+
+fn note_title_row_classes() -> &'static str {
+    "flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:gap-5"
 }
 
 fn note_title_textarea_classes(_is_split: bool) -> String {
     format!(
-        "w-full min-w-0 resize-none overflow-hidden break-words whitespace-pre-wrap [field-sizing:content] {} focus:outline-none bg-transparent {} {}",
+        "w-full min-w-0 resize-none overflow-hidden break-words whitespace-pre-wrap [field-sizing:content] sm:w-auto sm:max-w-[28rem] {} focus:outline-none bg-transparent {} {}",
         ui_recipes::note_title_text(),
         ThemeText::Primary.classes(),
         ThemeText::Placeholder.classes()
@@ -700,21 +778,21 @@ fn preview_title_classes() -> String {
 
 fn tag_input_classes() -> String {
     format!(
-        "w-full max-w-xl px-0 py-1 text-sm focus:outline-none bg-transparent placeholder-gray-400 dark:placeholder-gray-600 {}",
+        "h-7 w-full min-w-0 max-w-xs bg-transparent px-0 py-1 text-xs focus:outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600 sm:mt-0.5 {}",
         ThemeText::Muted.classes()
     )
 }
 
 fn edit_tags_button_classes() -> String {
     format!(
-        "inline-flex h-9 items-center rounded-md px-3 text-xs md:h-auto md:px-2 md:py-0.5 {}",
+        "inline-flex h-11 items-center rounded-md px-3 text-xs md:h-auto md:px-2 md:py-0.5 {}",
         ThemeState::SegmentedIdle.classes()
     )
 }
 
 fn editor_body_frame_classes() -> String {
     format!(
-        "flex-1 min-h-0 pb-8 pt-3 {}",
+        "flex-1 min-h-0 pb-8 pt-4 {}",
         ui_recipes::pane_inline_inset()
     )
 }
@@ -842,29 +920,50 @@ mod tests {
         let help = markdown_help_button_classes();
 
         assert!(footer.contains("h-[45px]"));
-        assert!(footer.contains("px-3"));
+        assert!(footer.contains("px-4"));
         assert!(footer.contains("py-1.5"));
         assert!(footer.contains("text-[11px]"));
         assert!(footer.contains("leading-4"));
         assert!(footer.contains("border-t"));
-        assert!(footer.contains("border-apple-gray-300"));
-        assert!(footer.contains("justify-center"));
+        assert!(footer.contains("border-apple-notebook-border"));
+        assert!(footer.contains("justify-between"));
         assert!(controls.contains("flex"));
-        assert!(controls.contains("gap-x-2"));
-        assert!(controls.contains("gap-y-1"));
+        assert!(controls.contains("gap-x-1"));
+        assert!(!controls.contains("gap-y-1"));
         assert!(sidebar.contains("h-11"));
         assert!(sidebar.contains("w-11"));
         assert!(sidebar.contains("lg:hidden"));
         assert!(write.contains("inline-flex"));
         for classes in [&write, &preview, &help] {
-            assert!(classes.contains("h-9"));
-            assert!(classes.contains("md:px-1.5"));
-            assert!(classes.contains("md:py-0.5"));
+            assert!(classes.contains("h-11"));
+            assert!(classes.contains("md:h-6"));
+            assert!(classes.contains("md:px-2"));
+            assert!(classes.contains("md:py-0"));
             assert!(classes.contains("md:text-[11px]"));
         }
-        assert!(write.contains("min-w-[2.25rem]"));
-        assert!(preview.contains("min-w-[2.25rem]"));
-        assert!(help.contains("w-9"));
+        assert!(write.contains("min-w-[2.75rem]"));
+        assert!(preview.contains("min-w-[2.75rem]"));
+        assert!(help.contains("w-11"));
+    }
+
+    #[test]
+    fn editor_footer_matches_the_notebook_status_bar_structure() {
+        let stats = editor_footer_stats_classes();
+        let mode_group = editor_footer_mode_group_classes();
+        let mode_label = editor_footer_mode_label_classes();
+        let meta = editor_footer_meta_classes();
+        let focus = footer_focus_button_classes();
+
+        assert!(stats.contains("sm:flex"));
+        assert!(stats.contains("gap-4"));
+        assert!(mode_group.contains("justify-center"));
+        assert!(mode_label.contains("sm:inline"));
+        assert!(meta.contains("justify-end"));
+        assert!(focus.contains("h-6"));
+        assert!(focus.contains("w-6"));
+        assert_eq!(note_line_count(""), 0);
+        assert_eq!(note_line_count("One"), 1);
+        assert_eq!(note_line_count("One\nTwo\nThree"), 3);
     }
 
     #[test]
@@ -893,7 +992,7 @@ mod tests {
         assert!(button.contains("rounded"));
         assert!(button.contains("h-9"));
         assert!(button.contains("min-w-[2.25rem]"));
-        assert!(button.contains("md:p-1.5"));
+        assert!(button.contains("md:p-1"));
     }
 
     #[test]
@@ -901,14 +1000,18 @@ mod tests {
         let notice = hidden_filter_notice_classes();
         let header = note_header_classes();
         let header_stack = note_header_stack_classes();
+        let header_row = note_title_row_classes();
 
         assert!(notice.contains("max-w-[72ch]"));
         assert!(notice.contains("mx-6"));
         assert!(notice.contains("md:mx-8"));
         assert!(header.contains("pl-20"));
         assert!(header.contains("md:px-8"));
-        assert!(header_stack.contains("space-y-3"));
+        assert!(header.contains("pt-4"));
+        assert!(header_stack.contains("space-y-2"));
         assert!(header_stack.contains("max-w-[72ch]"));
+        assert!(header_row.contains("sm:flex-row"));
+        assert!(header_row.contains("sm:gap-5"));
     }
 
     #[test]
@@ -930,12 +1033,12 @@ mod tests {
         let split = note_title_textarea_classes(true);
         let preview = preview_title_classes();
 
-        assert!(single.contains("text-2xl"));
-        assert!(single.contains("md:text-3xl"));
-        assert!(split.contains("text-2xl"));
-        assert!(split.contains("md:text-3xl"));
-        assert!(preview.contains("text-2xl"));
-        assert!(preview.contains("md:text-3xl"));
+        assert!(single.contains("text-xl"));
+        assert!(single.contains("md:text-2xl"));
+        assert!(split.contains("text-xl"));
+        assert!(split.contains("md:text-2xl"));
+        assert!(preview.contains("text-xl"));
+        assert!(preview.contains("md:text-2xl"));
         assert!(preview.contains("mb-4"));
     }
 
@@ -943,7 +1046,7 @@ mod tests {
     fn edit_tags_button_keeps_mobile_touch_target_and_desktop_density() {
         let button = edit_tags_button_classes();
 
-        assert!(button.contains("h-9"));
+        assert!(button.contains("h-11"));
         assert!(button.contains("md:h-auto"));
         assert!(button.contains("md:px-2"));
         assert!(button.contains("md:py-0.5"));
@@ -955,13 +1058,13 @@ mod tests {
         let preview_pane = preview_pane_classes(false);
         let preview_content = preview_content_classes();
 
-        assert!(editor_body.contains("text-base"));
+        assert!(editor_body.contains("text-sm"));
         assert!(editor_body.contains("max-w-[72ch]"));
-        assert!(!editor_body.contains("md:text-lg"));
+        assert!(!editor_body.contains("text-base"));
         assert!(!preview_pane.contains("prose-base"));
         assert!(preview_pane.contains("md:px-8"));
-        assert!(preview_pane.contains("md:pt-8"));
-        assert!(preview_content.contains("prose-base"));
+        assert!(preview_pane.contains("md:pt-5"));
+        assert!(preview_content.contains("prose-sm"));
         assert!(preview_content.contains("max-w-[72ch]"));
         assert!(!preview_content.contains("mx-auto"));
     }
@@ -973,8 +1076,8 @@ mod tests {
 
         assert!(split_preview.contains("shadow-inner"));
         assert!(split_preview.contains("md:px-8"));
-        assert!(split_preview.contains("md:pt-8"));
-        assert!(preview_content.contains("prose-base"));
+        assert!(split_preview.contains("md:pt-5"));
+        assert!(preview_content.contains("prose-sm"));
         assert!(preview_content.contains("max-w-[72ch]"));
         assert!(!preview_content.contains("mx-auto"));
     }

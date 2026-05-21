@@ -14,11 +14,27 @@ module.exports = {
       colors: {
         apple: {
           yellow: '#FFB340',
+          notebook: {
+            amber: '#E7A858',
+            amberBorder: '#DBA756',
+            selected: '#F2E0BE',
+            frame: '#F7F5F1',
+            surface: '#FDFCF9',
+            sidebar: '#F0EDE6',
+            border: '#E6E2DA',
+            borderStrong: '#D8D1C5',
+            graphite: '#25221F',
+            muted: '#6E685F',
+            darkFrame: '#151311',
+            darkSurface: '#25221F',
+            darkSidebar: '#211F1C',
+            darkBorder: '#3A3733',
+          },
           dark: {
             bg: '#1C1C1E',
             sidebar: '#2C2C2E',
             border: '#3A3A3C',
-            text: '#FFFFFF',
+            text: '#F7F5F1',
           },
           gray: {
             100: '#F5F5F7',
@@ -50,9 +66,9 @@ module.exports = {
         invert: {
           css: {
             '--tw-prose-body': theme('colors.gray.300'),
-            '--tw-prose-headings': theme('colors.white'),
-            '--tw-prose-links': theme('colors.white'),
-            '--tw-prose-bold': theme('colors.white'),
+            '--tw-prose-headings': theme('colors.apple.notebook.frame'),
+            '--tw-prose-links': theme('colors.apple.notebook.frame'),
+            '--tw-prose-bold': theme('colors.apple.notebook.frame'),
             '--tw-prose-counters': theme('colors.gray.500'),
             '--tw-prose-bullets': theme('colors.gray.500'),
             '--tw-prose-hr': theme('colors.gray.700'),

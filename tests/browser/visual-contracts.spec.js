@@ -61,8 +61,10 @@ test("Tailwind build emits the critical utility classes used by visual recipes",
 
   expect(css).toContain(".h-\\[45px\\]");
   expect(css).toContain(".min-w-\\[2\\.25rem\\]");
-  expect(css).toContain(".bg-apple-yellow\\/10");
-  expect(css).toContain(".dark\\:bg-apple-yellow\\/20");
+  expect(css).toContain(".bg-apple-notebook-selected");
+  expect(css).toContain(".dark\\:bg-apple-notebook-amber\\/25");
+  expect(css).toContain(".border-apple-notebook-border");
+  expect(css).toContain(".dark\\:border-apple-notebook-darkBorder");
   expect(css).toContain("Source Sans 3 Variable");
   expect(css).toContain("Source Code Pro Variable");
   expect(css).toContain("fonts/source-sans-3/source-sans-3-latin-wght-normal.woff2");
@@ -131,6 +133,13 @@ test("Markdown syntax modal keeps dense reference content accessible", async ({ 
   await page.getByRole("button", { name: "Show markdown cheatsheet" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("heading", { name: "Markdown syntax" })).toBeVisible();
+  const dialogBox = await dialog.evaluate((element) =>
+    element.getBoundingClientRect().toJSON(),
+  );
+  expect(dialogBox.width).toBeLessThan(page.viewportSize().width);
+  expect(dialogBox.height).toBeLessThan(page.viewportSize().height);
+  expect(dialogBox.left).toBeGreaterThan(0);
+  await expect(dialog.locator("xpath=parent::*")).not.toHaveAttribute("role", "dialog");
 
   const closeBox = await dialog
     .getByRole("button", { name: "Close markdown syntax" })
@@ -181,8 +190,8 @@ test("Light and Dark Theme keep core visual contracts readable", async ({ page }
   const searchHint = page.getByText("Syntax").locator("..");
   await expect(searchHint).toBeVisible();
   const lightHint = await visibleContrast(searchHint);
-  expect(lightHint.color).toBe("rgb(17, 24, 39)");
-  expect(lightHint.backgroundColor).toBe("rgb(255, 255, 255)");
+  expect(lightHint.color).toBe("rgb(37, 34, 31)");
+  expect(lightHint.backgroundColor).toBe("rgb(253, 252, 249)");
 
   const selectedRow = navigation
     .getByText("Architecture note", { exact: true })
@@ -194,7 +203,7 @@ test("Light and Dark Theme keep core visual contracts readable", async ({ page }
   await page.getByRole("button", { name: "Switch to dark mode" }).click();
   await page.getByPlaceholder("Search").focus();
   const darkHint = await visibleContrast(searchHint);
-  expect(darkHint.color).toBe("rgb(255, 255, 255)");
+  expect(darkHint.color).toBe("rgb(247, 245, 241)");
   expect(darkHint.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
 
   for (const mode of ["Preview", "Split"]) {
@@ -209,9 +218,95 @@ test("Light and Dark Theme keep core visual contracts readable", async ({ page }
     });
 
     expect(previewColors.paneBackground).not.toBe("rgb(255, 255, 255)");
-    expect(previewColors.title).toBe("rgb(255, 255, 255)");
+    expect(previewColors.title).toBe("rgb(247, 245, 241)");
     expect(previewColors.body).toBe("rgb(209, 213, 219)");
   }
+});
+
+test("main app frame uses the Quiet Notebook material system", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await seedNotes(page);
+
+  const frame = page.locator('[data-testid="app-frame"]');
+  const navigation = page.getByRole("navigation", { name: "Notes sidebar" });
+  const editorPane = page.locator('[data-testid="editor-frame"]').first();
+  const title = page.getByPlaceholder("Note Title");
+  const selectedRow = navigation
+    .getByText("Architecture note", { exact: true })
+    .locator("xpath=ancestor::div[contains(@class, 'group')][1]");
+
+  const lightFrame = await frame.evaluate((element) => {
+    const styles = getComputedStyle(element);
+    return {
+      backgroundColor: styles.backgroundColor,
+      paddingTop: styles.paddingTop,
+      paddingRight: styles.paddingRight,
+    };
+  });
+  expect(lightFrame.backgroundColor).toBe("rgb(247, 245, 241)");
+  expect(lightFrame.paddingTop).toBe("12px");
+  expect(lightFrame.paddingRight).toBe("12px");
+
+  const lightSurfaces = await Promise.all([
+    navigation.evaluate((element) => {
+      const styles = getComputedStyle(element);
+      return {
+        backgroundColor: styles.backgroundColor,
+        borderColor: styles.borderRightColor,
+      };
+    }),
+    editorPane.evaluate((element) => {
+      const styles = getComputedStyle(element);
+      return {
+        backgroundColor: styles.backgroundColor,
+        borderColor: styles.borderColor,
+      };
+    }),
+    title.evaluate((element) => {
+      const styles = getComputedStyle(element);
+      return {
+        backgroundColor: styles.backgroundColor,
+        color: styles.color,
+      };
+    }),
+    selectedRow.evaluate((element) => {
+      const styles = getComputedStyle(element);
+      return {
+        backgroundColor: styles.backgroundColor,
+        borderColor: styles.borderColor,
+      };
+    }),
+  ]);
+
+  expect(lightSurfaces[0]).toEqual({
+    backgroundColor: "rgb(240, 237, 230)",
+    borderColor: "rgb(216, 209, 197)",
+  });
+  expect(lightSurfaces[1]).toEqual({
+    backgroundColor: "rgb(253, 252, 249)",
+    borderColor: "rgb(230, 226, 218)",
+  });
+  expect(lightSurfaces[2].backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(lightSurfaces[2].color).toBe("rgb(37, 34, 31)");
+  expect(lightSurfaces[3].backgroundColor).toBe("rgb(242, 224, 190)");
+  expect(lightSurfaces[3].borderColor).toBe("rgb(219, 167, 86)");
+
+  await seedNotes(page, { dark: true });
+
+  const darkFrame = await frame.evaluate((element) => getComputedStyle(element).backgroundColor);
+  const darkEditor = await editorPane.evaluate((element) => {
+    const styles = getComputedStyle(element);
+    return {
+      backgroundColor: styles.backgroundColor,
+      borderColor: styles.borderColor,
+    };
+  });
+
+  expect(darkFrame).toBe("rgb(21, 19, 17)");
+  expect(darkEditor).toEqual({
+    backgroundColor: "rgb(37, 34, 31)",
+    borderColor: "rgb(58, 55, 51)",
+  });
 });
 
 test("Quick Capture keeps a new Note title editable instead of resetting to display fallback", async ({ page }) => {
@@ -232,7 +327,10 @@ test("Quick Capture keeps a new Note title editable instead of resetting to disp
   await title.fill("");
   await expect(title).toHaveValue("");
   await expect(
-    page.getByRole("navigation", { name: "Notes sidebar" }).getByText("New Note"),
+    page
+      .getByRole("navigation", { name: "Notes sidebar" })
+      .locator("h3")
+      .getByText("New Note", { exact: true }),
   ).toBeVisible();
 });
 
@@ -252,6 +350,11 @@ test("Preview, Split, footers, Backup Controls, and notifications keep their lay
   ]);
   expect(footerHeights[0]).toBe(45);
   expect(footerHeights[1]).toBe(45);
+  await expect(editorFooter.getByText(/^Lines \d+$/)).toBeVisible();
+  await expect(editorFooter.getByText(/^Words \d+$/)).toBeVisible();
+  await expect(editorFooter.getByText(/^Characters \d+$/)).toBeVisible();
+  await expect(editorFooter.getByText("Mode")).toBeVisible();
+  await expect(editorFooter.getByText("1:1")).toBeVisible();
 
   const writeTitleScale = await page
     .getByPlaceholder("Note Title")
@@ -348,7 +451,7 @@ test("mobile editor chrome avoids title collisions and keeps touch controls reac
 
   for (const target of mobileTouchTargets) {
     const box = await target.evaluate((element) => element.getBoundingClientRect().toJSON());
-    expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(36);
+    expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(44);
   }
 
   const body = page.getByPlaceholder("Start typing...");
@@ -369,7 +472,7 @@ test("desktop Writing Surface keeps a readable editing measure inside the wide w
 
   const body = page.getByPlaceholder("Start typing...");
   const measure = await body.evaluate((element) => {
-    const title = document.querySelector('textarea[placeholder="Note Title"]').closest(".space-y-3");
+    const title = document.querySelector('textarea[placeholder="Note Title"]').closest(".space-y-2");
     const toolbar = Array.from(document.querySelectorAll("div")).find(
       (candidate) =>
         candidate.className.includes("max-w-[72ch]") &&

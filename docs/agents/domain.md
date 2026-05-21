@@ -5,7 +5,8 @@ How the engineering skills should consume this repo's domain documentation when 
 ## Before exploring, read these
 
 - **`CONTEXT.md`** at the repo root.
-- **`docs/adr/`** — read ADRs that touch the area you're about to work in.
+- **`docs/brand-toolkit.md`** when the work touches brand, screenshots, README copy, release notes, landing pages, logo/mark direction, or external presentation.
+- **`docs/adr/`**: read ADRs that touch the area you're about to work in.
 
 If any of these files don't exist, proceed silently. The producer skill (`/grill-with-docs`) creates them lazily when terms or decisions actually get resolved.
 
@@ -16,6 +17,7 @@ This is a single-context repo:
 ```text
 /
 ├── CONTEXT.md
+├── docs/brand-toolkit.md
 ├── docs/adr/
 └── src/
 ```

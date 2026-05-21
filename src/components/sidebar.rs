@@ -12,12 +12,12 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 use web_sys::window;
 
-const SIDEBAR_BASE_CLASS: &str = "fixed inset-y-0 left-0 z-30 transform transition-all duration-300 ease-in-out lg:relative lg:translate-x-0 flex flex-col h-full border-r";
+const SIDEBAR_BASE_CLASS: &str = "fixed inset-y-0 left-0 z-30 transform transition-all duration-300 ease-in-out lg:relative lg:translate-x-0 flex flex-col h-full border-r shadow-sm lg:rounded-l-lg lg:overflow-hidden";
 type TimeoutState = Rc<RefCell<Option<(i32, Closure<dyn FnMut()>)>>>;
 
 fn sidebar_state_class(is_open: bool) -> &'static str {
     if is_open {
-        "translate-x-0 w-full max-w-full lg:w-80"
+        "translate-x-0 w-full max-w-full lg:w-72"
     } else {
         "-translate-x-full w-0 overflow-hidden"
     }
@@ -44,7 +44,25 @@ fn sidebar_title_classes() -> String {
 }
 
 fn diagnostics_button_classes() -> String {
-    format!("p-2 rounded-full {}", ThemeState::IconButton.classes())
+    sidebar_command_button_classes()
+}
+
+fn sidebar_command_button_classes() -> String {
+    format!(
+        "inline-flex h-7 w-full items-center gap-2 rounded-md px-2 text-xs font-medium transition-colors {}",
+        ThemeState::NoteMenuItem.classes()
+    )
+}
+
+fn sidebar_command_shortcut_classes() -> &'static str {
+    "ml-auto rounded border border-apple-notebook-borderStrong bg-apple-notebook-surface px-1.5 py-0.5 text-[10px] leading-none text-apple-notebook-muted dark:border-apple-notebook-darkBorder dark:bg-white/5 dark:text-gray-400"
+}
+
+fn note_list_section_header_classes() -> String {
+    format!(
+        "flex items-center justify-between px-4 pb-1.5 pt-3 text-[11px] font-semibold leading-4 {}",
+        ThemeText::Muted.classes()
+    )
 }
 
 fn app_version_label() -> String {
@@ -99,6 +117,10 @@ pub fn Sidebar() -> impl IntoView {
     let show_diagnostics = RwSignal::new(false);
 
     let note_projection = Memo::new(move |_| state.note_list_projection());
+    let note_count_label = Memo::new(move |_| {
+        let row_count = note_projection.get().rows.len();
+        format!("{row_count}")
+    });
     let note_result_status = Memo::new(move |_| {
         let projection = note_projection.get();
         state.note_list_result_status(&projection)
@@ -111,6 +133,7 @@ pub fn Sidebar() -> impl IntoView {
         Memo::new(move |_| corrupt_payload_status(state.has_quarantined_corrupt_payloads()));
 
     let search_input_value = RwSignal::new(state.note_search_input());
+    let search_input_ref = NodeRef::<leptos::html::Input>::new();
     let search_hint_open = RwSignal::new(false);
     let debounce_timeout: TimeoutState = Rc::new(RefCell::new(None));
     let clear_search = move |_| {
@@ -157,22 +180,10 @@ pub fn Sidebar() -> impl IntoView {
             aria-label="Notes sidebar"
         >
             <Show when=move || state.is_sidebar_open.get()>
-                <div class="p-4 space-y-4 sticky top-0 z-10">
+                <div class="sticky top-0 z-10 space-y-2.5 border-b border-apple-notebook-borderStrong p-4 dark:border-apple-notebook-darkBorder">
                     <div class="flex justify-between items-center">
-                        <div class="flex items-center space-x-2">
-                            <button
-                                on:click=move |_| state.toggle_dark_mode()
-                                class=move || format!("p-2 rounded-full {}", ThemeState::IconButton.classes())
-                                title="Toggle Theme"
-                                aria-label=move || if state.is_dark_mode.get() { "Switch to light mode" } else { "Switch to dark mode" }
-                            >
-                                {move || if state.is_dark_mode.get() {
-                                    view! { <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" /></svg> }.into_any()
-                                } else {
-                                    view! { <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" /></svg> }.into_any()
-                                }}
-                            </button>
-                            <h1 class=sidebar_title_classes>"Notes"</h1>
+                        <div class="flex items-center">
+                            <h1 class=sidebar_title_classes>"Noter"</h1>
                         </div>
                         <div class="flex items-center space-x-1">
                             <button
@@ -185,28 +196,61 @@ pub fn Sidebar() -> impl IntoView {
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
                                 </svg>
                             </button>
-                            <button
-                                on:click=move |_| show_diagnostics.set(true)
-                                title="About Noter"
-                                class=diagnostics_button_classes
-                                aria-label="About Noter"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 17h.01M12 13v-3m0 11a9 9 0 100-18 9 9 0 000 18z" />
-                                </svg>
-                            </button>
-                            <button
-                                on:click=add_note
-                                title="New Note"
-                                class=move || format!("inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium transition-colors {}", ThemeAccent::PrimaryText.classes())
-                                aria-label="Create new note"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                                <span class="hidden sm:inline">"New"</span>
-                            </button>
                         </div>
+                    </div>
+                    <div class="space-y-0.5">
+                        <button
+                            on:click=add_note
+                            title="New Note"
+                            class=move || format!("{} {}", sidebar_command_button_classes(), ThemeAccent::PrimaryText.classes())
+                            aria-label="Create new note"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14m-7-7h14" />
+                            </svg>
+                            <span>"New Note"</span>
+                            <span class=sidebar_command_shortcut_classes>"N"</span>
+                        </button>
+                        <button
+                            on:click=move |_| state.toggle_dark_mode()
+                            class=sidebar_command_button_classes
+                            title="Toggle Theme"
+                            aria-label=move || if state.is_dark_mode.get() { "Switch to light mode" } else { "Switch to dark mode" }
+                        >
+                            {move || if state.is_dark_mode.get() {
+                                view! { <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-apple-notebook-amber" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" /></svg> }.into_any()
+                            } else {
+                                view! { <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-apple-notebook-muted" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" /></svg> }.into_any()
+                            }}
+                            <span>"Theme"</span>
+                        </button>
+                        <button
+                            on:click=move |_| {
+                                if let Some(input) = search_input_ref.get() {
+                                    let _ = input.focus();
+                                }
+                            }
+                            class=sidebar_command_button_classes
+                            title="Focus Search"
+                            aria-label="Focus search notes"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <span>"Search"</span>
+                            <span class=sidebar_command_shortcut_classes>"/"</span>
+                        </button>
+                        <button
+                            on:click=move |_| show_diagnostics.set(true)
+                            title="About Noter"
+                            class=diagnostics_button_classes
+                            aria-label="About Noter"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 17h.01M12 13v-3m0 11a9 9 0 100-18 9 9 0 000 18z" />
+                            </svg>
+                            <span>"About"</span>
+                        </button>
                     </div>
 
                     <div class="relative group">
@@ -216,8 +260,9 @@ pub fn Sidebar() -> impl IntoView {
                             </svg>
                         </span>
                         <input
+                            node_ref=search_input_ref
                             type="text"
-                            placeholder="Search"
+                            placeholder="Search notes..."
                             aria-label="Search notes"
                             aria-describedby="search-syntax-hint"
                             class=search_input_classes
@@ -287,7 +332,11 @@ pub fn Sidebar() -> impl IntoView {
                         </p>
                     </Show>
                 </div>
-                <div class="flex-1 overflow-y-auto pb-4">
+                <div class="flex-1 overflow-y-auto pb-3">
+                    <div class=note_list_section_header_classes>
+                        <span>"Notes"</span>
+                        <span>{move || note_count_label.get()}</span>
+                    </div>
                     <Show when=move || !note_projection.get().rows.is_empty()>
                         <For
                             each=move || note_projection.get().rows
@@ -307,7 +356,7 @@ pub fn Sidebar() -> impl IntoView {
                         </div>
                     </Show>
                     <Show when=move || !recently_deleted_notes.get().is_empty()>
-                        <details class="mx-4 mt-4 rounded-md border border-apple-gray-300 text-sm dark:border-apple-dark-border">
+                        <details class="mx-4 mt-4 rounded-md border border-apple-notebook-borderStrong text-sm dark:border-apple-notebook-darkBorder">
                             <summary class=move || format!("flex cursor-pointer items-center gap-2 px-3 py-2 font-medium {}", ThemeText::Primary.classes())>
                                 <span>{move || format!("Recently Deleted ({})", recently_deleted_notes.get().len())}</span>
                                 <Show when=move || should_show_clear_all_recently_deleted(recently_deleted_notes.get().len())>
@@ -325,7 +374,7 @@ pub fn Sidebar() -> impl IntoView {
                                     </button>
                                 </Show>
                             </summary>
-                            <div class="divide-y divide-apple-gray-200 dark:divide-apple-dark-border">
+                            <div class="divide-y divide-apple-notebook-border dark:divide-apple-notebook-darkBorder">
                                 <For
                                     each=move || recently_deleted_notes.get()
                                     key=|note| note.id
@@ -591,10 +640,11 @@ fn NoteItem(item: NoteListItem) -> impl IntoView {
 mod tests {
     use super::{
         app_version_label, corrupt_payload_status, diagnostics_button_classes,
-        note_list_title_classes, recently_deleted_clear_all_button_classes,
-        recently_deleted_permanent_delete_label, search_input_classes, search_syntax_hint_classes,
-        search_syntax_hint_code_classes, should_show_clear_all_recently_deleted,
-        sidebar_state_class, sidebar_title_classes, storage_mode_label,
+        note_list_section_header_classes, note_list_title_classes,
+        recently_deleted_clear_all_button_classes, recently_deleted_permanent_delete_label,
+        search_input_classes, search_syntax_hint_classes, search_syntax_hint_code_classes,
+        should_show_clear_all_recently_deleted, sidebar_state_class, sidebar_title_classes,
+        storage_mode_label,
     };
 
     #[test]
@@ -602,7 +652,7 @@ mod tests {
         let class = sidebar_state_class(true);
 
         assert!(class.contains("w-full"));
-        assert!(class.contains("lg:w-80"));
+        assert!(class.contains("lg:w-72"));
     }
 
     #[test]
@@ -615,12 +665,12 @@ mod tests {
         assert!(class.contains("top-full"));
         assert!(class.contains("z-30"));
         assert!(class.contains("shadow-sm"));
-        assert!(class.contains("text-gray-900"));
-        assert!(class.contains("dark:text-white"));
+        assert!(class.contains("text-apple-notebook-graphite"));
+        assert!(class.contains("dark:text-apple-notebook-frame"));
         assert!(input.contains("pr-10"));
-        assert!(input.contains("bg-apple-gray-200"));
+        assert!(input.contains("bg-apple-notebook-border"));
         assert!(!input.contains(&["bg", "black"].join("-")));
-        assert!(code.contains("bg-apple-gray-200"));
+        assert!(code.contains("bg-apple-notebook-border"));
         assert!(!code.contains(&["bg", "black"].join("-")));
     }
 
@@ -641,8 +691,8 @@ mod tests {
     fn sidebar_title_and_footer_status_remain_visible_across_themes() {
         let title = sidebar_title_classes();
 
-        assert!(title.contains("text-gray-900"));
-        assert!(title.contains("dark:text-white"));
+        assert!(title.contains("text-apple-notebook-graphite"));
+        assert!(title.contains("dark:text-apple-notebook-frame"));
         assert!(title.contains("text-xl"));
         assert!(title.contains("leading-[1.3]"));
     }
@@ -659,16 +709,26 @@ mod tests {
     }
 
     #[test]
-    fn diagnostics_button_icon_matches_theme_aware_sidebar_icon_controls() {
+    fn diagnostics_button_uses_the_sidebar_command_treatment() {
         let button = diagnostics_button_classes();
 
-        assert!(button.contains("rounded-full"));
-        assert!(button.contains("text-gray-500"));
-        assert!(button.contains("hover:text-gray-700"));
-        assert!(button.contains("dark:text-gray-400"));
-        assert!(button.contains("dark:hover:text-gray-200"));
-        assert!(button.contains("hover:bg-apple-gray-200"));
-        assert!(button.contains("dark:hover:bg-white/5"));
+        assert!(button.contains("inline-flex"));
+        assert!(button.contains("h-7"));
+        assert!(button.contains("w-full"));
+        assert!(button.contains("rounded-md"));
+        assert!(button.contains("text-apple-notebook-graphite"));
+        assert!(button.contains("hover:bg-apple-notebook-border"));
+    }
+
+    #[test]
+    fn note_list_section_header_keeps_the_notebook_list_label_compact() {
+        let header = note_list_section_header_classes();
+
+        assert!(header.contains("justify-between"));
+        assert!(header.contains("px-4"));
+        assert!(header.contains("pt-3"));
+        assert!(header.contains("text-[11px]"));
+        assert!(header.contains("text-apple-notebook-muted"));
     }
 
     #[test]
@@ -678,7 +738,7 @@ mod tests {
         assert!(title.contains("min-w-0"));
         assert!(title.contains("flex-1"));
         assert!(title.contains("truncate"));
-        assert!(title.contains("text-sm"));
+        assert!(title.contains("text-[13px]"));
         assert!(title.contains("leading-5"));
     }
 }

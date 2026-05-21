@@ -15,7 +15,7 @@ pub fn Modal(
     #[prop(default = false)] hide_body: bool,
     children: ChildrenFn,
 ) -> impl IntoView {
-    let dialog_ref = NodeRef::<leptos::html::Div>::new();
+    let dialog_panel_ref = NodeRef::<leptos::html::Div>::new();
     let restore_focus = leptos::web_sys::window()
         .and_then(|window| window.document())
         .and_then(|document| document.active_element())
@@ -27,7 +27,7 @@ pub fn Modal(
     let restore_on_keydown = restore_focus.clone();
 
     Effect::new(move |_| {
-        if let Some(dialog) = dialog_ref.get() {
+        if let Some(dialog) = dialog_panel_ref.get() {
             let focused = initial_focus_selector
                 .and_then(|selector| dialog.query_selector(selector).ok().flatten())
                 .and_then(|element| element.dyn_into::<leptos::web_sys::HtmlElement>().ok());
@@ -41,9 +41,7 @@ pub fn Modal(
 
     view! {
         <div
-            node_ref=dialog_ref
-            tabindex="-1"
-            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 transition-opacity duration-200 dark:bg-gray-950/55"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-apple-notebook-graphite/35 p-4 transition-opacity duration-200 dark:bg-apple-notebook-darkFrame/65"
             on:click=move |ev| {
                 if ev.target() == ev.current_target() {
                     (*dismiss_on_click)();
@@ -57,14 +55,18 @@ pub fn Modal(
                     restore_previous_focus(&restore_on_keydown);
                 }
             }
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby=labelledby
-            aria-describedby=describedby
         >
-            <div class=move || format!("rounded-lg shadow-2xl w-full {} overflow-hidden flex flex-col max-h-[80vh] transform transition-all duration-300 border {}", max_width_class, ThemeSurface::ModalPanel.classes())>
+            <div
+                node_ref=dialog_panel_ref
+                tabindex="-1"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby=labelledby
+                aria-describedby=describedby
+                class=move || format!("w-full {} max-h-[82vh] overflow-hidden rounded-md border shadow-xl transform transition-all duration-200 flex flex-col {}", max_width_class, ThemeSurface::ModalPanel.classes())
+            >
                 {header.map(|h| view! {
-                    <div class=move || format!("p-6 border-b {}", ThemeSurface::ModalChrome.classes())>
+                    <div class=move || format!("border-b p-5 {}", ThemeSurface::ModalChrome.classes())>
                         {h()}
                     </div>
                 })}
@@ -76,7 +78,7 @@ pub fn Modal(
                 </Show>
 
                 {footer.map(|f| view! {
-                    <div class=move || format!("p-4 border-t flex justify-end gap-3 {}", ThemeSurface::ModalChrome.classes())>
+                    <div class=move || format!("flex justify-end gap-2 border-t p-3 {}", ThemeSurface::ModalChrome.classes())>
                         {f()}
                     </div>
                 })}

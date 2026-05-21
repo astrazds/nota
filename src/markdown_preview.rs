@@ -430,7 +430,7 @@ mod tests {
         );
 
         assert!(html.contains(
-            "<h1 class=\"mb-4 text-2xl font-bold leading-tight md:text-3xl\">Markdown preview tour</h1>"
+            "<h1 class=\"mb-4 text-xl font-semibold leading-7 md:text-2xl\">Markdown preview tour</h1>"
         ));
         assert!(!html.contains("<h1>Markdown preview tour</h1>"));
         assert!(html.contains("<p>Body content</p>"));
@@ -443,7 +443,7 @@ mod tests {
             "# Markdown preview tour\n\nBody content",
         );
 
-        assert!(!html.contains("md:text-3xl"));
+        assert!(!html.contains("md:text-2xl"));
         assert!(!html.contains("<h1>Markdown preview tour</h1>"));
         assert!(html.contains("<p>Body content</p>"));
     }
@@ -465,7 +465,7 @@ mod tests {
     fn markdown_preview_body_preserves_non_matching_content_h1() {
         let html = render_markdown_preview_body("Roadmap", "# Release notes\n\nBody content");
 
-        assert!(!html.contains("md:text-3xl"));
+        assert!(!html.contains("md:text-2xl"));
         assert!(html.contains("<h1>Release notes</h1>"));
         assert!(html.contains("<p>Body content</p>"));
     }
@@ -475,7 +475,7 @@ mod tests {
         let html = render_markdown_preview("Roadmap", "# Release notes\n\nBody content");
 
         assert!(html.contains(
-            "<h1 class=\"mb-4 text-2xl font-bold leading-tight md:text-3xl\">Roadmap</h1>"
+            "<h1 class=\"mb-4 text-xl font-semibold leading-7 md:text-2xl\">Roadmap</h1>"
         ));
         assert!(html.contains("<h1>Release notes</h1>"));
         assert!(html.contains("<p>Body content</p>"));

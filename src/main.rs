@@ -598,8 +598,14 @@ fn App() -> impl IntoView {
 
     view! {
         <div
+            data-testid="app-frame"
             class=move || {
-                format!("{} flex h-screen overflow-hidden", ThemeSurface::RootApp.classes())
+                let active_theme = if state.is_dark_mode.get() {
+                    "bg-apple-notebook-darkFrame text-apple-notebook-frame"
+                } else {
+                    "bg-apple-notebook-frame text-apple-notebook-graphite"
+                };
+                format!("{} {active_theme} flex h-screen overflow-hidden p-3", ThemeSurface::RootApp.classes())
             }
             class:dark=move || state.is_dark_mode.get()
         >

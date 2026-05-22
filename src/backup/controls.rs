@@ -1,16 +1,10 @@
-use crate::backup::{BackupHealth, BackupImportPreview, backup_file_name};
+use crate::backup::{BackupHealth, PendingBackupImport, backup_file_name, prepare_backup_import};
 use crate::{AppState, NotificationTone, theme, ui_recipes};
 use chrono::{DateTime, Utc};
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::Closure;
 use web_sys::{FileReader, HtmlAnchorElement, HtmlInputElement, window};
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct PendingBackupImport {
-    pub backup_json: String,
-    pub preview: BackupImportPreview,
-}
 
 pub(crate) trait BackupDownloadAdapter {
     fn download(&self, filename: &str, backup_json: &str) -> Result<(), String>;
@@ -65,12 +59,9 @@ pub(crate) fn preview_backup_import_read(
     pending_backup_import: RwSignal<Option<PendingBackupImport>>,
     backup_json: String,
 ) {
-    match state.preview_backup_import_json(&backup_json) {
-        Ok(preview) => {
-            pending_backup_import.set(Some(PendingBackupImport {
-                backup_json,
-                preview,
-            }));
+    match prepare_backup_import(&state.notes_untracked(), backup_json) {
+        Ok(pending_import) => {
+            pending_backup_import.set(Some(pending_import));
             state.show_notification("Backup ready", NotificationTone::Success);
         }
         Err(_) => {

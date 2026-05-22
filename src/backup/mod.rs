@@ -2,6 +2,8 @@ use crate::model::Note;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+pub(crate) mod controls;
+
 const BACKUP_VERSION: u32 = 1;
 const BACKUP_KIND: &str = "noter.flat_collection";
 const BACKUP_HEALTH_STALE_AFTER_DAYS: i64 = 14;
@@ -84,6 +86,23 @@ pub struct BackupImportPreview {
     pub notes_to_replace: usize,
     pub total_imported_notes: usize,
     pub selected_id: Option<uuid::Uuid>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PendingBackupImport {
+    pub backup_json: String,
+    pub preview: BackupImportPreview,
+}
+
+pub fn prepare_backup_import(
+    notes: &[Note],
+    backup_json: String,
+) -> Result<PendingBackupImport, BackupError> {
+    let preview = preview_flat_collection_backup(notes, &backup_json)?;
+    Ok(PendingBackupImport {
+        backup_json,
+        preview,
+    })
 }
 
 pub fn preview_flat_collection_backup(
@@ -366,5 +385,24 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(notes, original_notes);
         }
+    }
+
+    #[test]
+    fn prepares_a_pending_backup_import_with_preview_counts() {
+        let existing = note_with_fields();
+        let mut replacement = existing.clone();
+        replacement.content = "Backup content wins".to_string();
+        let imported = Note::new("Imported only".to_string(), "New from backup".to_string());
+        let backup_json =
+            export_flat_collection_backup(&[replacement.clone(), imported.clone()]).unwrap();
+
+        let pending =
+            prepare_backup_import(std::slice::from_ref(&existing), backup_json.clone()).unwrap();
+
+        assert_eq!(pending.backup_json, backup_json);
+        assert_eq!(pending.preview.total_imported_notes, 2);
+        assert_eq!(pending.preview.notes_to_add, 1);
+        assert_eq!(pending.preview.notes_to_replace, 1);
+        assert_eq!(pending.preview.selected_id, Some(replacement.id));
     }
 }

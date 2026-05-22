@@ -104,16 +104,13 @@ pub fn Sidebar(show_about: RwSignal<bool>) -> impl IntoView {
 
     let add_note = move |_| state.create_note();
 
-    let note_projection = Memo::new(move |_| state.note_list_projection());
+    let note_list_model = Memo::new(move |_| state.note_list_render_model());
     let note_count_label = Memo::new(move |_| {
-        let row_count = note_projection.get().rows.len();
+        let row_count = note_list_model.get().projection.rows.len();
         format!("{row_count}")
     });
-    let note_result_status = Memo::new(move |_| {
-        let projection = note_projection.get();
-        state.note_list_result_status(&projection)
-    });
-    let filtered_empty_message = Memo::new(move |_| state.note_list_filtered_empty_message());
+    let note_result_status = Memo::new(move |_| note_list_model.get().result_status);
+    let filtered_empty_message = Memo::new(move |_| note_list_model.get().filtered_empty_message);
     let available_tags = Memo::new(move |_| state.available_tags());
     let recently_deleted_notes = Memo::new(move |_| state.recently_deleted_notes());
     let search_input_value = RwSignal::new(state.note_search_input());
@@ -320,19 +317,16 @@ pub fn Sidebar(show_about: RwSignal<bool>) -> impl IntoView {
                         <span>"Notes"</span>
                         <span>{move || note_count_label.get()}</span>
                     </div>
-                    <Show when=move || !note_projection.get().rows.is_empty()>
+                    <Show when=move || !note_list_model.get().projection.rows.is_empty()>
                         <For
-                            each=move || note_projection.get().rows
+                            each=move || note_list_model.get().projection.rows
                             key=|item| item.render_key()
                             let:item
                         >
                             <NoteItem item=item />
                         </For>
                     </Show>
-                    <Show when=move || {
-                        let projection = note_projection.get();
-                        state.note_list_display_state(&projection) == NoteListDisplayState::FilteredEmpty
-                    }>
+                    <Show when=move || note_list_model.get().display_state == NoteListDisplayState::FilteredEmpty>
                         <div class=move || format!("p-8 text-center {}", ThemeText::Subtle.classes())>
                             <p>{move || filtered_empty_message.get().title}</p>
                             <p class=move || format!("mt-1 {}", ui_recipes::ui_body_text())>{move || filtered_empty_message.get().body}</p>

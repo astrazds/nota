@@ -1,8 +1,8 @@
 use crate::AppState;
 use crate::NotificationTone;
+use crate::backup::PendingBackupImport;
 use crate::backup_controls::{
-    PendingBackupImport, cancel_pending_backup_import, confirm_pending_backup_import,
-    import_backup_from_input_event,
+    cancel_pending_backup_import, confirm_pending_backup_import, import_backup_from_input_event,
 };
 use crate::components::CheatsheetModal;
 use crate::editor_view::EditorViewMode;
@@ -635,26 +635,15 @@ pub fn GlobalNotificationOutlet() -> impl IntoView {
 }
 
 fn notification_outlet_classes() -> &'static str {
-    "pointer-events-none fixed bottom-16 right-3 z-50 flex min-w-0 justify-end sm:bottom-auto sm:right-5 sm:top-5"
+    ui_recipes::global_notification_outlet()
 }
 
 fn notification_classes(tone: NotificationTone) -> String {
-    let tone_classes = match tone {
-        NotificationTone::Progress => {
-            "border-apple-yellow/40 bg-apple-yellow/10 text-yellow-700 dark:bg-apple-yellow/20 dark:text-yellow-200"
-        }
-        NotificationTone::Success => {
-            "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200"
-        }
-        NotificationTone::Error => {
-            "border-red-500/30 bg-red-500/10 text-red-700 dark:bg-red-500/15 dark:text-red-200"
-        }
-    };
-
-    format!(
-        "pointer-events-auto max-w-[11rem] truncate rounded-md border px-3 py-1 {} font-medium shadow-sm {tone_classes}",
-        ui_recipes::ui_control_text()
-    )
+    ui_recipes::global_notification(match tone {
+        NotificationTone::Progress => ui_recipes::GlobalNotificationTone::Progress,
+        NotificationTone::Success => ui_recipes::GlobalNotificationTone::Success,
+        NotificationTone::Error => ui_recipes::GlobalNotificationTone::Error,
+    })
 }
 
 fn editor_view_button_classes(is_active: bool, is_split: bool) -> String {

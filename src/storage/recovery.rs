@@ -21,6 +21,19 @@ pub struct StorageRecoveryState {
     pub previous_snapshot: Option<PreviousSnapshot>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StorageRecoveryChoice {
+    RestorePreviousSnapshot,
+    StartEmpty,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StorageRecoveryResolution {
+    pub notes: Vec<Note>,
+    pub recently_deleted_notes: Vec<Note>,
+    pub corrupt_payloads_to_quarantine: StoredCollectionPayload,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CollectionStartup {
     Ready {
@@ -42,6 +55,39 @@ pub struct CollectionSavePlan {
 pub enum StorageRecoveryError {
     InvalidNextNotes,
     InvalidNextRecentlyDeletedNotes,
+}
+
+pub fn resolve_storage_recovery(
+    recovery: &StorageRecoveryState,
+    choice: StorageRecoveryChoice,
+) -> Option<StorageRecoveryResolution> {
+    let (notes, recently_deleted_notes, corrupt_payloads_to_quarantine) = match choice {
+        StorageRecoveryChoice::RestorePreviousSnapshot => {
+            let snapshot = recovery.previous_snapshot.clone()?;
+            (
+                snapshot.notes,
+                snapshot.recently_deleted_notes,
+                StoredCollectionPayload {
+                    notes_json: None,
+                    recently_deleted_notes_json: None,
+                },
+            )
+        }
+        StorageRecoveryChoice::StartEmpty => (
+            Vec::new(),
+            Vec::new(),
+            StoredCollectionPayload {
+                notes_json: recovery.corrupt_notes_json.clone(),
+                recently_deleted_notes_json: recovery.corrupt_recently_deleted_notes_json.clone(),
+            },
+        ),
+    };
+
+    Some(StorageRecoveryResolution {
+        notes,
+        recently_deleted_notes,
+        corrupt_payloads_to_quarantine,
+    })
 }
 
 pub fn decide_collection_startup(
@@ -200,6 +246,56 @@ mod tests {
                     recently_deleted_notes: vec![previous_deleted],
                 }),
             })
+        );
+    }
+
+    #[test]
+    fn start_empty_resolution_returns_empty_collection_and_corrupt_payloads_for_quarantine() {
+        let recovery = StorageRecoveryState {
+            corrupt_notes_json: Some("{not valid json".to_string()),
+            corrupt_recently_deleted_notes_json: Some("{also invalid".to_string()),
+            previous_snapshot: None,
+        };
+
+        let resolution =
+            resolve_storage_recovery(&recovery, StorageRecoveryChoice::StartEmpty).unwrap();
+
+        assert!(resolution.notes.is_empty());
+        assert!(resolution.recently_deleted_notes.is_empty());
+        assert_eq!(
+            resolution.corrupt_payloads_to_quarantine,
+            StoredCollectionPayload {
+                notes_json: Some("{not valid json".to_string()),
+                recently_deleted_notes_json: Some("{also invalid".to_string()),
+            }
+        );
+    }
+
+    #[test]
+    fn restore_previous_snapshot_resolution_does_not_quarantine_corrupt_payloads() {
+        let active = Note::new("Previous active".to_string(), "Known good".to_string());
+        let deleted = Note::new("Previous deleted".to_string(), "Recover".to_string());
+        let recovery = StorageRecoveryState {
+            corrupt_notes_json: Some("{not valid json".to_string()),
+            corrupt_recently_deleted_notes_json: Some("{also invalid".to_string()),
+            previous_snapshot: Some(PreviousSnapshot {
+                notes: vec![active.clone()],
+                recently_deleted_notes: vec![deleted.clone()],
+            }),
+        };
+
+        let resolution =
+            resolve_storage_recovery(&recovery, StorageRecoveryChoice::RestorePreviousSnapshot)
+                .unwrap();
+
+        assert_eq!(resolution.notes, vec![active]);
+        assert_eq!(resolution.recently_deleted_notes, vec![deleted]);
+        assert_eq!(
+            resolution.corrupt_payloads_to_quarantine,
+            StoredCollectionPayload {
+                notes_json: None,
+                recently_deleted_notes_json: None,
+            }
         );
     }
 }

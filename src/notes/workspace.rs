@@ -2,7 +2,10 @@ use crate::backup::{BackupError, BackupImport, import_flat_collection_backup};
 use crate::model::Note;
 use crate::note_collection::NoteCollection;
 use crate::note_discovery::{NoteListProjection, project_note_list};
-use crate::storage_recovery::StorageRecoveryState;
+use crate::storage_recovery::{
+    StorageRecoveryChoice, StorageRecoveryResolution, StorageRecoveryState,
+    resolve_storage_recovery,
+};
 use crate::tag_rules::{TagCleanupPlan, plan_collection_tag_cleanup};
 use uuid::Uuid;
 
@@ -181,30 +184,24 @@ impl NoteWorkspace {
     }
 
     pub fn restore_previous_snapshot(&mut self) -> bool {
-        let Some(snapshot) = self
-            .storage_recovery
-            .as_ref()
-            .and_then(|recovery| recovery.previous_snapshot.clone())
-        else {
+        let Some(resolution) = self.storage_recovery.as_ref().and_then(|recovery| {
+            resolve_storage_recovery(recovery, StorageRecoveryChoice::RestorePreviousSnapshot)
+        }) else {
             return false;
         };
 
-        self.notes = snapshot.notes;
-        self.recently_deleted_notes = snapshot.recently_deleted_notes;
-        self.selected_id = self.notes.first().map(|note| note.id);
-        self.storage_recovery = None;
+        self.apply_storage_recovery_resolution(resolution);
         true
     }
 
     pub fn start_empty_after_storage_recovery(&mut self) -> bool {
-        if self.storage_recovery.take().is_none() {
+        let Some(resolution) = self.storage_recovery.as_ref().and_then(|recovery| {
+            resolve_storage_recovery(recovery, StorageRecoveryChoice::StartEmpty)
+        }) else {
             return false;
-        }
+        };
 
-        self.notes.clear();
-        self.recently_deleted_notes.clear();
-        self.selected_id = None;
-        self.focus_intent = FocusIntent::None;
+        self.apply_storage_recovery_resolution(resolution);
         true
     }
 
@@ -336,6 +333,14 @@ impl NoteWorkspace {
     fn selected_note_ref(&self) -> Option<&Note> {
         self.selected_id
             .and_then(|id| self.notes.iter().find(|note| note.id == id))
+    }
+
+    fn apply_storage_recovery_resolution(&mut self, resolution: StorageRecoveryResolution) {
+        self.notes = resolution.notes;
+        self.recently_deleted_notes = resolution.recently_deleted_notes;
+        self.selected_id = self.notes.first().map(|note| note.id);
+        self.focus_intent = FocusIntent::None;
+        self.storage_recovery = None;
     }
 }
 

@@ -169,6 +169,36 @@ pub fn backup_import_preview() -> String {
     )
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GlobalNotificationTone {
+    Progress,
+    Success,
+    Error,
+}
+
+pub fn global_notification_outlet() -> &'static str {
+    "pointer-events-none fixed bottom-16 right-3 z-50 flex min-w-0 justify-end sm:bottom-auto sm:right-5 sm:top-5"
+}
+
+pub fn global_notification(tone: GlobalNotificationTone) -> String {
+    let tone_classes = match tone {
+        GlobalNotificationTone::Progress => {
+            "border-apple-yellow/40 bg-apple-yellow/10 text-yellow-700 dark:bg-apple-yellow/20 dark:text-yellow-200"
+        }
+        GlobalNotificationTone::Success => {
+            "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200"
+        }
+        GlobalNotificationTone::Error => {
+            "border-red-500/30 bg-red-500/10 text-red-700 dark:bg-red-500/15 dark:text-red-200"
+        }
+    };
+
+    format!(
+        "pointer-events-auto max-w-[11rem] truncate rounded-md border px-3 py-1 {} font-medium shadow-sm {tone_classes}",
+        UI_CONTROL_TEXT_CLASS
+    )
+}
+
 pub fn editor_footer() -> String {
     format!(
         "{} shrink-0 gap-x-2 gap-y-1 border-t border-apple-notebook-border px-4 py-1.5 {} dark:border-apple-notebook-darkBorder flex items-center justify-between {}",
@@ -394,6 +424,37 @@ mod tests {
         assert!(selected.contains("ring-1"));
         assert!(selected.contains("dark:bg-apple-notebook-amber/25"));
         assert!(idle.contains("hover:bg-apple-notebook-border"));
+    }
+
+    #[test]
+    fn global_notification_recipe_owns_position_size_and_tone_treatment() {
+        let outlet = global_notification_outlet();
+        let progress = global_notification(GlobalNotificationTone::Progress);
+        let success = global_notification(GlobalNotificationTone::Success);
+        let error = global_notification(GlobalNotificationTone::Error);
+
+        assert!(outlet.contains("fixed"));
+        assert!(outlet.contains("bottom-16"));
+        assert!(outlet.contains("sm:bottom-auto"));
+        assert!(outlet.contains("sm:top-5"));
+        assert!(outlet.contains("right-3"));
+        assert!(outlet.contains("sm:right-5"));
+        assert!(outlet.contains("z-50"));
+        assert!(outlet.contains("pointer-events-none"));
+
+        for classes in [&progress, &success, &error] {
+            assert!(classes.contains("pointer-events-auto"));
+            assert!(classes.contains("rounded-md"));
+            assert!(classes.contains("border"));
+            assert!(classes.contains("shadow-sm"));
+            assert!(classes.contains(UI_CONTROL_TEXT_CLASS));
+            assert!(classes.contains("max-w-[11rem]"));
+            assert!(classes.contains("truncate"));
+        }
+
+        assert!(progress.contains("bg-apple-yellow/10"));
+        assert!(success.contains("bg-emerald-500/10"));
+        assert!(error.contains("bg-red-500/10"));
     }
 
     #[test]

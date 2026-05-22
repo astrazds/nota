@@ -54,6 +54,17 @@ impl NoteListInteraction {
         )
     }
 
+    pub fn render_model(&self, notes: &[Note], selected_id: Option<Uuid>) -> NoteListRenderModel {
+        let projection = self.project_notes(notes, selected_id);
+        let total_notes = notes.len();
+        NoteListRenderModel {
+            display_state: self.display_state(total_notes, &projection),
+            result_status: self.result_status(total_notes, &projection),
+            filtered_empty_message: self.filtered_empty_message(),
+            projection,
+        }
+    }
+
     pub fn display_state(
         &self,
         total_notes: usize,
@@ -166,6 +177,14 @@ pub struct NoteListResultStatus {
 pub struct NoteListFilteredEmptyMessage {
     pub title: String,
     pub body: &'static str,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NoteListRenderModel {
+    pub projection: NoteListProjection,
+    pub display_state: NoteListDisplayState,
+    pub result_status: Option<NoteListResultStatus>,
+    pub filtered_empty_message: NoteListFilteredEmptyMessage,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -294,6 +313,38 @@ mod tests {
         assert_eq!(
             interaction.display_state(0, &empty_collection),
             NoteListDisplayState::EmptyCollection
+        );
+    }
+
+    #[test]
+    fn render_model_returns_rows_status_display_state_and_empty_copy_together() {
+        let mut launch = Note::new("Launch Plan".to_string(), "Ship the release".to_string());
+        launch.tags = vec!["Work".to_string()];
+        let mut personal = Note::new("Personal".to_string(), "Call home".to_string());
+        personal.tags = vec!["Personal".to_string()];
+        let notes = vec![launch, personal];
+
+        let mut interaction = NoteListInteraction::default();
+        interaction.edit_search("launch".to_string());
+        interaction.commit_search();
+        interaction.select_tag("Personal".to_string());
+
+        let model = interaction.render_model(&notes, None);
+
+        assert!(model.projection.rows.is_empty());
+        assert_eq!(model.display_state, NoteListDisplayState::FilteredEmpty);
+        assert_eq!(
+            model.result_status,
+            Some(NoteListResultStatus {
+                text: "0 matches for search: launch in #Personal".to_string(),
+            })
+        );
+        assert_eq!(
+            model.filtered_empty_message,
+            NoteListFilteredEmptyMessage {
+                title: "No notes match search: launch in #Personal".to_string(),
+                body: "Try a different search term or clear the Tag filter.",
+            }
         );
     }
 }

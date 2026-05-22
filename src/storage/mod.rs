@@ -3,7 +3,7 @@ use crate::model::Note;
 use crate::sample_notes::debug_starter_notes;
 #[cfg(target_arch = "wasm32")]
 use crate::storage_recovery::plan_collection_save_from_json;
-use crate::storage_recovery::{CollectionStartup, StorageRecoveryState, StoredCollectionPayload};
+use crate::storage_recovery::{CollectionStartup, StoredCollectionPayload};
 use gloo_storage::errors::StorageError;
 use gloo_storage::{LocalStorage, Storage};
 use leptos::prelude::{RwSignal, Set, window};
@@ -13,6 +13,8 @@ use std::rc::Rc;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::Closure;
 use web_sys::console;
+
+pub(crate) mod recovery;
 
 const STORAGE_KEY: &str = "noter-notes";
 const RECENTLY_DELETED_STORAGE_KEY: &str = "noter-recently-deleted-notes";
@@ -344,21 +346,19 @@ pub fn save_note_collection(notes: &[Note], recently_deleted_notes: &[Note]) {
     BrowserNotesStorage.save_note_collection(notes, recently_deleted_notes);
 }
 
-pub fn quarantine_corrupt_payloads(recovery: &StorageRecoveryState) {
+pub fn quarantine_corrupt_payloads(payload: &StoredCollectionPayload) {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let _ = recovery;
+        let _ = payload;
     }
 
     #[cfg(target_arch = "wasm32")]
     {
         let adapter = BrowserNotesStorage;
-        if let Some(corrupt_notes_json) = &recovery.corrupt_notes_json {
+        if let Some(corrupt_notes_json) = &payload.notes_json {
             adapter.save_raw(CORRUPT_STORAGE_KEY, corrupt_notes_json);
         }
-        if let Some(corrupt_recently_deleted_notes_json) =
-            &recovery.corrupt_recently_deleted_notes_json
-        {
+        if let Some(corrupt_recently_deleted_notes_json) = &payload.recently_deleted_notes_json {
             adapter.save_raw(
                 CORRUPT_RECENTLY_DELETED_STORAGE_KEY,
                 corrupt_recently_deleted_notes_json,

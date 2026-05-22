@@ -1,40 +1,43 @@
-mod app_runtime;
+mod app;
 pub mod backup;
-mod backup_controls;
 mod components;
-mod editor_view;
-mod markdown_editing;
-mod markdown_preview;
-mod model;
-mod note_collection;
-mod note_discovery;
-mod note_list_interaction;
-mod note_workspace;
-mod responsive_navigation;
-mod sample_notes;
-mod search_query;
+mod notes;
 mod storage;
-mod storage_recovery;
-mod tag_rules;
-mod theme;
-mod ui_recipes;
-mod writing_surface;
+mod ui;
+
+pub(crate) use app::runtime as app_runtime;
+pub(crate) use backup::controls as backup_controls;
+pub(crate) use notes::collection as note_collection;
+pub(crate) use notes::discovery as note_discovery;
+pub(crate) use notes::list_interaction as note_list_interaction;
+pub(crate) use notes::model;
+pub(crate) use notes::sample as sample_notes;
+pub(crate) use notes::search_query;
+pub(crate) use notes::tag_rules;
+pub(crate) use notes::workspace as note_workspace;
+pub(crate) use storage::recovery as storage_recovery;
+pub(crate) use ui::editor_view;
+pub(crate) use ui::markdown_editing;
+pub(crate) use ui::markdown_preview;
+pub(crate) use ui::recipes as ui_recipes;
+pub(crate) use ui::responsive_navigation;
+pub(crate) use ui::theme;
+pub(crate) use ui::writing_surface;
 
 use app_runtime::{AppRuntimeStartup, install_runtime_persistence};
 use components::{AboutModal, ConfirmModal, Editor, GlobalNotificationOutlet, Sidebar};
 
 use backup::{
-    BackupError, BackupHealth, BackupHealthRecord, BackupImportPreview, assess_backup_health,
-    backup_file_name, export_flat_collection_backup, preview_flat_collection_backup,
+    BackupError, BackupHealth, BackupHealthRecord, assess_backup_health,
+    export_flat_collection_backup,
 };
 use chrono::Utc;
 use editor_view::EditorViewMode;
 use leptos::prelude::*;
 use model::Note;
-use note_discovery::{NoteListItem, NoteListProjection, SelectedNoteVisibility};
+use note_discovery::{NoteListItem, SelectedNoteVisibility};
 use note_list_interaction::{
-    NoteActionControls, NoteListCommand, NoteListDisplayState, NoteListFilteredEmptyMessage,
-    NoteListInteraction, NoteListResultStatus,
+    NoteActionControls, NoteListCommand, NoteListInteraction, NoteListRenderModel,
 };
 use note_workspace::{FocusIntent, NoteWorkspace, WorkspaceDisplayState};
 use responsive_navigation::{
@@ -45,7 +48,9 @@ use storage::{
     load_collection_startup, load_dark_mode, load_sidebar_open, quarantine_corrupt_payloads,
     save_backup_health_record, save_note_collection,
 };
-use storage_recovery::{CollectionStartup, StorageRecoveryState};
+use storage_recovery::{
+    CollectionStartup, StorageRecoveryChoice, StorageRecoveryState, resolve_storage_recovery,
+};
 use tag_rules::{TagCleanupPlan, TagSuggestion, collect_note_tags, suggest_existing_tags};
 use theme::ThemeSurface;
 use uuid::Uuid;
@@ -125,34 +130,17 @@ impl AppState {
             .is_some_and(|recovery| recovery.previous_snapshot.is_some())
     }
 
-    pub fn note_list_projection(self) -> NoteListProjection {
+    pub fn note_list_render_model(self) -> NoteListRenderModel {
         let workspace = self.workspace.get();
         self.note_list_interaction
             .get()
-            .project_notes(workspace.notes(), workspace.selected_id())
-    }
-
-    pub fn note_list_display_state(self, projection: &NoteListProjection) -> NoteListDisplayState {
-        self.note_list_interaction
-            .get()
-            .display_state(self.workspace.get().notes().len(), projection)
-    }
-
-    pub fn note_list_result_status(
-        self,
-        projection: &NoteListProjection,
-    ) -> Option<NoteListResultStatus> {
-        self.note_list_interaction
-            .get()
-            .result_status(self.workspace.get().notes().len(), projection)
-    }
-
-    pub fn note_list_filtered_empty_message(self) -> NoteListFilteredEmptyMessage {
-        self.note_list_interaction.get().filtered_empty_message()
+            .render_model(workspace.notes(), workspace.selected_id())
     }
 
     pub fn selected_note_is_hidden_by_filter(self) -> bool {
-        self.note_list_projection().selected_note_visibility
+        self.note_list_render_model()
+            .projection
+            .selected_note_visibility
             == SelectedNoteVisibility::HiddenByFilter
     }
 
@@ -334,15 +322,19 @@ impl AppState {
     }
 
     pub fn start_empty_after_storage_recovery(self) {
-        if let Some(recovery) = self.storage_recovery() {
-            quarantine_corrupt_payloads(&recovery);
-        }
+        let payload_to_quarantine = self.storage_recovery().and_then(|recovery| {
+            resolve_storage_recovery(&recovery, StorageRecoveryChoice::StartEmpty)
+                .map(|resolution| resolution.corrupt_payloads_to_quarantine)
+        });
 
         let started_empty = self
             .workspace
             .try_update(NoteWorkspace::start_empty_after_storage_recovery)
             .unwrap_or(false);
         if started_empty {
+            if let Some(payload) = payload_to_quarantine {
+                quarantine_corrupt_payloads(&payload);
+            }
             self.mark_notes_changed();
             save_note_collection(&[], &[]);
             self.show_notification("Started empty collection", NotificationTone::Success);
@@ -409,10 +401,6 @@ impl AppState {
 
     pub fn export_backup_json(self) -> Result<String, BackupError> {
         export_flat_collection_backup(self.workspace.get_untracked().notes())
-    }
-
-    pub fn backup_file_name(self) -> String {
-        backup_file_name(Utc::now())
     }
 
     pub fn backup_health(self) -> BackupHealth {
@@ -493,13 +481,6 @@ impl AppState {
             &self.recently_deleted_notes_untracked(),
         );
         Ok(())
-    }
-
-    pub fn preview_backup_import_json(
-        self,
-        backup_json: &str,
-    ) -> Result<BackupImportPreview, BackupError> {
-        preview_flat_collection_backup(&self.notes_untracked(), backup_json)
     }
 
     pub fn toggle_note_pin(self, id: Uuid) {
@@ -772,7 +753,7 @@ mod tests {
         let note_id = note.id;
 
         with_test_state(vec![note], ViewportClass::Wide, true, |state| {
-            let row = state.note_list_projection().rows.remove(0);
+            let row = state.note_list_render_model().projection.rows.remove(0);
             let actions = state.note_actions(&row);
 
             state.apply_note_list_command(actions.pin_command);
@@ -852,7 +833,7 @@ mod tests {
     }
 
     #[test]
-    fn search_input_and_active_tag_still_drive_note_list_projection() {
+    fn search_input_and_active_tag_still_drive_note_list_render_model() {
         let mut mobile_note = Note::new(
             "Mobile layout".to_string(),
             "Responsive navigation".to_string(),
@@ -871,10 +852,10 @@ mod tests {
                 state.commit_note_search();
                 state.select_active_tag("Mobile".to_string());
 
-                let projection = state.note_list_projection();
-                assert_eq!(projection.rows.len(), 1);
-                assert_eq!(projection.rows[0].id, mobile_note.id);
-                assert!(projection.rows[0].is_selected);
+                let model = state.note_list_render_model();
+                assert_eq!(model.projection.rows.len(), 1);
+                assert_eq!(model.projection.rows[0].id, mobile_note.id);
+                assert!(model.projection.rows[0].is_selected);
             },
         );
     }

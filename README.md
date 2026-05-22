@@ -131,20 +131,14 @@ Coverage sweeps should follow the repo's TDD convention: add or tighten one beha
 
 The app keeps high-leverage behaviour behind focused Rust Modules:
 
-- `tag_rules`: tag parsing, display formatting, collection, sorting, and case-insensitive matching.
-- `backup`: versioned Flat Collection backup export/import, import preview, backup health assessment, validation, and merge behavior.
-- `backup_controls`: sidebar Backup Controls, browser download/FileReader adapters, pending import preview state, and Backup Global Notification outcomes.
-- `storage_recovery`: collection startup classification, previous snapshot restore payloads, and safe save planning for active Notes plus Recently Deleted Notes.
-- `search_query`: scoped Search parsing and Note matching for quoted phrases, `title:`, `tag:`, and `is:pinned`.
-- `note_workspace`: selected note lookup, empty collection display state, note creation, selected note editing, recoverable delete/restore/individual clear/count-confirmed Clear All, delete confirmation target naming, and pinning behaviours.
-- `note_discovery`: the primary Note List projection Interface for Search integration, active Tag filtering, selected Note visibility, ordering, display fields, render keys, and highlight segments.
-- `app_runtime`: startup construction, runtime persistence orchestration, save snapshots, Theme/sidebar persistence, page flush wiring, and viewport reclassification.
-- `editor_view`: explicit Write, Preview, and Split view modes with viewport-aware behaviour.
-- `storage`: debounced save session, save lifecycle, active Notes persistence, Recently Deleted persistence, previous snapshot persistence, corrupt-payload quarantine, Backup Health metadata, and page lifecycle flushing.
-- `ui_recipes`: load-bearing visual recipes for shared footer rhythm, compact controls, typography roles, pane measure, Search, Search Hint, Tag pills, selected Note rows, recovery controls, and Backup Controls while keeping `theme` semantic.
-- `writing_surface`: render-ready Writing Surface model, Preview Note Title/Note Metadata/body ordering, hidden-by-filter messaging, and formatting command application behind a selection-safe Interface.
-- `markdown_editing`: named Markdown commands, cheatsheet sections, and Unicode-safe caret handling.
-- `markdown_preview`: supported Markdown body rendering, duplicate title suppression, and preview safety policy. The Leptos preview pane owns the Note Title and read-only Tags so Preview and Split match the editor header order.
+- `src/app/`: startup construction, runtime persistence orchestration, save snapshots, Theme/sidebar persistence, page flush wiring, and viewport reclassification.
+- `src/backup/`: versioned Flat Collection Backup export/import, import preview, Backup Health assessment, validation, merge behavior, sidebar Backup Controls, browser download/FileReader adapters, pending import preview state, and Backup Global Notification outcomes.
+- `src/notes/`: Note identity and collection logic, scoped Search parsing, Note List projection, Discovery Depth render models, selected Note workspace behavior, Tags, Quick Capture, recoverable delete/restore, Delete Confirmation, Clear All, and debug starter Notes.
+- `src/storage/`: debounced save session, save lifecycle, active Notes persistence, Recently Deleted persistence, previous snapshot persistence, Storage Recovery startup choices, Corrupt Payload Quarantine, Backup Health metadata, and page lifecycle flushing.
+- `src/ui/`: View Mode logic, named Markdown commands, Markdown preview rendering/safety, Responsive Navigation, semantic Theme recipes, load-bearing visual recipes, and Writing Surface render models.
+- `src/components/`: Leptos rendering Modules for the app shell, sidebar, editor, popups, and shared modal model. These should stay thin and call the deeper product Modules above.
+
+Crate-level aliases preserve the established Module names (`note_workspace`, `note_discovery`, `ui_recipes`, `storage_recovery`, and similar) so existing tests and call sites can use the product vocabulary while the physical file structure stays grouped by area.
 
 ## Domain Docs
 

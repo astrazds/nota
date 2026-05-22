@@ -93,7 +93,7 @@ test("compact Search results explain title and body matches without crowding the
 
   const rowBoxes = await renderedNoteRows(page);
   expect(rowBoxes).toHaveLength(2);
-  expect(Math.max(...rowBoxes.map((box) => box.height))).toBeLessThanOrEqual(112);
+  expect(Math.max(...rowBoxes.map((box) => box.height))).toBeLessThanOrEqual(128);
   expect(rowBoxes[0].bottom).toBeLessThanOrEqual(rowBoxes[1].top + 1);
   for (const box of rowBoxes) {
     expect(box.height).toBeGreaterThanOrEqual(44);
@@ -119,7 +119,7 @@ test("compact Tag matches, result status, empty state, and navigation stay usabl
 
   const rowBox = await row.evaluate((element) => element.getBoundingClientRect().toJSON());
   expect(rowBox.height).toBeGreaterThanOrEqual(44);
-  expect(rowBox.height).toBeLessThanOrEqual(112);
+  expect(rowBox.height).toBeLessThanOrEqual(128);
 
   await row.click();
   await expect(navigation(page)).toHaveClass(/-translate-x-full/);

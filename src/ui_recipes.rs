@@ -4,17 +4,52 @@ const COMPACT_FOOTER_HEIGHT_CLASS: &str = "h-[45px]";
 const NOTE_MEASURE_CLASS: &str = "w-full max-w-[72ch]";
 const PANE_INLINE_INSET_CLASS: &str = "px-6 md:px-8";
 const PANE_TOP_INSET_CLASS: &str = "pt-4 md:pt-5";
+const UI_LABEL_TEXT_CLASS: &str = "text-[11px] leading-4";
+const UI_CONTROL_TEXT_CLASS: &str = "text-xs leading-4 md:text-[11px]";
+const UI_BODY_TEXT_CLASS: &str = "text-sm leading-6";
+
+pub fn ui_label_text() -> &'static str {
+    UI_LABEL_TEXT_CLASS
+}
+
+pub fn ui_control_text() -> &'static str {
+    UI_CONTROL_TEXT_CLASS
+}
+
+pub fn ui_body_text() -> &'static str {
+    UI_BODY_TEXT_CLASS
+}
+
+pub fn modal_title_text() -> String {
+    format!(
+        "text-xl font-semibold leading-7 {}",
+        ThemeText::Primary.classes()
+    )
+}
+
+pub fn modal_description_text() -> String {
+    format!("mt-1 {} {}", UI_BODY_TEXT_CLASS, ThemeText::Muted.classes())
+}
+
+pub fn modal_body_text() -> &'static str {
+    UI_BODY_TEXT_CLASS
+}
+
+pub fn button_label_text() -> &'static str {
+    "text-xs font-semibold leading-4"
+}
 
 pub fn search_hint() -> String {
     format!(
-        "pointer-events-none absolute left-0 right-0 top-full z-30 mt-1.5 rounded-md border p-2 text-[11px] shadow-sm {} {}",
+        "pointer-events-none absolute left-0 right-0 top-full z-30 mt-1.5 rounded-md border p-2 {} shadow-sm {} {}",
+        UI_LABEL_TEXT_CLASS,
         ThemeSurface::EditorChrome.classes(),
         ThemeText::Primary.classes()
     )
 }
 
 pub fn search_input() -> String {
-    "w-full rounded-lg bg-apple-notebook-border/70 py-1.5 pl-10 pr-10 text-sm text-apple-notebook-graphite placeholder:text-gray-400 transition-colors focus:bg-apple-notebook-border focus:outline-none dark:bg-white/10 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:bg-white/15"
+    "w-full rounded-lg bg-apple-notebook-border/70 py-1.5 pl-10 pr-10 text-sm leading-5 text-apple-notebook-graphite placeholder:text-gray-400 transition-colors focus:bg-apple-notebook-border focus:outline-none dark:bg-white/10 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:bg-white/15"
         .to_string()
 }
 
@@ -60,7 +95,7 @@ pub fn empty_state_placeholder_text() -> &'static str {
 
 pub fn note_list_title_text() -> String {
     format!(
-        "min-w-0 flex-1 truncate pr-2 text-[13px] font-semibold leading-5 {}",
+        "min-w-0 flex-1 truncate pr-2 text-sm font-semibold leading-5 {}",
         ThemeText::Primary.classes()
     )
 }
@@ -91,41 +126,54 @@ pub fn pane_top_inset() -> &'static str {
 
 pub fn sidebar_footer() -> String {
     format!(
-        "{} shrink-0 gap-2 px-3 py-1.5 border-t border-apple-notebook-borderStrong dark:border-apple-notebook-darkBorder flex items-center justify-between text-[11px] leading-4 {}",
+        "{} shrink-0 gap-2 px-3 py-1.5 border-t border-apple-notebook-borderStrong dark:border-apple-notebook-darkBorder flex items-center justify-between {} {}",
         COMPACT_FOOTER_HEIGHT_CLASS,
+        UI_LABEL_TEXT_CLASS,
         ThemeText::Subtle.classes()
     )
 }
 
 pub fn backup_footer_label() -> String {
     format!(
-        "truncate text-[11px] font-semibold leading-4 {}",
+        "truncate font-semibold {} {}",
+        UI_LABEL_TEXT_CLASS,
         ThemeText::Primary.classes()
     )
 }
 
 pub fn backup_footer_summary() -> String {
     format!(
-        "inline-flex min-w-0 items-center gap-1 truncate text-[11px] leading-4 {}",
+        "inline-flex min-w-0 items-center gap-1 truncate {} {}",
+        UI_LABEL_TEXT_CLASS,
         ThemeText::Subtle.classes()
     )
 }
 
-pub fn backup_footer_status_dot() -> &'static str {
+pub fn backup_footer_missing_status_dot() -> &'static str {
+    "h-1.5 w-1.5 shrink-0 rounded-full bg-apple-notebook-muted/60"
+}
+
+pub fn backup_footer_recent_status_dot() -> &'static str {
     "h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500"
+}
+
+pub fn backup_footer_stale_status_dot() -> &'static str {
+    "h-1.5 w-1.5 shrink-0 rounded-full bg-apple-notebook-amber"
 }
 
 pub fn backup_import_preview() -> String {
     format!(
-        "border-t border-apple-notebook-borderStrong px-4 py-3 text-xs leading-5 dark:border-apple-notebook-darkBorder {}",
+        "border-t border-apple-notebook-borderStrong px-4 py-3 {} dark:border-apple-notebook-darkBorder {}",
+        UI_BODY_TEXT_CLASS,
         ThemeSurface::EditorChrome.classes()
     )
 }
 
 pub fn editor_footer() -> String {
     format!(
-        "{} shrink-0 gap-x-2 gap-y-1 border-t border-apple-notebook-border px-4 py-1.5 text-[11px] leading-4 dark:border-apple-notebook-darkBorder flex items-center justify-between {}",
+        "{} shrink-0 gap-x-2 gap-y-1 border-t border-apple-notebook-border px-4 py-1.5 {} dark:border-apple-notebook-darkBorder flex items-center justify-between {}",
         COMPACT_FOOTER_HEIGHT_CLASS,
+        UI_LABEL_TEXT_CLASS,
         ThemeSurface::EditorChrome.classes()
     )
 }
@@ -149,11 +197,8 @@ pub fn editor_footer_mode_label() -> String {
     format!("hidden sm:inline {}", ThemeText::Muted.classes())
 }
 
-pub fn editor_footer_meta() -> String {
-    format!(
-        "hidden min-w-0 flex-1 items-center justify-end gap-2 sm:flex {}",
-        ThemeText::Muted.classes()
-    )
+pub fn editor_footer_spacer() -> &'static str {
+    "hidden min-w-0 flex-1 sm:block"
 }
 
 pub fn compact_segmented_button(is_active: bool, is_desktop_only: bool) -> String {
@@ -169,55 +214,54 @@ pub fn compact_segmented_button(is_active: bool, is_desktop_only: bool) -> Strin
     };
 
     format!(
-        "{visibility} h-11 min-w-[2.75rem] items-center justify-center rounded-md px-3 text-xs transition-colors md:h-6 md:min-w-0 md:px-2 md:py-0 md:text-[11px] {state_classes}"
+        "{visibility} h-11 min-w-[2.75rem] items-center justify-center rounded-md px-3 {UI_CONTROL_TEXT_CLASS} transition-colors md:h-6 md:min-w-0 md:px-2 md:py-0 {state_classes}"
     )
 }
 
 pub fn compact_help_button() -> String {
     format!(
-        "inline-flex h-11 w-11 items-center justify-center rounded-md px-0 text-xs transition-colors md:h-6 md:w-auto md:px-2 md:py-0 md:text-[11px] {}",
-        ThemeState::SegmentedIdle.classes()
-    )
-}
-
-pub fn compact_icon_button() -> String {
-    format!(
-        "inline-flex h-6 w-6 items-center justify-center rounded-md transition-colors {}",
+        "inline-flex h-11 w-11 items-center justify-center rounded-md px-0 {} transition-colors md:h-6 md:w-auto md:px-2 md:py-0 {}",
+        UI_CONTROL_TEXT_CLASS,
         ThemeState::SegmentedIdle.classes()
     )
 }
 
 pub fn backup_footer_button() -> String {
     format!(
-        "inline-flex h-7 cursor-pointer items-center rounded-md px-2 text-[11px] md:h-auto md:px-1.5 md:py-0.5 {}",
+        "inline-flex h-11 cursor-pointer items-center rounded-md px-3 {} md:h-auto md:px-1.5 md:py-0.5 {}",
+        UI_LABEL_TEXT_CLASS,
         ThemeState::SegmentedIdle.classes()
     )
 }
 
 pub fn danger_footer_button() -> String {
     format!(
-        "ml-auto inline-flex h-8 cursor-pointer items-center rounded-md px-2 py-1 text-[11px] md:h-auto md:px-1.5 md:py-0.5 {}",
+        "ml-auto inline-flex h-8 cursor-pointer items-center rounded-md px-2 py-1 {} md:h-auto md:px-1.5 md:py-0.5 {}",
+        UI_LABEL_TEXT_CLASS,
         ThemeState::DangerMenuItem.classes()
     )
 }
 
 pub fn recovery_action_button() -> String {
     format!(
-        "inline-flex h-9 items-center rounded-md px-2.5 text-[11px] md:h-auto md:px-1.5 md:py-0.5 {}",
+        "inline-flex h-9 items-center rounded-md px-2.5 {} md:h-auto md:px-1.5 md:py-0.5 {}",
+        UI_LABEL_TEXT_CLASS,
         ThemeState::SegmentedIdle.classes()
     )
 }
 
 pub fn recovery_danger_button() -> String {
     format!(
-        "inline-flex h-9 items-center rounded-md px-2.5 text-[11px] md:h-auto md:px-1.5 md:py-0.5 {}",
+        "inline-flex h-9 items-center rounded-md px-2.5 {} md:h-auto md:px-1.5 md:py-0.5 {}",
+        UI_LABEL_TEXT_CLASS,
         ThemeState::DangerMenuItem.classes()
     )
 }
 
 pub fn tag_pill() -> String {
     format!(
-        "rounded-full px-2 py-0.5 text-xs {}",
+        "inline-flex h-11 items-center rounded-full px-3 py-1 {} md:h-auto md:px-2 md:py-0.5 {}",
+        UI_CONTROL_TEXT_CLASS,
         ThemeState::TagPill.classes()
     )
 }
@@ -249,8 +293,7 @@ mod tests {
         for classes in [&sidebar, &editor] {
             assert_eq!(classes.matches(COMPACT_FOOTER_HEIGHT_CLASS).count(), 1);
             assert!(classes.contains("py-1.5"));
-            assert!(classes.contains("text-[11px]"));
-            assert!(classes.contains("leading-4"));
+            assert!(classes.contains(UI_LABEL_TEXT_CLASS));
             assert!(classes.contains("border-t"));
             assert!(classes.contains("dark:border-apple-notebook-darkBorder"));
             assert!(classes.contains("flex"));
@@ -266,10 +309,13 @@ mod tests {
         assert!(!editor.contains("flex-wrap"));
         assert!(editor.contains("justify-between"));
         assert!(backup_footer_summary().contains("inline-flex"));
-        assert!(backup_footer_status_dot().contains("bg-emerald-500"));
+        assert!(backup_footer_missing_status_dot().contains("bg-apple-notebook-muted/60"));
+        assert!(backup_footer_recent_status_dot().contains("bg-emerald-500"));
+        assert!(backup_footer_stale_status_dot().contains("bg-apple-notebook-amber"));
         assert!(editor_footer_stats().contains("sm:flex"));
         assert!(editor_footer_mode_group().contains("justify-center"));
-        assert!(editor_footer_meta().contains("justify-end"));
+        assert!(editor_footer_spacer().contains("flex-1"));
+        assert!(editor_footer_spacer().contains("sm:block"));
     }
 
     #[test]
@@ -293,23 +339,22 @@ mod tests {
             assert!(classes.contains("md:h-6"));
             assert!(classes.contains("md:px-2"));
             assert!(classes.contains("md:py-0"));
-            assert!(classes.contains("md:text-[11px]"));
+            assert!(classes.contains(UI_CONTROL_TEXT_CLASS));
         }
 
         assert!(idle.contains("min-w-[2.75rem]"));
         assert!(active.contains("min-w-[2.75rem]"));
         assert!(help.contains("w-11"));
-        assert!(compact_icon_button().contains("h-6"));
-        assert!(compact_icon_button().contains("w-6"));
 
         for classes in [&backup, &danger, &recovery, &recovery_danger] {
             assert!(classes.contains("rounded-md"));
-            assert!(classes.contains("text-[11px]"));
+            assert!(classes.contains(UI_LABEL_TEXT_CLASS));
         }
 
         assert!(split.starts_with("hidden lg:inline-flex"));
         assert!(active.contains("border-apple-notebook-amberBorder"));
-        assert!(backup.contains("h-7"));
+        assert!(backup.contains("h-11"));
+        assert!(backup.contains("md:h-auto"));
         assert!(recovery.contains("h-9"));
         assert!(recovery_danger.contains("h-9"));
         assert!(danger.contains("text-red"));
@@ -339,7 +384,10 @@ mod tests {
         assert!(!search_code.contains(&["bg", "black"].join("-")));
 
         assert!(tag.contains("rounded-full"));
-        assert!(tag.contains("text-xs"));
+        assert!(tag.contains("inline-flex"));
+        assert!(tag.contains("h-11"));
+        assert!(tag.contains("md:h-auto"));
+        assert!(tag.contains(UI_CONTROL_TEXT_CLASS));
         assert!(tag.contains("dark:bg-white/10"));
 
         assert!(selected.contains("border-apple-notebook-amberBorder"));
@@ -370,7 +418,7 @@ mod tests {
         assert!(empty_state_placeholder_text().contains("text-xl"));
         assert!(empty_state_placeholder_text().contains("font-semibold"));
 
-        assert!(note_list_title.contains("text-[13px]"));
+        assert!(note_list_title.contains("text-sm"));
         assert!(note_list_title.contains("font-semibold"));
         assert!(note_list_title.contains("leading-5"));
         assert!(note_list_meta_row().contains("text-[11px]"));
@@ -388,7 +436,14 @@ mod tests {
         assert_eq!(pane_inline_inset(), PANE_INLINE_INSET_CLASS);
         assert_eq!(pane_top_inset(), PANE_TOP_INSET_CLASS);
         assert!(pane_top_inset().contains("pt-4"));
-        assert!(backup_import_preview().contains("text-xs"));
-        assert!(backup_import_preview().contains("leading-5"));
+        assert_eq!(ui_label_text(), UI_LABEL_TEXT_CLASS);
+        assert_eq!(ui_control_text(), UI_CONTROL_TEXT_CLASS);
+        assert_eq!(ui_body_text(), UI_BODY_TEXT_CLASS);
+        assert!(modal_title_text().contains("text-xl"));
+        assert!(modal_title_text().contains("font-semibold"));
+        assert!(modal_description_text().contains(UI_BODY_TEXT_CLASS));
+        assert_eq!(modal_body_text(), UI_BODY_TEXT_CLASS);
+        assert!(button_label_text().contains("text-xs"));
+        assert!(backup_import_preview().contains(UI_BODY_TEXT_CLASS));
     }
 }

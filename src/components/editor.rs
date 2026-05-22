@@ -213,7 +213,7 @@ pub fn Editor() -> impl IntoView {
         <div
             data-testid="editor-frame"
             class=move || format!(
-                "min-w-0 flex-1 flex flex-col h-full overflow-hidden relative rounded-lg border shadow-sm transition-colors duration-300 lg:rounded-l-none {}",
+                "min-w-0 flex-1 flex flex-col h-full overflow-hidden relative transition-colors duration-300 {}",
                 ThemeSurface::EditorChrome.classes()
             )
         >
@@ -251,7 +251,7 @@ pub fn Editor() -> impl IntoView {
                                             } else {
                                                 "cursor-not-allowed bg-gray-200 text-gray-400 dark:bg-white/10 dark:text-gray-600".to_string()
                                             };
-                                            format!("inline-flex min-h-10 items-center rounded-md px-4 py-2 text-sm font-semibold transition-colors {state_classes}")
+                                            format!("inline-flex min-h-10 items-center rounded-md px-4 py-2 transition-colors {} {state_classes}", ui_recipes::button_label_text())
                                         }
                                         on:click=move |_| state.restore_previous_snapshot()
                                     >
@@ -259,12 +259,12 @@ pub fn Editor() -> impl IntoView {
                                     </button>
                                     <button
                                         type="button"
-                                        class=move || format!("inline-flex min-h-10 items-center rounded-md px-4 py-2 text-sm font-semibold transition-colors {}", ThemeState::SecondaryButton.classes())
+                                        class=move || format!("inline-flex min-h-10 items-center rounded-md px-4 py-2 transition-colors {} {}", ui_recipes::button_label_text(), ThemeState::SecondaryButton.classes())
                                         on:click=move |_| state.start_empty_after_storage_recovery()
                                     >
                                         "Start empty"
                                     </button>
-                                    <label class=move || format!("inline-flex min-h-10 cursor-pointer items-center rounded-md px-4 py-2 text-sm font-semibold transition-colors {}", ThemeState::SegmentedIdle.classes())>
+                                    <label class=move || format!("inline-flex min-h-10 cursor-pointer items-center rounded-md px-4 py-2 transition-colors {} {}", ui_recipes::button_label_text(), ThemeState::SegmentedIdle.classes())>
                                         "Import Backup"
                                         <input
                                             type="file"
@@ -281,7 +281,7 @@ pub fn Editor() -> impl IntoView {
                                     </label>
                                 </div>
                                 <Show when=move || recovery_pending_backup_import.get().is_some()>
-                                    <div class=move || format!("mt-4 rounded-md border p-3 text-sm {}", ThemeSurface::EditorChrome.classes())>
+                                    <div class=move || format!("mt-4 rounded-md border p-3 {} {}", ui_recipes::ui_body_text(), ThemeSurface::EditorChrome.classes())>
                                         {move || {
                                             recovery_pending_backup_import
                                                 .get()
@@ -298,7 +298,7 @@ pub fn Editor() -> impl IntoView {
                                                             </span>
                                                             <button
                                                                 type="button"
-                                                                class=move || format!("rounded-md px-3 py-1 text-sm {}", ThemeState::SegmentedIdle.classes())
+                                                                class=move || format!("rounded-md px-3 py-1 {} {}", ui_recipes::button_label_text(), ThemeState::SegmentedIdle.classes())
                                                                 on:click=move |_| {
                                                                     confirm_pending_backup_import(
                                                                         state,
@@ -310,7 +310,7 @@ pub fn Editor() -> impl IntoView {
                                                             </button>
                                                             <button
                                                                 type="button"
-                                                                class=move || format!("rounded-md px-3 py-1 text-sm {}", ThemeState::SegmentedIdle.classes())
+                                                                class=move || format!("rounded-md px-3 py-1 {} {}", ui_recipes::button_label_text(), ThemeState::SegmentedIdle.classes())
                                                                 on:click=move |_| {
                                                                     cancel_pending_backup_import(
                                                                         state,
@@ -382,7 +382,7 @@ pub fn Editor() -> impl IntoView {
                                                                 view! {
                                                                     <button
                                                                         type="button"
-                                                                        class=move || format!("block w-full px-3 py-2 text-left text-sm transition-colors {}", ThemeState::SegmentedIdle.classes())
+                                                                        class=move || format!("block w-full px-3 py-2 text-left transition-colors {} {}", ui_recipes::ui_body_text(), ThemeState::SegmentedIdle.classes())
                                                                         on:mousedown=move |ev| ev.prevent_default()
                                                                         on:click=move |_| apply_tags_value(completed_input.clone())
                                                                     >
@@ -395,7 +395,7 @@ pub fn Editor() -> impl IntoView {
                                                 </div>
                                             </Show>
                                             <Show when=move || !tag_cleanup_plan.get().is_empty()>
-                                                <details class=move || format!("max-w-xl rounded-md border p-3 text-sm {}", ThemeSurface::EditorChrome.classes())>
+                                                <details class=move || format!("max-w-xl rounded-md border p-3 {} {}", ui_recipes::ui_body_text(), ThemeSurface::EditorChrome.classes())>
                                                     <summary class="cursor-pointer select-none">
                                                         "Review Tag cleanup"
                                                     </summary>
@@ -421,7 +421,7 @@ pub fn Editor() -> impl IntoView {
                                                         }}
                                                         <button
                                                             type="button"
-                                                            class=move || format!("rounded-md px-3 py-1 text-sm {}", ThemeState::SegmentedIdle.classes())
+                                                            class=move || format!("rounded-md px-3 py-1 {} {}", ui_recipes::button_label_text(), ThemeState::SegmentedIdle.classes())
                                                             on:click=move |_| {
                                                                 let plan = tag_cleanup_plan.get_untracked();
                                                                 state.apply_tag_cleanup(&plan);
@@ -501,7 +501,7 @@ pub fn Editor() -> impl IntoView {
                                 <p class=ui_recipes::empty_state_body_text>"Start with a title, then write in Markdown when you need it."</p>
                                 <button
                                     on:click=move |_| state.create_note()
-                                    class=move || format!("mt-6 inline-flex items-center rounded-md px-4 py-2 text-sm font-semibold transition-colors {} {}", ThemeAccent::PrimaryFill.classes(), ThemeAccent::Focus.classes())
+                                    class=move || format!("mt-6 inline-flex items-center rounded-md px-4 py-2 transition-colors {} {} {}", ui_recipes::button_label_text(), ThemeAccent::PrimaryFill.classes(), ThemeAccent::Focus.classes())
                                 >
                                     "New Note"
                                 </button>
@@ -523,9 +523,9 @@ pub fn Editor() -> impl IntoView {
 
             <div class=editor_area_footer_classes>
                 <div class=editor_footer_stats_classes>
-                    <span>{move || format!("Lines {}", footer_metrics.get().0)}</span>
-                    <span>{move || format!("Words {}", footer_metrics.get().1)}</span>
-                    <span>{move || format!("Characters {}", footer_metrics.get().2)}</span>
+                    <span>{move || format!("Lines: {}", footer_metrics.get().0)}</span>
+                    <span>{move || format!("Words: {}", footer_metrics.get().1)}</span>
+                    <span>{move || format!("Characters: {}", footer_metrics.get().2)}</span>
                 </div>
                 <div class=editor_footer_mode_group_classes>
                     <span class=editor_footer_mode_label_classes>"Mode"</span>
@@ -577,24 +577,7 @@ pub fn Editor() -> impl IntoView {
                         </button>
                     </div>
                 </div>
-                <div class=editor_footer_meta_classes>
-                    <span>"1:1"</span>
-                    <button
-                        type="button"
-                        title="Focus editor"
-                        aria-label="Focus editor"
-                        class=footer_focus_button_classes
-                        on:click=move |_| {
-                            if let Some(textarea) = content_area_ref.get() {
-                                let _ = textarea.focus();
-                            }
-                        }
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 3h6v6m0-6l-7 7M9 21H3v-6m0 6l7-7" />
-                        </svg>
-                    </button>
-                </div>
+                <div class=editor_footer_spacer_classes aria-hidden="true"></div>
             </div>
         </div>
     }
@@ -652,7 +635,7 @@ pub fn GlobalNotificationOutlet() -> impl IntoView {
 }
 
 fn notification_outlet_classes() -> &'static str {
-    "pointer-events-none fixed bottom-16 right-3 z-50 flex min-w-0 justify-end sm:bottom-auto sm:top-3"
+    "pointer-events-none fixed bottom-16 right-3 z-50 flex min-w-0 justify-end sm:bottom-auto sm:right-5 sm:top-5"
 }
 
 fn notification_classes(tone: NotificationTone) -> String {
@@ -669,7 +652,8 @@ fn notification_classes(tone: NotificationTone) -> String {
     };
 
     format!(
-        "pointer-events-auto max-w-[11rem] truncate rounded-md border px-3 py-1 text-xs font-medium shadow-sm {tone_classes}"
+        "pointer-events-auto max-w-[11rem] truncate rounded-md border px-3 py-1 {} font-medium shadow-sm {tone_classes}",
+        ui_recipes::ui_control_text()
     )
 }
 
@@ -705,12 +689,8 @@ fn editor_footer_mode_label_classes() -> String {
     ui_recipes::editor_footer_mode_label()
 }
 
-fn editor_footer_meta_classes() -> String {
-    ui_recipes::editor_footer_meta()
-}
-
-fn footer_focus_button_classes() -> String {
-    ui_recipes::compact_icon_button()
+fn editor_footer_spacer_classes() -> &'static str {
+    ui_recipes::editor_footer_spacer()
 }
 
 fn note_line_count(content: &str) -> usize {
@@ -735,7 +715,7 @@ fn formatting_tools_row_classes() -> String {
 
 fn formatting_tool_button_classes() -> String {
     format!(
-        "inline-flex h-9 min-w-[2.25rem] items-center justify-center rounded-md px-2.5 py-2 md:h-6 md:min-w-0 md:p-1 {}",
+        "inline-flex h-11 min-w-[2.75rem] items-center justify-center rounded-md px-2.5 py-2 md:h-6 md:min-w-0 md:p-1 {}",
         ThemeState::ToolbarButton.classes()
     )
 }
@@ -746,7 +726,8 @@ fn markdown_help_button_classes() -> String {
 
 fn hidden_filter_notice_classes() -> String {
     format!(
-        "mx-6 mt-5 max-w-[72ch] rounded-md border px-3 py-2 text-sm md:mx-8 {}",
+        "mx-6 mt-5 max-w-[72ch] rounded-md border px-3 py-2 md:mx-8 {} {}",
+        ui_recipes::ui_body_text(),
         ThemeSurface::EditorChrome.classes()
     )
 }
@@ -778,14 +759,16 @@ fn preview_title_classes() -> String {
 
 fn tag_input_classes() -> String {
     format!(
-        "h-7 w-full min-w-0 max-w-xs bg-transparent px-0 py-1 text-xs focus:outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600 sm:mt-0.5 {}",
+        "h-7 w-full min-w-0 max-w-xs bg-transparent px-0 py-1 focus:outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600 sm:mt-0.5 {} {}",
+        ui_recipes::ui_control_text(),
         ThemeText::Muted.classes()
     )
 }
 
 fn edit_tags_button_classes() -> String {
     format!(
-        "inline-flex h-11 items-center rounded-md px-3 text-xs md:h-auto md:px-2 md:py-0.5 {}",
+        "inline-flex h-11 items-center rounded-md px-3 md:h-auto md:px-2 md:py-0.5 {} {}",
+        ui_recipes::ui_control_text(),
         ThemeState::SegmentedIdle.classes()
     )
 }
@@ -951,16 +934,14 @@ mod tests {
         let stats = editor_footer_stats_classes();
         let mode_group = editor_footer_mode_group_classes();
         let mode_label = editor_footer_mode_label_classes();
-        let meta = editor_footer_meta_classes();
-        let focus = footer_focus_button_classes();
+        let spacer = editor_footer_spacer_classes();
 
         assert!(stats.contains("sm:flex"));
         assert!(stats.contains("gap-4"));
         assert!(mode_group.contains("justify-center"));
         assert!(mode_label.contains("sm:inline"));
-        assert!(meta.contains("justify-end"));
-        assert!(focus.contains("h-6"));
-        assert!(focus.contains("w-6"));
+        assert!(spacer.contains("flex-1"));
+        assert!(spacer.contains("sm:block"));
         assert_eq!(note_line_count(""), 0);
         assert_eq!(note_line_count("One"), 1);
         assert_eq!(note_line_count("One\nTwo\nThree"), 3);
@@ -990,8 +971,8 @@ mod tests {
         assert!(toolbar_row.contains("gap-1"));
         assert!(toolbar_row.contains("max-w-[72ch]"));
         assert!(button.contains("rounded"));
-        assert!(button.contains("h-9"));
-        assert!(button.contains("min-w-[2.25rem]"));
+        assert!(button.contains("h-11"));
+        assert!(button.contains("min-w-[2.75rem]"));
         assert!(button.contains("md:p-1"));
     }
 
@@ -1092,8 +1073,9 @@ mod tests {
         assert!(outlet.contains("fixed"));
         assert!(outlet.contains("bottom-16"));
         assert!(outlet.contains("sm:bottom-auto"));
-        assert!(outlet.contains("sm:top-3"));
+        assert!(outlet.contains("sm:top-5"));
         assert!(outlet.contains("right-3"));
+        assert!(outlet.contains("sm:right-5"));
         assert!(outlet.contains("z-50"));
         assert!(outlet.contains("pointer-events-none"));
 

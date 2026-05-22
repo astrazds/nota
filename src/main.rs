@@ -21,7 +21,7 @@ mod ui_recipes;
 mod writing_surface;
 
 use app_runtime::{AppRuntimeStartup, install_runtime_persistence};
-use components::{ConfirmModal, Editor, GlobalNotificationOutlet, Sidebar};
+use components::{AboutModal, ConfirmModal, Editor, GlobalNotificationOutlet, Sidebar};
 
 use backup::{
     BackupError, BackupHealth, BackupHealthRecord, BackupImportPreview, assess_backup_health,
@@ -595,6 +595,7 @@ fn App() -> impl IntoView {
     install_viewport_listener(state);
     install_quick_capture_shortcut(state);
     let _save_session = install_runtime_persistence(state);
+    let show_about = RwSignal::new(false);
 
     view! {
         <div
@@ -609,8 +610,17 @@ fn App() -> impl IntoView {
             }
             class:dark=move || state.is_dark_mode.get()
         >
-            <Sidebar />
-            <Editor />
+            <div
+                data-testid="workspace-frame"
+                class=move || format!(
+                    "flex h-full min-w-0 flex-1 overflow-hidden rounded-lg border shadow-sm {}",
+                    ThemeSurface::WorkspaceFrame.classes()
+                )
+            >
+                <Sidebar show_about=show_about />
+                <Editor />
+            </div>
+            <AboutModal show=show_about />
             <GlobalNotificationOutlet />
             <ConfirmModal
                 title="Move to Recently Deleted?"

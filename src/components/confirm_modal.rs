@@ -1,6 +1,7 @@
 use crate::AppState;
 use crate::components::Modal;
-use crate::theme::{ThemeState, ThemeText};
+use crate::theme::ThemeState;
+use crate::ui_recipes;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -33,7 +34,7 @@ pub fn ConfirmModal(title: &'static str, message: &'static str) -> impl IntoView
             <div>
                 <h2
                     id="confirmation-modal-title"
-                    class=move || format!("text-xl font-bold {}", ThemeText::Primary.classes())
+                    class=ui_recipes::modal_title_text
                 >
                     {move || {
                         if state
@@ -48,7 +49,7 @@ pub fn ConfirmModal(title: &'static str, message: &'static str) -> impl IntoView
                 </h2>
                 <p
                     id="confirmation-modal-message"
-                    class=move || format!("mt-2 {}", ThemeText::Muted.classes())
+                    class=ui_recipes::modal_description_text
                 >
                     {move || {
                         if let Some(count) = state.clear_all_recently_deleted_confirmation_count() {
@@ -71,7 +72,7 @@ pub fn ConfirmModal(title: &'static str, message: &'static str) -> impl IntoView
             <button
                 data-modal-cancel="true"
                 on:click=move |_| dismiss_confirmation()
-                class=move || format!("min-h-10 px-5 py-2 font-semibold rounded-md transition-colors {}", ThemeState::SecondaryButton.classes())
+                class=move || format!("min-h-10 px-5 py-2 rounded-md transition-colors {} {}", ui_recipes::button_label_text(), ThemeState::SecondaryButton.classes())
             >
                 "Cancel"
             </button>
@@ -86,7 +87,7 @@ pub fn ConfirmModal(title: &'static str, message: &'static str) -> impl IntoView
                         state.confirm_delete_selected_note();
                     }
                 }
-                class=move || format!("min-h-10 px-5 py-2 font-semibold rounded-md transition-colors {}", ThemeState::DangerButton.classes())
+                class=move || format!("min-h-10 px-5 py-2 rounded-md transition-colors {} {}", ui_recipes::button_label_text(), ThemeState::DangerButton.classes())
             >
                 {move || {
                     if state

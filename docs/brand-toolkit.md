@@ -243,16 +243,19 @@ Rules:
 - No all-caps `NOTER` as the primary wordmark.
 - Keep the mark and wordmark separable.
 
-### Future Asset Requirements
+### Application Icon Assets
 
-When a final logo asset is created, include:
+Noter now ships a practical app icon set based on the folded-note mark direction. Keep these assets in sync when the mark changes:
 
-- SVG source.
-- Monochrome version.
-- Warm accent version.
-- Favicon-safe simplified version.
-- Minimum size and clear-space rules.
-- Dark and light surface checks.
+- `assets/icons/noter-icon.svg`: full rounded-square app icon source for install and larger surfaces.
+- `assets/icons/noter-maskable.svg`: mask-safe PWA source with generous background coverage.
+- `assets/icons/noter-monochrome.svg`: single-color documentation and mask source.
+- `assets/icons/noter-favicon.svg`: favicon-safe note-only source, cropped to the mark with no outer app tile.
+- `assets/icons/noter-16.png`, `noter-32.png`, `noter-48.png`, and `favicon.ico`: browser favicon rasters generated from the favicon-safe source.
+- `assets/icons/apple-touch-icon.png`, `noter-192.png`, `noter-512.png`, `noter-maskable-192.png`, and `noter-maskable-512.png`: platform install rasters generated from the app and maskable sources.
+- `assets/site.webmanifest`: install metadata and icon declarations.
+
+Minimum-size rule: the 16px favicon must use the note mark itself and fill the canvas. Do not put the full rounded-square app icon inside the 16px favicon.
 
 ## Layout
 

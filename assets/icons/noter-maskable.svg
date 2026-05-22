@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Noter maskable icon</title>
+  <desc id="desc">A mask-safe Noter app icon with generous warm paper background.</desc>
+  <rect width="512" height="512" fill="#F7F5F1"/>
+  <rect x="80" y="80" width="352" height="352" rx="84" fill="#FDFCF9" stroke="#E6E2DA" stroke-width="10"/>
+  <path d="M184 124h116l68 68v196c0 15.5-12.5 28-28 28H184c-15.5 0-28-12.5-28-28V152c0-15.5 12.5-28 28-28Z" fill="#FDFCF9" stroke="#D8D1C5" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M300 124v62c0 7.7 6.3 14 14 14h54" fill="#F2E0BE" stroke="#DBA756" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M202 246h104" stroke="#25221F" stroke-width="17" stroke-linecap="round"/>
+  <path d="M202 292h88" stroke="#6E685F" stroke-width="15" stroke-linecap="round"/>
+  <path d="M202 338h118" stroke="#6E685F" stroke-width="15" stroke-linecap="round"/>
+  <circle cx="346" cy="340" r="26" fill="#FFB340"/>
+</svg>

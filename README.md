@@ -2,11 +2,12 @@
 
 A local-first Markdown note-taking web app built with **Rust**, **Leptos**, and **Tailwind CSS**.
 
-Current app version: **1.0.1**.
+Current app version: **1.0.2**.
 
 ## Features
 
-- **Local-First Note Identity**: Quiet note-app structure with a scannable Frame A sidebar, calm writing surface, compact editor footer, warm selected Note state, and paper-neutral popup models.
+- **Local-First Note Identity**: Quiet note-app structure with a scannable Frame A sidebar, calm writing surface, aligned main frame/sidebar borders, compact editor footer, warm selected Note state, and paper-neutral popup models.
+- **Brand App Icons**: Browser tab, Apple touch, PWA, maskable, monochrome, and favicon-safe icons use the Noter folded-note mark from the brand toolkit.
 - **Documented Design System**: `PRODUCT.md`, `DESIGN.md`, `docs/brand-toolkit.md`, and `.impeccable/design.json` capture the product register, brand direction, typography, palette, component rules, and visual anti-patterns used by agents and contributors.
 - **Self-Hosted Typography**: Source Sans 3 carries the product UI, while Source Code Pro is reserved for Markdown/source editing. Fonts are bundled locally through Trunk and Tailwind, with no remote font provider.
 - **Markdown Support**: Markdown writing with explicit Write, Preview, and desktop Split view modes in a stable editor-area footer that matches the sidebar footer height and compact control rhythm.
@@ -26,7 +27,7 @@ Current app version: **1.0.1**.
 - **Recoverable Delete**: Deleted Notes move to Recently Deleted so accidental deletes can be restored, individually cleared, or cleared all at once after a count-specific confirmation.
 - **Storage Recovery**: If saved Notes or Recently Deleted payloads become corrupt, Noter starts in a recovery state with Restore previous snapshot, Start empty, and Import Backup paths before normal editing resumes.
 - **Backup & Restore**: Export a versioned Flat Collection backup, track the last successful export with actionable stale/missing Backup Health nudges, and preview add/replace impact before safely merge-importing backups from compact sidebar footer controls.
-- **Diagnostics**: About Noter exposes version, storage mode, Backup Health, and corrupt-payload quarantine state without adding persistent metadata to the main note workflow.
+- **Diagnostics**: About Noter opens from the main frame and exposes version, storage mode, Backup Health, and corrupt-payload quarantine state without adding persistent metadata to the main note workflow.
 - **Debug Starter Notes**: Debug builds seed three representative notes when the browser has no saved notes yet, giving manual testing coverage for pinning, tags, rich Markdown, preview safety, search, and responsive editing.
 - **Tuned Themes**: Supports Light and Dark themes with coherent surfaces, borders, selection states, and accents.
 - **Polished Sidebar Utilities**: Search has a clear affordance, Recently Deleted actions use explicit recovery/destructive copy, and Backup controls sit in a compact labelled footer row.
@@ -38,7 +39,7 @@ Current app version: **1.0.1**.
   - Tag chips stay compact near the Note header, defer removal to the Edit tags flow, preserve 44px mobile touch targets where they become controls, and switch to a single edit input only when editing.
   - Contextual formatting tools (Bold, Italic, Strikethrough, Task List, Insert Table) inside the Writing Surface after Note Metadata.
   - Markdown syntax modal uses the shared paper-neutral popup model with dialog semantics on the popup panel.
-  - Floating global notification outlet for save, Backup, and import feedback above app chrome
+  - Floating global notification outlet for save, Backup, and import feedback, inset from the app chrome so it does not sit on the viewport corner.
 - **Stable Note Actions**: Pin/unpin and delete are available from a note action menu instead of hover-only controls.
 - **Delete Confirmation**: Modal confirmation uses the "Move to Recently Deleted?" frame, names the target Note, and defaults keyboard focus to Cancel before recoverable or permanent removal.
 - **Accessibility**: ARIA labels on interactive elements, panel-owned dialog semantics for popups, and mobile touch-target coverage for compact editor controls.
@@ -114,7 +115,7 @@ Tests cover core domain logic including:
 - **Backup & Restore**: Versioned Flat Collection backup export, validation, import preview, merge import, duplicate identity handling, actionable backup health, and all-or-nothing failure behavior.
 - **Storage Recovery**: Startup corrupt-payload detection, previous snapshot restore, start-empty quarantine, and Backup import availability during recovery.
 - **Filtering & Sorting**: Real-time search, scoped query parsing, quoted phrase matching, title/Tag highlighting, compact body Match Snippets, render-ready note list projection, active Search/Tag result status, filtered-empty explanations, active tag filtering, and note pinning logic.
-- **Browser Visual Regressions**: Playwright coverage verifies Light/Dark Theme readability, Search Hint contrast and placement, selected Note state, emitted Tailwind/style contracts, local Source font loading, Frame A material surfaces, editor/sidebar footer height parity, compact footer controls, compact desktop Tag chips, labelled desktop actions, 44px mobile touch targets, popup panel dialog semantics, startup notification quietness, Preview/Split Note Title consistency, Note Metadata ordering, dark Preview/Split prose, Write/Preview/Split pane alignment, Backup Controls placement, and floating Global Notification layering.
+- **Browser Visual Regressions**: Playwright coverage verifies Light/Dark Theme readability, Search Hint contrast and placement, selected Note state, emitted Tailwind/style contracts, local Source font loading, app icon/manifest assets, Frame A material surfaces, editor/sidebar footer height parity, compact footer controls, compact desktop Tag chips, labelled desktop actions, 44px mobile touch targets, popup panel dialog semantics, startup notification quietness, Preview/Split Note Title consistency, Note Metadata ordering, dark Preview/Split prose, Write/Preview/Split pane alignment, Backup Controls placement, and floating Global Notification layering.
 - **Browser Workflow Regressions**: Playwright coverage exercises Quick Capture, Note Title editing, Note creation/edit/save, scoped Search, pinning, Tags, Formatting Tools, Preview safety, Backup export/import, Responsive Navigation, Markdown syntax help, recoverable delete/restore, and Clear All.
 - **Formatting**: Named Markdown commands and UTF-16/UTF-8-safe selection handling.
 - **Note Logic**: Workspace behaviours for quick capture, note creation, selected note editing, recoverable delete/restore/individual clear/count-confirmed Clear All, delete confirmation, title extraction, date formatting, preview truncation, and deserialisation.

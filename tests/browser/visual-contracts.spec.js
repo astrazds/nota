@@ -60,36 +60,230 @@ test("Tailwind build emits the critical utility classes used by visual recipes",
   const css = await builtCss(page);
 
   expect(css).toContain(".h-\\[45px\\]");
-  expect(css).toContain(".min-w-\\[2\\.25rem\\]");
+  expect(css).toContain(".min-w-\\[2\\.75rem\\]");
   expect(css).toContain(".bg-apple-notebook-selected");
+  expect(css).toContain(".bg-apple-notebook-muted\\/60");
   expect(css).toContain(".dark\\:bg-apple-notebook-amber\\/25");
   expect(css).toContain(".border-apple-notebook-border");
   expect(css).toContain(".dark\\:border-apple-notebook-darkBorder");
+  expect(css).toContain(".transition-transform");
   expect(css).toContain("Source Sans 3 Variable");
   expect(css).toContain("Source Code Pro Variable");
   expect(css).toContain("fonts/source-sans-3/source-sans-3-latin-wght-normal.woff2");
   expect(css).toContain("fonts/source-code-pro/source-code-pro-latin-wght-normal.woff2");
   expect(css).not.toContain(".noter-footer-height");
   expect(css).not.toContain(".min-w-9");
+  expect(css).not.toContain(".transition-all");
+  expect(css).not.toContain(".bg-apple-gray-100");
+  expect(css).not.toContain(".text-white");
   expect(css).not.toContain(".bg-apple-yellow\\/15");
 });
 
+test("app exposes brand icon assets for browser tabs and install surfaces", async ({ page, request }) => {
+  await page.goto("/");
+
+  const headAssets = await page.evaluate(() => ({
+    manifest: document.querySelector('link[rel="manifest"]')?.getAttribute("href"),
+    svgIcon: document.querySelector('link[rel="icon"][type="image/svg+xml"]')?.getAttribute("href"),
+    icoIcon: document.querySelector('link[rel="icon"][sizes="any"]')?.getAttribute("href"),
+    appleIcon: document.querySelector('link[rel="apple-touch-icon"]')?.getAttribute("href"),
+    themeColors: Array.from(document.querySelectorAll('meta[name="theme-color"]'), (meta) => ({
+      media: meta.getAttribute("media"),
+      content: meta.getAttribute("content"),
+    })),
+  }));
+
+  expect(headAssets).toEqual({
+    manifest: "assets/site.webmanifest",
+    svgIcon: "assets/icons/noter-favicon.svg",
+    icoIcon: "assets/icons/favicon.ico",
+    appleIcon: "assets/icons/apple-touch-icon.png",
+    themeColors: [
+      { media: "(prefers-color-scheme: light)", content: "#F7F5F1" },
+      { media: "(prefers-color-scheme: dark)", content: "#151311" },
+    ],
+  });
+
+  const manifestResponse = await request.get("/assets/site.webmanifest");
+  expect(manifestResponse.ok()).toBe(true);
+  const manifest = await manifestResponse.json();
+  expect(manifest).toMatchObject({
+    name: "Noter",
+    short_name: "Noter",
+    display: "standalone",
+    background_color: "#F7F5F1",
+    theme_color: "#FFB340",
+  });
+  expect(manifest.icons).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ src: "icons/noter-192.png", sizes: "192x192", purpose: "any" }),
+      expect.objectContaining({ src: "icons/noter-512.png", sizes: "512x512", purpose: "any" }),
+      expect.objectContaining({
+        src: "icons/noter-maskable-192.png",
+        sizes: "192x192",
+        purpose: "maskable",
+      }),
+      expect.objectContaining({
+        src: "icons/noter-maskable-512.png",
+        sizes: "512x512",
+        purpose: "maskable",
+      }),
+    ]),
+  );
+
+  const assetPaths = [
+    "/assets/icons/noter-favicon.svg",
+    "/assets/icons/favicon.ico",
+    "/assets/icons/noter-16.png",
+    "/assets/icons/noter-32.png",
+    "/assets/icons/apple-touch-icon.png",
+    "/assets/icons/noter-192.png",
+    "/assets/icons/noter-512.png",
+    "/assets/icons/noter-maskable-192.png",
+    "/assets/icons/noter-maskable-512.png",
+  ];
+
+  for (const path of assetPaths) {
+    const response = await request.get(path);
+    expect(response.ok()).toBe(true);
+    expect((await response.body()).length).toBeGreaterThan(100);
+  }
+
+  const faviconSvg = await (await request.get("/assets/icons/noter-favicon.svg")).text();
+  expect(faviconSvg).toContain("Canvas-filling folded note mark");
+  expect(faviconSvg).not.toContain('<rect width="64" height="64"');
+
+  const pngSizes = await page.evaluate(async () => {
+    const sources = [
+      "/assets/icons/noter-16.png",
+      "/assets/icons/noter-32.png",
+      "/assets/icons/apple-touch-icon.png",
+      "/assets/icons/noter-192.png",
+      "/assets/icons/noter-512.png",
+      "/assets/icons/noter-maskable-192.png",
+      "/assets/icons/noter-maskable-512.png",
+    ];
+
+    return Object.fromEntries(
+      await Promise.all(
+        sources.map(
+          (src) =>
+            new Promise((resolve, reject) => {
+              const image = new Image();
+              image.onload = () => resolve([src, { width: image.naturalWidth, height: image.naturalHeight }]);
+              image.onerror = () => reject(new Error(`Could not load ${src}`));
+              image.src = src;
+            }),
+        ),
+      ),
+    );
+  });
+  expect(pngSizes).toEqual({
+    "/assets/icons/noter-16.png": { width: 16, height: 16 },
+    "/assets/icons/noter-32.png": { width: 32, height: 32 },
+    "/assets/icons/apple-touch-icon.png": { width: 180, height: 180 },
+    "/assets/icons/noter-192.png": { width: 192, height: 192 },
+    "/assets/icons/noter-512.png": { width: 512, height: 512 },
+    "/assets/icons/noter-maskable-192.png": { width: 192, height: 192 },
+    "/assets/icons/noter-maskable-512.png": { width: 512, height: 512 },
+  });
+
+  const faviconAlphaBounds = await page.evaluate(async () => {
+    const image = new Image();
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = () => reject(new Error("Could not load 16px favicon"));
+      image.src = "/assets/icons/noter-16.png";
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = 16;
+    canvas.height = 16;
+    const context = canvas.getContext("2d");
+    context.drawImage(image, 0, 0);
+    const data = context.getImageData(0, 0, 16, 16).data;
+    const bounds = { left: 16, top: 16, right: -1, bottom: -1 };
+
+    for (let y = 0; y < 16; y += 1) {
+      for (let x = 0; x < 16; x += 1) {
+        const alpha = data[(y * 16 + x) * 4 + 3];
+        if (alpha > 0) {
+          bounds.left = Math.min(bounds.left, x);
+          bounds.top = Math.min(bounds.top, y);
+          bounds.right = Math.max(bounds.right, x);
+          bounds.bottom = Math.max(bounds.bottom, y);
+        }
+      }
+    }
+
+    return bounds;
+  });
+  expect(faviconAlphaBounds).toEqual({ left: 0, top: 0, right: 15, bottom: 15 });
+});
+
 test("typography uses local Source families for UI and Markdown editing", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
   await seedNotes(page);
 
-  const families = await page.evaluate(() => {
-    const title = document.querySelector('textarea[placeholder="Note Title"]');
-    const editor = document.querySelector('textarea[placeholder="Start typing..."]');
-    return {
-      body: getComputedStyle(document.body).fontFamily,
-      title: getComputedStyle(title).fontFamily,
-      editor: getComputedStyle(editor).fontFamily,
-    };
-  });
+  const title = page.getByPlaceholder("Note Title");
+  const editor = page.getByPlaceholder("Start typing...");
+  const navigation = page.getByRole("navigation", { name: "Notes sidebar" });
+  const editorFrame = page.locator('[data-testid="editor-frame"]');
+  const families = {
+    body: await page.evaluate(() => getComputedStyle(document.body).fontFamily),
+    title: await title.evaluate((element) => getComputedStyle(element).fontFamily),
+    editor: await editor.evaluate((element) => getComputedStyle(element).fontFamily),
+  };
+  const sizes = {
+    sidebarTitle: await navigation
+      .getByRole("heading", { name: "Noter" })
+      .evaluate((element) => parseFloat(getComputedStyle(element).fontSize)),
+    noteTitle: await title.evaluate((element) => parseFloat(getComputedStyle(element).fontSize)),
+    noteListTitle: await navigation
+      .getByRole("heading", { name: "Architecture note" })
+      .evaluate((element) => parseFloat(getComputedStyle(element).fontSize)),
+    noteListMeta: await navigation
+      .getByText("06/05/2026")
+      .evaluate((element) => parseFloat(getComputedStyle(element).fontSize)),
+    editorBody: await editor.evaluate((element) => parseFloat(getComputedStyle(element).fontSize)),
+    editorFooter: await editorFrame
+      .getByText(/^Lines: \d+$/)
+      .evaluate((element) => parseFloat(getComputedStyle(element).fontSize)),
+  };
 
   expect(families.body).toContain("Source Sans 3 Variable");
   expect(families.title).toContain("Source Sans 3 Variable");
   expect(families.editor).toContain("Source Code Pro Variable");
+  expect(sizes).toEqual({
+    sidebarTitle: 20,
+    noteTitle: 24,
+    noteListTitle: 14,
+    noteListMeta: 11,
+    editorBody: 14,
+    editorFooter: 11,
+  });
+
+  await page.getByRole("button", { name: "About Noter" }).click();
+  const aboutTypography = await page.getByRole("dialog", { name: "About Noter" }).evaluate((dialog) => {
+    const heading = dialog.querySelector("h2");
+    const description = dialog.querySelector("#about-modal-description");
+    const body = dialog.querySelector("dl");
+    const close = Array.from(dialog.querySelectorAll("button")).find(
+      (button) => button.textContent.trim() === "Close",
+    );
+
+    return {
+      heading: parseFloat(getComputedStyle(heading).fontSize),
+      description: parseFloat(getComputedStyle(description).fontSize),
+      body: parseFloat(getComputedStyle(body).fontSize),
+      close: parseFloat(getComputedStyle(close).fontSize),
+    };
+  });
+  expect(aboutTypography).toEqual({
+    heading: 20,
+    description: 14,
+    body: 14,
+    close: 12,
+  });
 });
 
 test("desktop editor tag chips stay compact and defer removal to tag editing", async ({ page }) => {
@@ -122,7 +316,39 @@ test("desktop primary actions use recognizable labels where space allows", async
   await seedNotes(page);
 
   await expect(page.getByRole("button", { name: "Create new note" })).toContainText("New");
+  await expect(page.getByRole("button", { name: "Create new note" })).toContainText("Ctrl N");
+  await expect(page.getByRole("button", { name: "Focus search notes" })).not.toContainText("/");
   await expect(page.getByRole("button", { name: "Show markdown cheatsheet" })).toContainText("Help");
+});
+
+test("mobile sidebar and Backup footer controls keep touch-safe hit areas", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await seedNotes(page);
+
+  const navigation = page.getByRole("navigation", { name: "Notes sidebar" });
+  const targets = [
+    navigation.getByRole("button", { name: "Collapse sidebar" }),
+    navigation.getByRole("button", { name: "Create new note" }),
+    navigation.getByRole("button", { name: "Switch to dark mode" }),
+    navigation.getByRole("button", { name: "Focus search notes" }),
+    navigation.getByRole("button", { name: "About Noter" }),
+    navigation.getByRole("button", { name: "Note actions" }).first(),
+    navigation.getByRole("button", { name: "Filter by tag product" }),
+    navigation.getByRole("button", { name: "Filter by tag writing" }),
+    page.getByRole("button", { name: "Export backup" }),
+    page.locator('label[aria-label="Import backup"]'),
+  ];
+
+  for (const target of targets) {
+    const box = await target.evaluate((element) => element.getBoundingClientRect().toJSON());
+    expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(44);
+  }
+
+  const missingBackupDotColor = await page
+    .getByText("No backup yet")
+    .locator("xpath=preceding-sibling::span[1]")
+    .evaluate((element) => getComputedStyle(element).backgroundColor);
+  expect(missingBackupDotColor).not.toBe("rgb(16, 185, 129)");
 });
 
 test("Markdown syntax modal keeps dense reference content accessible", async ({ page }) => {
@@ -159,6 +385,42 @@ test("Markdown syntax modal keeps dense reference content accessible", async ({ 
   }));
   expect(bodyMetrics.clientHeight).toBeGreaterThan(300);
   expect(bodyMetrics.scrollHeight).toBeGreaterThan(bodyMetrics.clientHeight);
+});
+
+test("About Noter uses the main-frame popup model like Markdown help", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await seedNotes(page);
+
+  const navigation = page.getByRole("navigation", { name: "Notes sidebar" });
+  const aboutButton = navigation.getByRole("button", { name: "About Noter" });
+  await aboutButton.click();
+
+  const dialog = page.getByRole("dialog", { name: "About Noter" });
+  await expect(dialog).toHaveAttribute("aria-labelledby", "about-modal-title");
+  await expect(dialog).toHaveAttribute("aria-describedby", "about-modal-description");
+  await expect(dialog).toContainText("Local browser storage");
+  await expect(dialog).toContainText("Backup Health");
+
+  const isNestedInSidebar = await dialog.evaluate((element) =>
+    Boolean(element.closest('nav[aria-label="Notes sidebar"]')),
+  );
+  expect(isNestedInSidebar).toBe(false);
+  await expect(dialog.locator("xpath=parent::*")).not.toHaveAttribute("role", "dialog");
+
+  const closeBox = await dialog
+    .getByRole("button", { name: "Close About Noter" })
+    .evaluate((element) => element.getBoundingClientRect().toJSON());
+  expect(closeBox.width).toBeGreaterThanOrEqual(44);
+  expect(closeBox.height).toBeGreaterThanOrEqual(44);
+
+  const footerClose = dialog.getByRole("button", { name: "Close", exact: true });
+  const footerCloseColor = await footerClose.evaluate((element) =>
+    getComputedStyle(element).backgroundColor,
+  );
+  expect(footerCloseColor).toBe("rgb(255, 179, 64)");
+
+  await footerClose.click();
+  await expect(aboutButton).toBeFocused();
 });
 
 test("Search Hint appears as a popup without shifting the Note List", async ({ page }) => {
@@ -228,6 +490,7 @@ test("main app frame uses the Quiet Notebook material system", async ({ page }) 
   await seedNotes(page);
 
   const frame = page.locator('[data-testid="app-frame"]');
+  const workspace = page.locator('[data-testid="workspace-frame"]');
   const navigation = page.getByRole("navigation", { name: "Notes sidebar" });
   const editorPane = page.locator('[data-testid="editor-frame"]').first();
   const title = page.getByPlaceholder("Note Title");
@@ -246,6 +509,31 @@ test("main app frame uses the Quiet Notebook material system", async ({ page }) 
   expect(lightFrame.backgroundColor).toBe("rgb(247, 245, 241)");
   expect(lightFrame.paddingTop).toBe("12px");
   expect(lightFrame.paddingRight).toBe("12px");
+
+  const lightWorkspace = await workspace.evaluate((element) => {
+    const styles = getComputedStyle(element);
+    return {
+      borderColor: styles.borderColor,
+      borderTopWidth: styles.borderTopWidth,
+      borderRadius: styles.borderTopLeftRadius,
+    };
+  });
+  expect(lightWorkspace).toEqual({
+    borderColor: "rgb(230, 226, 218)",
+    borderTopWidth: "1px",
+    borderRadius: "8px",
+  });
+
+  const frameBoxes = await Promise.all([
+    workspace.evaluate((element) => element.getBoundingClientRect().toJSON()),
+    navigation.evaluate((element) => element.getBoundingClientRect().toJSON()),
+    editorPane.evaluate((element) => element.getBoundingClientRect().toJSON()),
+  ]);
+  const [workspaceBox, navigationBox, editorBox] = frameBoxes;
+  expect(navigationBox.top).toBe(editorBox.top);
+  expect(navigationBox.bottom).toBe(editorBox.bottom);
+  expect(navigationBox.top).toBe(workspaceBox.top + 1);
+  expect(editorBox.bottom).toBe(workspaceBox.bottom - 1);
 
   const lightSurfaces = await Promise.all([
     navigation.evaluate((element) => {
@@ -350,11 +638,12 @@ test("Preview, Split, footers, Backup Controls, and notifications keep their lay
   ]);
   expect(footerHeights[0]).toBe(45);
   expect(footerHeights[1]).toBe(45);
-  await expect(editorFooter.getByText(/^Lines \d+$/)).toBeVisible();
-  await expect(editorFooter.getByText(/^Words \d+$/)).toBeVisible();
-  await expect(editorFooter.getByText(/^Characters \d+$/)).toBeVisible();
+  await expect(editorFooter.getByText(/^Lines: \d+$/)).toBeVisible();
+  await expect(editorFooter.getByText(/^Words: \d+$/)).toBeVisible();
+  await expect(editorFooter.getByText(/^Characters: \d+$/)).toBeVisible();
   await expect(editorFooter.getByText("Mode")).toBeVisible();
-  await expect(editorFooter.getByText("1:1")).toBeVisible();
+  await expect(editorFooter.getByText("1:1")).toHaveCount(0);
+  await expect(editorFooter.getByRole("button", { name: "Focus editor" })).toHaveCount(0);
 
   const writeTitleScale = await page
     .getByPlaceholder("Note Title")
@@ -422,8 +711,17 @@ test("Preview, Split, footers, Backup Controls, and notifications keep their lay
 
   const body = page.getByPlaceholder("Start typing...");
   await body.fill(`${note.content}\n\nSaved by browser coverage.`);
-  await expect(page.getByRole("status")).toContainText(/Saving|Saved/);
-  await expect(page.getByRole("status")).toBeHidden({ timeout: 5_000 });
+  const notification = page.getByRole("status");
+  await expect(notification).toContainText(/Saving|Saved/);
+
+  const notificationBox = await notification.evaluate((element) =>
+    element.getBoundingClientRect().toJSON(),
+  );
+  const viewport = page.viewportSize();
+  expect(notificationBox.top).toBeGreaterThanOrEqual(20);
+  expect(viewport.width - notificationBox.right).toBeGreaterThanOrEqual(20);
+
+  await expect(notification).toBeHidden({ timeout: 5_000 });
 });
 
 test("mobile editor chrome avoids title collisions and keeps touch controls reachable", async ({ page }) => {
@@ -444,6 +742,11 @@ test("mobile editor chrome avoids title collisions and keeps touch controls reac
   const mobileTouchTargets = [
     sidebarToggle,
     page.getByRole("button", { name: "Edit tags" }),
+    page.getByRole("button", { name: "Bold" }),
+    page.getByRole("button", { name: "Italic" }),
+    page.getByRole("button", { name: "Strikethrough" }),
+    page.getByRole("button", { name: "Task list" }),
+    page.getByRole("button", { name: "Insert table" }),
     page.getByRole("button", { name: "Write mode" }),
     page.getByRole("button", { name: "Preview mode" }),
     page.getByRole("button", { name: "Show markdown cheatsheet" }),

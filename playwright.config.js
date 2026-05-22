@@ -10,7 +10,7 @@ module.exports = defineConfig({
   webServer: {
     command: "env -u NO_COLOR trunk serve --port 1420 --no-autoreload",
     url: "http://127.0.0.1:1420",
-    reuseExistingServer: true,
+    reuseExistingServer: false,
     timeout: 120_000,
   },
   use: {

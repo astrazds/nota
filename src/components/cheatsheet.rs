@@ -1,6 +1,7 @@
 use crate::components::Modal;
 use crate::markdown_editing::{MARKDOWN_CHEATSHEET_SECTIONS, MarkdownCheatsheetSection};
 use crate::theme::{ThemeAccent, ThemeState, ThemeText};
+use crate::ui_recipes;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -14,11 +15,11 @@ pub fn CheatsheetModal(show: RwSignal<bool>) -> impl IntoView {
                 <div>
                     <h2
                         id="markdown-syntax-title"
-                        class=move || format!("text-2xl font-bold leading-tight {}", ThemeText::Primary.classes())
+                        class=ui_recipes::modal_title_text
                     >
                         "Markdown syntax"
                     </h2>
-                    <p class=move || format!("mt-1 text-sm {}", ThemeText::Muted.classes())>
+                    <p class=ui_recipes::modal_description_text>
                         "Syntax Noter renders in Preview."
                     </p>
                 </div>
@@ -40,7 +41,7 @@ pub fn CheatsheetModal(show: RwSignal<bool>) -> impl IntoView {
         view! {
             <button
                 on:click=move |_| close_modal()
-                class=move || format!("min-h-11 rounded-md px-6 py-2 font-semibold transition-colors shadow-sm sm:min-h-10 {}", ThemeAccent::PrimaryFill.classes())
+                class=move || format!("min-h-11 rounded-md px-6 py-2 transition-colors shadow-sm sm:min-h-10 {} {}", ui_recipes::button_label_text(), ThemeAccent::PrimaryFill.classes())
             >
                 "Close"
             </button>
@@ -99,8 +100,8 @@ fn focus_markdown_help_button() {
 fn section_group(title: &'static str, description: &'static str, core: bool) -> impl IntoView {
     view! {
         <section class="min-w-0">
-            <h3 class=move || format!("text-sm font-semibold {}", ThemeText::Primary.classes())>{title}</h3>
-            <p class=move || format!("mt-1 text-xs {}", ThemeText::Muted.classes())>{description}</p>
+            <h3 class=move || format!("{} font-semibold {}", ui_recipes::ui_body_text(), ThemeText::Primary.classes())>{title}</h3>
+            <p class=move || format!("mt-1 {} {}", ui_recipes::ui_label_text(), ThemeText::Muted.classes())>{description}</p>
             <div class="mt-4 space-y-5">
                 {MARKDOWN_CHEATSHEET_SECTIONS
                     .iter()
@@ -123,14 +124,14 @@ fn is_core_section(section: &MarkdownCheatsheetSection) -> bool {
 fn Section(title: &'static str, items: &'static [&'static str]) -> impl IntoView {
     view! {
         <div class="min-w-0">
-            <h4 class=move || format!("mb-2 text-xs font-semibold {}", ThemeAccent::PrimaryText.classes())>{title}</h4>
+            <h4 class=move || format!("mb-2 {} font-semibold {}", ui_recipes::ui_control_text(), ThemeAccent::PrimaryText.classes())>{title}</h4>
             <ul class="space-y-1.5">
                 {items
                     .iter()
                     .map(|item| {
                         view! {
                             <li class="min-w-0">
-                                <code class=move || format!("block overflow-x-auto rounded-md bg-apple-gray-100 px-2 py-1 font-mono text-[13px] leading-5 dark:bg-white/10 {}", ThemeText::Muted.classes())>
+                                <code class=move || format!("block overflow-x-auto rounded-md bg-apple-notebook-border/70 px-2 py-1 font-mono text-[13px] leading-5 dark:bg-white/10 {}", ThemeText::Muted.classes())>
                                     {*item}
                                 </code>
                             </li>

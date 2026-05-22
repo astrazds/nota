@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Noter monochrome icon</title>
+  <desc id="desc">Single-color Noter mark for masks and documentation stamps.</desc>
+  <path fill="#25221F" fill-rule="evenodd" d="M166 96h142l78 78v212c0 19.9-16.1 36-36 36H166c-19.9 0-36-16.1-36-36V132c0-19.9 16.1-36 36-36Zm142 0v74c0 8.8 7.2 16 16 16h62l-78-90ZM184 238c0-9.9 8.1-18 18-18h126c9.9 0 18 8.1 18 18s-8.1 18-18 18H202c-9.9 0-18-8.1-18-18Zm18 30c-9.9 0-18 8.1-18 18s8.1 18 18 18h94c9.9 0 18-8.1 18-18s-8.1-18-18-18h-94Zm0 48c-9.9 0-18 8.1-18 18s8.1 18 18 18h120c9.9 0 18-8.1 18-18s-8.1-18-18-18H202Zm156 48a28 28 0 1 0 0-56 28 28 0 0 0 0 56Z" clip-rule="evenodd"/>
+</svg>

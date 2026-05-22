@@ -61,6 +61,7 @@ pub fn local_ui_concerns() -> &'static [LocalUiConcern] {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ThemeSurface {
     RootApp,
+    WorkspaceFrame,
     Sidebar,
     EditorChrome,
     WritingSurface,
@@ -74,6 +75,9 @@ impl ThemeSurface {
     pub fn classes(self) -> &'static str {
         match self {
             Self::RootApp => "transition-colors duration-300",
+            Self::WorkspaceFrame => {
+                "border-apple-notebook-border dark:border-apple-notebook-darkBorder"
+            }
             Self::Sidebar => {
                 "bg-apple-notebook-sidebar border-apple-notebook-borderStrong dark:bg-apple-notebook-darkSidebar dark:border-apple-notebook-darkBorder"
             }
@@ -131,7 +135,9 @@ impl ThemeAccent {
             Self::PrimaryText => {
                 "text-amber-700 hover:text-amber-800 dark:text-apple-notebook-amber dark:hover:text-amber-300"
             }
-            Self::PrimaryFill => "bg-apple-yellow text-white hover:bg-yellow-600",
+            Self::PrimaryFill => {
+                "bg-apple-yellow text-apple-notebook-graphite hover:bg-apple-notebook-amber"
+            }
             Self::Selection => "selection:bg-apple-notebook-selected",
             Self::Highlight => "bg-apple-notebook-selected",
             Self::Focus => {
@@ -199,7 +205,7 @@ impl ThemeState {
                 "bg-apple-notebook-border text-apple-notebook-graphite hover:bg-apple-notebook-borderStrong focus:outline-none focus:ring-2 focus:ring-apple-notebook-amber dark:bg-white/10 dark:text-gray-300 dark:hover:bg-white/20"
             }
             Self::DangerButton => {
-                "bg-red-500 text-white hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400"
+                "bg-red-600 text-apple-notebook-surface hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
             }
             Self::DangerMenuItem => {
                 "text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
@@ -243,6 +249,7 @@ mod tests {
     fn semantic_theme_recipes_do_not_absorb_layout_spacing_or_responsive_tokens() {
         let semantic_recipes = [
             ThemeSurface::RootApp.classes(),
+            ThemeSurface::WorkspaceFrame.classes(),
             ThemeSurface::Sidebar.classes(),
             ThemeSurface::EditorChrome.classes(),
             ThemeSurface::WritingSurface.classes(),
@@ -336,6 +343,9 @@ mod tests {
         let preview = ThemeSurface::Preview.classes();
         let split_preview = ThemeSurface::SplitPreview.classes();
         let selected_row = ThemeState::NoteRowSelected.classes();
+        let primary_fill = ThemeAccent::PrimaryFill.classes();
+        let danger_button = ThemeState::DangerButton.classes();
+        let white_text = ["text", "white"].join("-");
 
         assert!(preview.contains("text-apple-notebook-graphite"));
         assert!(preview.contains("dark:text-apple-notebook-frame"));
@@ -350,5 +360,10 @@ mod tests {
         assert!(selected_row.contains("bg-apple-notebook-selected"));
         assert!(selected_row.contains("ring-1"));
         assert!(selected_row.contains("dark:bg-apple-notebook-amber/25"));
+
+        assert!(primary_fill.contains("text-apple-notebook-graphite"));
+        assert!(!primary_fill.contains(&white_text));
+        assert!(danger_button.contains("text-apple-notebook-surface"));
+        assert!(!danger_button.contains(&white_text));
     }
 }

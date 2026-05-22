@@ -63,7 +63,7 @@ pub fn Modal(
                 aria-modal="true"
                 aria-labelledby=labelledby
                 aria-describedby=describedby
-                class=move || format!("w-full {} max-h-[82vh] overflow-hidden rounded-md border shadow-xl transform transition-all duration-200 flex flex-col {}", max_width_class, ThemeSurface::ModalPanel.classes())
+                class=move || format!("w-full {} max-h-[82vh] overflow-hidden rounded-md border shadow-xl transform transition-transform duration-200 flex flex-col {}", max_width_class, ThemeSurface::ModalPanel.classes())
             >
                 {header.map(|h| view! {
                     <div class=move || format!("border-b p-5 {}", ThemeSurface::ModalChrome.classes())>

@@ -130,6 +130,11 @@ pub(crate) fn SidebarBackupControls() -> impl IntoView {
         BackupHealth::Recent { .. } => "Up to date".to_string(),
         BackupHealth::Stale { .. } => "Backup stale".to_string(),
     };
+    let backup_status_dot_class = move || match state.backup_health() {
+        BackupHealth::Missing => ui_recipes::backup_footer_missing_status_dot(),
+        BackupHealth::Recent { .. } => ui_recipes::backup_footer_recent_status_dot(),
+        BackupHealth::Stale { .. } => ui_recipes::backup_footer_stale_status_dot(),
+    };
 
     view! {
         <div class="contents">
@@ -137,7 +142,7 @@ pub(crate) fn SidebarBackupControls() -> impl IntoView {
                 <div class="min-w-0 flex-1 leading-4" title=move || state.backup_health_summary()>
                     <div class=ui_recipes::backup_footer_label>"Backup"</div>
                     <div class=ui_recipes::backup_footer_summary>
-                        <span class=ui_recipes::backup_footer_status_dot aria-hidden="true"></span>
+                        <span class=backup_status_dot_class aria-hidden="true"></span>
                         <span class="truncate">{move || backup_status_label()}</span>
                     </div>
                 </div>

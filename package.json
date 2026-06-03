@@ -6,7 +6,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/astrazds/noter-leptos-md.git"
+    "url": "git+https://repos.astrazds.net/astrazds/noter-leptos-md.git"
   },
   "scripts": {
     "dev": "env -u NO_COLOR trunk serve --open",

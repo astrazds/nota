@@ -5,6 +5,7 @@ pub mod persistence;
 pub mod preview;
 pub mod selection;
 pub mod storage;
+pub mod visual_contract;
 #[cfg(feature = "preview-webkit")]
 pub mod webkit_preview;
 

@@ -10,12 +10,13 @@ description = "Linux-first Relm4 desktop application for Noter"
 
 [features]
 default = ["gui"]
-gui = ["dep:relm4"]
+gui = ["dep:pango", "dep:relm4"]
 preview-webkit = ["gui", "dep:webkit6"]
 
 [dependencies]
 chrono = { version = "0.4.44", features = ["serde"] }
 noter-core = { path = "../noter-core" }
+pango = { version = "0.22.9", features = ["v1_56"], optional = true }
 relm4 = { version = "0.11.0", features = ["gnome_50"], optional = true }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"

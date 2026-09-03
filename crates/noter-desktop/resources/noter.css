@@ -1,52 +1,308 @@
-window.noter-root,
-.noter-root {
-  background: #fffdf8;
-  color: #332f2a;
-  font-family: "Source Sans 3", sans-serif;
+/* Native rendering of the final web/WASM Local Notebook visual contract. */
+window.noter-root, .noter-root {
+  background: #F7F5F1;
+  color: #25221F;
+  font-family: "Source Sans 3", "Cantarell", sans-serif;
+  font-size: 14px;
 }
 
-.noter-root.noter-dark {
-  background: #25221f;
-  color: #f2eadf;
+.noter-sidebar { background: #F0EDE6; border-right: 1px solid #D8D1C5; }
+.noter-sidebar-header { padding: 14px 16px 12px 16px; }
+.noter-app-title { color: #25221F; font-size: 20px; font-weight: 700; }
+
+button.noter-navigation-button, button.noter-command,
+button.noter-note-select, menubutton.noter-note-actions > button,
+button.noter-toolbar-button, button.noter-mode-button,
+button.noter-help-button, button.noter-footer-button,
+button.noter-small-button {
+  background: transparent;
+  background-image: none;
+  border: 0;
+  box-shadow: none;
+  color: #6E685F;
+  text-shadow: none;
 }
 
-.noter-title {
-  font-size: 1.75rem;
-  font-weight: 700;
+button.noter-navigation-button {
+  min-height: 28px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.noter-command-list { margin-top: 1px; }
+button.noter-command {
+  min-height: 30px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  color: #3F3A35;
+  font-size: 12px;
+}
+button.noter-command:hover, button.noter-navigation-button:hover,
+button.noter-toolbar-button:hover, button.noter-mode-button:hover,
+button.noter-help-button:hover, button.noter-footer-button:hover,
+button.noter-small-button:hover, menubutton.noter-note-actions > button:hover {
+  background: rgba(37, 34, 31, 0.07);
+  color: #25221F;
+}
+.noter-command-icon { min-width: 16px; color: #6E685F; font-size: 13px; }
+.noter-command-shortcut { color: #918A80; font-size: 10px; }
+
+entry.noter-search {
+  min-height: 34px;
+  margin-top: 2px;
+  padding: 1px 9px;
+  background: rgba(253, 252, 249, 0.72);
+  border: 1px solid rgba(216, 209, 197, 0.78);
+  border-radius: 8px;
+  box-shadow: none;
+  color: #25221F;
+  font-size: 13px;
+}
+entry.noter-search:focus {
+  border-color: #DBA756;
+  box-shadow: 0 0 0 1px rgba(231, 168, 88, 0.35);
+}
+.noter-sidebar-scroll, .noter-sidebar-scroll > viewport {
+  background: transparent;
+  border: 0;
+}
+.noter-section-header {
+  min-height: 28px;
+  padding: 4px 16px 3px 16px;
+  color: #6E685F;
+  font-size: 11px;
+  font-weight: 600;
+}
+.noter-section-count { color: #918A80; font-weight: 400; }
+.noter-empty-state {
+  margin: 8px 12px;
+  padding: 18px 12px;
+  border: 1px dashed #D8D1C5;
+  border-radius: 8px;
+  color: #6E685F;
+}
+.noter-empty-title { color: #3F3A35; font-weight: 600; }
+.noter-empty-copy { font-size: 12px; }
+
+.noter-note-row {
+  min-height: 58px;
+  margin: 0 12px 4px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+}
+.noter-note-row:hover { background: rgba(253, 252, 249, 0.70); }
+.noter-note-row.selected {
+  background: #F2E0BE;
+  border-color: #DBA756;
+  box-shadow: 0 0 0 1px rgba(231, 168, 88, 0.16);
+}
+button.noter-note-select {
+  min-height: 56px;
+  padding: 7px 4px 7px 9px;
+  border-radius: 7px 0 0 7px;
+  color: #25221F;
+}
+button.noter-note-select:hover, button.noter-note-select:active { background: transparent; }
+.noter-note-title { color: #25221F; font-size: 14px; font-weight: 600; }
+.noter-note-date, .noter-note-preview { color: #6E685F; font-size: 11px; }
+.noter-note-preview { color: #817A70; }
+.noter-note-pin { color: #B16F20; font-size: 9px; }
+.noter-note-tags {
+  padding: 1px 7px;
+  background: rgba(231, 168, 88, 0.20);
+  border-radius: 999px;
+  color: #79501D;
+  font-size: 10px;
+}
+menubutton.noter-note-actions { margin: 4px 3px 0 0; }
+menubutton.noter-note-actions > button {
+  min-width: 26px;
+  min-height: 26px;
+  padding: 3px;
+  border-radius: 999px;
+}
+.noter-note-menu { min-width: 132px; padding: 4px; }
+.noter-note-menu button {
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 5px;
+  box-shadow: none;
+  font-size: 12px;
 }
 
-.noter-writing-surface {
+.noter-deleted-panel { margin: 8px 12px 12px 12px; border-top: 1px solid #D8D1C5; }
+.noter-deleted-header {
+  min-height: 32px;
+  padding: 4px 2px;
+  color: #6E685F;
+  font-size: 11px;
+  font-weight: 600;
+}
+.noter-deleted-row {
+  min-height: 34px;
+  padding: 3px 2px;
+  color: #6E685F;
+  font-size: 11px;
+}
+button.noter-small-button {
+  min-height: 26px;
+  min-width: 0;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 10px;
+}
+button.danger, button.destructive-action { color: #A4473F; }
+
+.noter-sidebar-footer, .noter-editor-footer {
+  min-height: 45px;
+  border-top: 1px solid #D8D1C5;
+  color: #6E685F;
+  font-size: 11px;
+}
+.noter-sidebar-footer { padding: 5px 10px 5px 12px; }
+.noter-footer-label { font-weight: 600; }
+.noter-backup-dot { color: #918A80; font-size: 7px; }
+button.noter-footer-button {
+  min-height: 26px;
+  min-width: 0;
+  padding: 2px 5px;
+  border-radius: 5px;
+  font-size: 10px;
+}
+separator { min-width: 0; background: #D8D1C5; }
+
+.noter-editor, .noter-writing, .noter-content-scroll,
+.noter-content-scroll > viewport { background: #FDFCF9; }
+.noter-editor-header { padding: 16px 32px 10px 32px; background: #FDFCF9; }
+entry.noter-title, entry.noter-tags {
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  color: #25221F;
+}
+entry.noter-title { font-size: 20px; font-weight: 600; }
+entry.noter-tags { color: #6E685F; font-size: 12px; }
+entry.noter-title:focus, entry.noter-tags:focus { box-shadow: none; }
+.noter-formatting-toolbar {
+  min-height: 35px;
+  padding: 3px 28px;
+  background: #FDFCF9;
+  border-top: 1px solid #E6E2DA;
+  border-bottom: 1px solid #E6E2DA;
+}
+button.noter-toolbar-button {
+  min-width: 28px;
+  min-height: 27px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  color: #5C554D;
   font-family: "Source Code Pro", monospace;
-  font-size: 1rem;
+  font-size: 12px;
+  font-weight: 600;
 }
-
-button {
-  min-height: 44px;
-  min-width: 44px;
+.noter-writing-surface, .noter-writing-surface text {
+  background: #FDFCF9;
+  color: #332F2A;
+  caret-color: #B16F20;
+  font-family: "Source Code Pro", "Monospace", monospace;
+  font-size: 14px;
 }
+.noter-writing-surface selection, .noter-writing-surface text selection {
+  background: #F2E0BE;
+  color: #25221F;
+}
+.noter-editor-footer {
+  padding: 5px 12px 5px 16px;
+  background: #FDFCF9;
+  border-color: #E6E2DA;
+}
+.noter-statistics, .noter-save-status { color: #817A70; font-size: 11px; }
+.noter-save-status { min-width: 64px; }
+.noter-mode-group { padding: 1px; background: #F0EDE6; border-radius: 6px; }
+button.noter-mode-button, button.noter-help-button {
+  min-height: 25px;
+  min-width: 0;
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-size: 10px;
+}
+button.noter-mode-button.active, button.noter-mode-button:checked {
+  background: #FDFCF9;
+  color: #25221F;
+  box-shadow: 0 1px 2px rgba(37, 34, 31, 0.12);
+}
+button.noter-help-button { min-width: 25px; padding: 2px 6px; }
 
 .noter-recovery {
-  background: #fff3d6;
-  border: 1px solid #dba756;
-  border-radius: 10px;
-  padding: 16px;
+  background: #FFF3D6;
+  border: 1px solid #DBA756;
+  border-radius: 9px;
+  padding: 14px;
+  color: #453216;
 }
-
 .noter-notification {
-  border-radius: 8px;
   padding: 8px 12px;
+  background: #F0EDE6;
+  border: 1px solid #D8D1C5;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(37, 34, 31, 0.16);
+  color: #25221F;
+  font-size: 12px;
 }
+.noter-notification-success { background: #DDEBE5; border-color: #A8CDBE; color: #245E4B; }
+.noter-notification-error { background: #F2DEDB; border-color: #D8A39E; color: #863C35; }
 
-.noter-notification-progress {
-  background: #e9e4dc;
+/* The dim-desk theme is separately tuned, not inverted. */
+.noter-root.noter-dark { background: #151311; color: #F7F5F1; }
+.noter-dark .noter-sidebar { background: #211F1C; border-color: #3A3733; }
+.noter-dark .noter-app-title, .noter-dark .noter-note-title,
+.noter-dark button.noter-note-select, .noter-dark entry.noter-title,
+.noter-dark .noter-writing-surface, .noter-dark .noter-writing-surface text { color: #F7F5F1; }
+.noter-dark button.noter-command, .noter-dark button.noter-navigation-button,
+.noter-dark button.noter-toolbar-button, .noter-dark button.noter-mode-button,
+.noter-dark button.noter-help-button, .noter-dark button.noter-footer-button,
+.noter-dark button.noter-small-button, .noter-dark menubutton.noter-note-actions > button,
+.noter-dark .noter-section-header, .noter-dark .noter-note-date,
+.noter-dark .noter-note-preview, .noter-dark .noter-deleted-header,
+.noter-dark .noter-deleted-row, .noter-dark .noter-sidebar-footer,
+.noter-dark .noter-editor-footer, .noter-dark .noter-statistics,
+.noter-dark .noter-save-status, .noter-dark entry.noter-tags { color: #A5A39C; }
+.noter-dark button.noter-command:hover, .noter-dark button.noter-navigation-button:hover,
+.noter-dark button.noter-toolbar-button:hover, .noter-dark button.noter-mode-button:hover,
+.noter-dark button.noter-help-button:hover, .noter-dark button.noter-footer-button:hover,
+.noter-dark button.noter-small-button:hover, .noter-dark menubutton.noter-note-actions > button:hover {
+  background: rgba(247, 245, 241, 0.08);
+  color: #F7F5F1;
 }
-
-.noter-notification-success {
-  background: #dcebdc;
-  color: #234a2d;
+.noter-dark entry.noter-search {
+  background: rgba(37, 34, 31, 0.72);
+  border-color: #3A3733;
+  color: #F7F5F1;
 }
-
-.noter-notification-error {
-  background: #f3d7d2;
-  color: #6f2018;
+.noter-dark .noter-note-row:hover { background: rgba(37, 34, 31, 0.78); }
+.noter-dark .noter-note-row.selected {
+  background: #3A3022;
+  border-color: #8E682F;
+  box-shadow: 0 0 0 1px rgba(231, 168, 88, 0.10);
 }
+.noter-dark .noter-note-tags { background: rgba(231, 168, 88, 0.16); color: #E7A858; }
+.noter-dark .noter-deleted-panel, .noter-dark .noter-sidebar-footer,
+.noter-dark separator { border-color: #3A3733; background-color: #3A3733; }
+.noter-dark .noter-editor, .noter-dark .noter-writing,
+.noter-dark .noter-editor-header, .noter-dark .noter-formatting-toolbar,
+.noter-dark .noter-content-scroll, .noter-dark .noter-content-scroll > viewport,
+.noter-dark .noter-writing-surface, .noter-dark .noter-writing-surface text,
+.noter-dark .noter-editor-footer { background: #25221F; }
+.noter-dark .noter-formatting-toolbar, .noter-dark .noter-editor-footer { border-color: #3A3733; }
+.noter-dark .noter-mode-group { background: #211F1C; }
+.noter-dark button.noter-mode-button.active, .noter-dark button.noter-mode-button:checked {
+  background: #3A3733;
+  color: #F7F5F1;
+}
+.noter-dark .noter-empty-state { border-color: #3A3733; color: #A5A39C; }
+.noter-dark .noter-empty-title { color: #D8D1C5; }

@@ -18,6 +18,7 @@ use noter_desktop::selection::gtk_character_range_to_byte_selection;
 use noter_desktop::storage::{
     CollectionEnvelope, LoadOutcome, NativeRecovery, NativeStore, Preferences,
 };
+use noter_desktop::visual_contract::NATIVE_VISUAL_CONTRACT;
 #[cfg(feature = "preview-webkit")]
 use noter_desktop::webkit_preview::SecurePreview;
 
@@ -42,10 +43,13 @@ struct DesktopWidgets {
     tags: gtk::Entry,
     content: gtk::TextView,
     status: gtk::Label,
+    statistics: gtk::Label,
+    notes_count: gtk::Label,
+    empty_state: gtk::Box,
     notification: gtk::Label,
     recovery_panel: gtk::Box,
     clear_all: gtk::Button,
-    theme: gtk::Button,
+    theme_label: gtk::Label,
     #[cfg(feature = "preview-webkit")]
     writing: gtk::Box,
     #[cfg(feature = "preview-webkit")]
@@ -55,8 +59,12 @@ struct DesktopWidgets {
 #[derive(Debug, Clone)]
 struct NoteRow {
     id: Uuid,
-    summary: String,
+    title: String,
+    date: String,
+    preview: String,
+    tags: String,
     pinned: bool,
+    selected: bool,
 }
 
 #[derive(Debug)]
@@ -78,28 +86,104 @@ impl FactoryComponent for NoteRow {
         #[root]
         gtk::Box {
             set_orientation: gtk::Orientation::Horizontal,
-            set_spacing: 4,
+            set_spacing: 0,
+            set_css_classes: if self.selected {
+                &["noter-note-row", "selected"]
+            } else {
+                &["noter-note-row"]
+            },
 
             gtk::Button {
                 set_hexpand: true,
                 set_halign: gtk::Align::Fill,
-                #[watch]
-                set_label: &self.summary,
+                set_css_classes: &["noter-note-select"],
                 connect_clicked[sender, id = self.id] => move |_| {
                     let _send_result = sender.output(NoteRowOutput::Select(id));
                 },
-            },
-            gtk::Button {
-                #[watch]
-                set_label: if self.pinned { "Unpin" } else { "Pin" },
-                connect_clicked[sender, id = self.id] => move |_| {
-                    let _send_result = sender.output(NoteRowOutput::TogglePin(id));
+
+                gtk::Box {
+                    set_orientation: gtk::Orientation::Vertical,
+                    set_spacing: 3,
+
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_spacing: 6,
+
+                        gtk::Label {
+                            set_hexpand: true,
+                            set_halign: gtk::Align::Start,
+                            set_xalign: 0.0,
+                            set_ellipsize: gtk::pango::EllipsizeMode::End,
+                            set_css_classes: &["noter-note-title"],
+                            #[watch]
+                            set_label: &self.title,
+                        },
+                        gtk::Label {
+                            set_css_classes: &["noter-note-pin"],
+                            #[watch]
+                            set_label: if self.pinned { "◆" } else { "" },
+                        },
+                    },
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_spacing: 7,
+
+                        gtk::Label {
+                            set_css_classes: &["noter-note-date"],
+                            #[watch]
+                            set_label: &self.date,
+                        },
+                        gtk::Label {
+                            set_hexpand: true,
+                            set_halign: gtk::Align::Start,
+                            set_xalign: 0.0,
+                            set_ellipsize: gtk::pango::EllipsizeMode::End,
+                            set_css_classes: &["noter-note-preview"],
+                            #[watch]
+                            set_label: &self.preview,
+                        },
+                    },
+                    gtk::Label {
+                        set_halign: gtk::Align::Start,
+                        set_xalign: 0.0,
+                        set_ellipsize: gtk::pango::EllipsizeMode::End,
+                        set_css_classes: &["noter-note-tags"],
+                        #[watch]
+                        set_label: &self.tags,
+                        #[watch]
+                        set_visible: !self.tags.is_empty(),
+                    },
                 },
             },
-            gtk::Button {
-                set_label: "Delete",
-                connect_clicked[sender, id = self.id] => move |_| {
-                    let _send_result = sender.output(NoteRowOutput::Delete(id));
+
+            gtk::MenuButton {
+                set_icon_name: "view-more-symbolic",
+                set_tooltip_text: Some("Note actions"),
+                set_css_classes: &["noter-note-actions"],
+
+                #[wrap(Some)]
+                set_popover: popover = &gtk::Popover {
+                    set_position: gtk::PositionType::Bottom,
+
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
+                        set_css_classes: &["noter-note-menu"],
+
+                        gtk::Button {
+                            #[watch]
+                            set_label: if self.pinned { "Unpin" } else { "Pin" },
+                            connect_clicked[sender, id = self.id] => move |_| {
+                                let _send_result = sender.output(NoteRowOutput::TogglePin(id));
+                            },
+                        },
+                        gtk::Button {
+                            set_label: "Delete",
+                            set_css_classes: &["destructive-action"],
+                            connect_clicked[sender, id = self.id] => move |_| {
+                                let _send_result = sender.output(NoteRowOutput::Delete(id));
+                            },
+                        },
+                    },
                 },
             },
         }
@@ -134,22 +218,26 @@ impl FactoryComponent for DeletedRow {
         #[root]
         gtk::Box {
             set_orientation: gtk::Orientation::Horizontal,
-            set_spacing: 4,
+            set_spacing: 8,
+            set_css_classes: &["noter-deleted-row"],
 
             gtk::Label {
                 set_hexpand: true,
                 set_halign: gtk::Align::Start,
+                set_ellipsize: gtk::pango::EllipsizeMode::End,
                 #[watch]
                 set_label: &self.title,
             },
             gtk::Button {
                 set_label: "Restore",
+                set_css_classes: &["noter-small-button"],
                 connect_clicked[sender, id = self.id] => move |_| {
                     let _send_result = sender.output(DeletedRowOutput::Restore(id));
                 },
             },
             gtk::Button {
-                set_label: "Clear",
+                set_label: "Delete",
+                set_css_classes: &["noter-small-button", "danger"],
                 connect_clicked[sender, id = self.id] => move |_| {
                     let _send_result = sender.output(DeletedRowOutput::Clear(id));
                 },
@@ -189,19 +277,14 @@ impl DesktopComponent {
                 } else {
                     row.preview
                 };
-                let detail = [tags, preview]
-                    .into_iter()
-                    .filter(|part| !part.is_empty())
-                    .collect::<Vec<_>>()
-                    .join(" · ");
                 rows.push_back(NoteRow {
                     id: row.id,
-                    summary: if detail.is_empty() {
-                        row.display_title
-                    } else {
-                        format!("{}\n{detail}", row.display_title)
-                    },
+                    title: row.display_title,
+                    date: row.display_date,
+                    preview,
+                    tags,
                     pinned: row.is_pinned,
+                    selected: row.is_selected,
                 });
             }
         }
@@ -247,15 +330,19 @@ impl SimpleComponent for DesktopComponent {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         window.set_default_size(preferences.window_width, preferences.window_height);
+        install_workspace_fonts(&window);
+        let note_rows_container = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        note_rows_container.set_css_classes(&["noter-note-list"]);
         let note_rows = FactoryVecDeque::builder()
-            .launch(gtk::Box::new(gtk::Orientation::Vertical, 4))
+            .launch(note_rows_container)
             .forward(sender.input_sender(), |output| match output {
                 NoteRowOutput::Select(id) => AppMsg::SelectNote(id),
                 NoteRowOutput::TogglePin(id) => AppMsg::TogglePin(id),
                 NoteRowOutput::Delete(id) => AppMsg::RequestDelete(id),
             });
+        let deleted_rows_container = gtk::Box::new(gtk::Orientation::Vertical, 0);
         let deleted_rows = FactoryVecDeque::builder()
-            .launch(gtk::Box::new(gtk::Orientation::Vertical, 4))
+            .launch(deleted_rows_container)
             .forward(sender.input_sender(), |output| match output {
                 DeletedRowOutput::Restore(id) => AppMsg::RestoreRecentlyDeleted(id),
                 DeletedRowOutput::Clear(id) => AppMsg::PermanentlyDelete(id),
@@ -263,71 +350,148 @@ impl SimpleComponent for DesktopComponent {
         let root = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         root.set_css_classes(&["noter-root"]);
 
-        let sidebar = gtk::Box::new(gtk::Orientation::Vertical, 8);
-        sidebar.set_width_request(300);
-        sidebar.set_margin_top(16);
-        sidebar.set_margin_bottom(16);
-        sidebar.set_margin_start(16);
-        sidebar.set_margin_end(16);
+        let sidebar = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        sidebar.set_width_request(NATIVE_VISUAL_CONTRACT.sidebar_width);
+        sidebar.set_css_classes(&["noter-sidebar"]);
 
-        let sidebar_navigation = gtk::Button::with_label("Back to Writing");
+        let sidebar_header = gtk::Box::new(gtk::Orientation::Vertical, 12);
+        sidebar_header.set_css_classes(&["noter-sidebar-header"]);
+        let identity = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        let app_title = gtk::Label::new(Some("Noter"));
+        app_title.set_hexpand(true);
+        app_title.set_halign(gtk::Align::Start);
+        app_title.set_css_classes(&["noter-app-title"]);
+        let sidebar_navigation = gtk::Button::with_label("Writing");
         sidebar_navigation.set_tooltip_text(Some("Close the Note List"));
-        sidebar.append(&sidebar_navigation);
+        sidebar_navigation.set_css_classes(&["noter-navigation-button"]);
+        identity.append(&app_title);
+        identity.append(&sidebar_navigation);
+        sidebar_header.append(&identity);
+
+        let commands = gtk::Box::new(gtk::Orientation::Vertical, 2);
+        commands.set_css_classes(&["noter-command-list"]);
+        let create = command_button("＋", "New Note", "Ctrl N");
+        create.set_accessible_role(gtk::AccessibleRole::Button);
+        let (theme, theme_label) = command_button_parts("◐", "Dark Theme", "");
+        theme.set_tooltip_text(Some("Toggle Light and Dark Theme"));
+        let focus_search = command_button("⌕", "Search", "Ctrl F");
+        let diagnostics = command_button("ⓘ", "About Noter", "");
+        diagnostics.set_tooltip_text(Some("Show version, storage, and Backup Health"));
+        commands.append(&create);
+        commands.append(&theme);
+        commands.append(&focus_search);
+        commands.append(&diagnostics);
+        sidebar_header.append(&commands);
 
         let search = gtk::SearchEntry::builder()
-            .placeholder_text("Search Notes")
+            .placeholder_text("Search Notes, #tags, title:…")
             .accessible_role(gtk::AccessibleRole::SearchBox)
             .build();
-        let create = gtk::Button::with_label("New Note");
-        create.set_accessible_role(gtk::AccessibleRole::Button);
-        sidebar.append(&search);
-        sidebar.append(note_rows.widget());
-        sidebar.append(&create);
+        search.set_css_classes(&["noter-search"]);
+        sidebar_header.append(&search);
+        sidebar.append(&sidebar_header);
+
+        let sidebar_scroll = gtk::ScrolledWindow::builder()
+            .hscrollbar_policy(gtk::PolicyType::Never)
+            .vscrollbar_policy(gtk::PolicyType::Automatic)
+            .hexpand(true)
+            .vexpand(true)
+            .build();
+        sidebar_scroll.set_css_classes(&["noter-sidebar-scroll"]);
+        let sidebar_content = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        let notes_header = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+        notes_header.set_css_classes(&["noter-section-header"]);
+        let notes_label = gtk::Label::new(Some("Notes"));
+        notes_label.set_hexpand(true);
+        notes_label.set_halign(gtk::Align::Start);
+        let notes_count = gtk::Label::new(None);
+        notes_count.set_css_classes(&["noter-section-count"]);
+        notes_header.append(&notes_label);
+        notes_header.append(&notes_count);
+        sidebar_content.append(&notes_header);
+        let empty_state = gtk::Box::new(gtk::Orientation::Vertical, 4);
+        empty_state.set_css_classes(&["noter-empty-state"]);
+        let empty_title = gtk::Label::new(Some("A quiet place for your notes"));
+        empty_title.set_wrap(true);
+        empty_title.set_css_classes(&["noter-empty-title"]);
+        let empty_copy = gtk::Label::new(Some("Create a Note to start writing."));
+        empty_copy.set_wrap(true);
+        empty_copy.set_css_classes(&["noter-empty-copy"]);
+        empty_state.append(&empty_title);
+        empty_state.append(&empty_copy);
+        sidebar_content.append(&empty_state);
+        sidebar_content.append(note_rows.widget());
 
         let data_actions = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+        data_actions.set_hexpand(true);
+        data_actions.set_halign(gtk::Align::End);
         let export_backup = gtk::Button::with_label("Export");
         export_backup.set_tooltip_text(Some("Export merge Backup"));
         let import_backup = gtk::Button::with_label("Import");
         import_backup.set_tooltip_text(Some("Import merge Backup"));
-        let export_transition = gtk::Button::with_label("Desktop Export");
+        let export_transition = gtk::Button::with_label("Desktop");
         export_transition.set_tooltip_text(Some("Export exact desktop transition bundle"));
-        let import_transition = gtk::Button::with_label("Desktop Restore");
+        let import_transition = gtk::Button::with_label("Restore");
         import_transition.set_tooltip_text(Some(
             "Restore a desktop transition into an Empty Collection",
         ));
+        for button in [
+            &export_backup,
+            &import_backup,
+            &export_transition,
+            &import_transition,
+        ] {
+            button.set_css_classes(&["noter-footer-button"]);
+        }
         data_actions.append(&export_backup);
-        data_actions.append(&import_backup);
         data_actions.append(&export_transition);
+        data_actions.append(&import_backup);
         data_actions.append(&import_transition);
-        sidebar.append(&data_actions);
 
-        let theme = gtk::Button::with_label("Theme");
-        theme.set_tooltip_text(Some("Toggle Light and Dark Theme"));
-        sidebar.append(&theme);
-        let diagnostics = gtk::Button::with_label("About Noter");
-        diagnostics.set_tooltip_text(Some("Show version, storage, and Backup Health"));
-        sidebar.append(&diagnostics);
         let deleted_label = gtk::Label::new(Some("Recently Deleted"));
         deleted_label.set_halign(gtk::Align::Start);
+        deleted_label.set_hexpand(true);
         let deleted_header = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+        deleted_header.set_css_classes(&["noter-deleted-header"]);
         deleted_header.append(&deleted_label);
         let clear_all = gtk::Button::with_label("Clear All");
         clear_all.set_halign(gtk::Align::End);
+        clear_all.set_css_classes(&["noter-small-button", "danger"]);
         deleted_header.append(&clear_all);
-        sidebar.append(&deleted_header);
-        sidebar.append(deleted_rows.widget());
+        let deleted_panel = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        deleted_panel.set_css_classes(&["noter-deleted-panel"]);
+        deleted_panel.append(&deleted_header);
+        deleted_panel.append(deleted_rows.widget());
+        sidebar_content.append(&deleted_panel);
+        sidebar_scroll.set_child(Some(&sidebar_content));
+        sidebar.append(&sidebar_scroll);
 
-        let editor = gtk::Box::new(gtk::Orientation::Vertical, 10);
+        let sidebar_footer = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+        sidebar_footer.set_height_request(NATIVE_VISUAL_CONTRACT.footer_height);
+        sidebar_footer.set_css_classes(&["noter-sidebar-footer"]);
+        let backup_status = gtk::Box::new(gtk::Orientation::Horizontal, 5);
+        let backup_dot = gtk::Label::new(Some("●"));
+        backup_dot.set_css_classes(&["noter-backup-dot"]);
+        let backup_label = gtk::Label::new(Some("Backup"));
+        backup_label.set_css_classes(&["noter-footer-label"]);
+        backup_status.append(&backup_dot);
+        backup_status.append(&backup_label);
+        sidebar_footer.append(&backup_status);
+        sidebar_footer.append(&data_actions);
+        sidebar.append(&sidebar_footer);
+
+        let editor = gtk::Box::new(gtk::Orientation::Vertical, 0);
         editor.set_hexpand(true);
-        editor.set_margin_top(24);
-        editor.set_margin_bottom(18);
-        editor.set_margin_start(24);
-        editor.set_margin_end(24);
+        editor.set_css_classes(&["noter-editor"]);
 
         let editor_navigation = gtk::Button::with_label("Notes");
         editor_navigation.set_halign(gtk::Align::Start);
         editor_navigation.set_tooltip_text(Some("Open the Note List"));
-        editor.append(&editor_navigation);
+        editor_navigation.set_css_classes(&["noter-navigation-button"]);
+
+        let editor_header = gtk::Box::new(gtk::Orientation::Vertical, 4);
+        editor_header.set_css_classes(&["noter-editor-header"]);
+        editor_header.append(&editor_navigation);
 
         let title = gtk::Entry::builder()
             .placeholder_text("Note Title")
@@ -335,9 +499,13 @@ impl SimpleComponent for DesktopComponent {
             .build();
         title.set_css_classes(&["noter-title"]);
         let tags = gtk::Entry::builder()
-            .placeholder_text("Tags, separated by commas")
+            .placeholder_text("Add tags, separated by commas")
             .accessible_role(gtk::AccessibleRole::TextBox)
             .build();
+        tags.set_css_classes(&["noter-tags"]);
+        editor_header.append(&title);
+        editor_header.append(&tags);
+
         let content = gtk::TextView::builder()
             .wrap_mode(gtk::WrapMode::WordChar)
             .hexpand(true)
@@ -345,23 +513,45 @@ impl SimpleComponent for DesktopComponent {
             .accessible_role(gtk::AccessibleRole::TextBox)
             .build();
         content.set_css_classes(&["noter-writing-surface"]);
-        let formatting = gtk::Box::new(gtk::Orientation::Horizontal, 4);
-        let bold = gtk::Button::with_label("Bold");
-        let italic = gtk::Button::with_label("Italic");
-        let task = gtk::Button::with_label("Task");
+        content.set_left_margin(32);
+        content.set_right_margin(32);
+        content.set_top_margin(20);
+        content.set_bottom_margin(32);
+
+        let formatting = gtk::Box::new(gtk::Orientation::Horizontal, 2);
+        formatting.set_css_classes(&["noter-formatting-toolbar"]);
+        let bold = formatting_button("B", "Bold");
+        let italic = formatting_button("I", "Italic");
+        let strike = formatting_button("S", "Strikethrough");
+        let task = formatting_button("☐", "Task list");
+        let table = formatting_button("▦", "Table");
         formatting.append(&bold);
         formatting.append(&italic);
+        formatting.append(&strike);
         formatting.append(&task);
+        formatting.append(&table);
+
         let status = gtk::Label::new(Some("Saved"));
         status.set_halign(gtk::Align::End);
+        status.set_css_classes(&["noter-save-status"]);
+        let statistics = gtk::Label::new(Some("0 lines · 0 words · 0 chars"));
+        statistics.set_hexpand(true);
+        statistics.set_halign(gtk::Align::Start);
+        statistics.set_css_classes(&["noter-statistics"]);
         let notification = gtk::Label::new(None);
-        notification.set_halign(gtk::Align::Center);
+        notification.set_halign(gtk::Align::End);
+        notification.set_valign(gtk::Align::Start);
+        notification.set_margin_top(12);
+        notification.set_margin_end(16);
         notification.set_wrap(true);
         notification.set_accessible_role(gtk::AccessibleRole::Status);
         notification.set_css_classes(&["noter-notification"]);
 
         let recovery_panel = gtk::Box::new(gtk::Orientation::Vertical, 10);
         recovery_panel.set_css_classes(&["noter-recovery"]);
+        recovery_panel.set_margin_top(20);
+        recovery_panel.set_margin_start(32);
+        recovery_panel.set_margin_end(32);
         let recovery_title = gtk::Label::new(Some("Noter could not read the saved collection"));
         recovery_title.set_wrap(true);
         recovery_title.update_property(&[gtk::accessible::Property::Label("Storage Recovery")]);
@@ -378,16 +568,23 @@ impl SimpleComponent for DesktopComponent {
         recovery_panel.append(&recovery_copy);
         recovery_panel.append(&recovery_actions);
 
-        let writing = gtk::Box::new(gtk::Orientation::Vertical, 10);
+        let writing = gtk::Box::new(gtk::Orientation::Vertical, 0);
         writing.set_hexpand(true);
         writing.set_vexpand(true);
-        writing.append(&title);
-        writing.append(&tags);
+        writing.set_css_classes(&["noter-writing"]);
+        writing.append(&editor_header);
         writing.append(&formatting);
-        writing.append(&content);
+        let content_scroll = gtk::ScrolledWindow::builder()
+            .hscrollbar_policy(gtk::PolicyType::Never)
+            .vscrollbar_policy(gtk::PolicyType::Automatic)
+            .hexpand(true)
+            .vexpand(true)
+            .child(&content)
+            .build();
+        content_scroll.set_css_classes(&["noter-content-scroll"]);
+        writing.append(&content_scroll);
 
         editor.append(&recovery_panel);
-        editor.append(&notification);
         editor.append(&writing);
         #[cfg(feature = "preview-webkit")]
         let preview = {
@@ -402,28 +599,59 @@ impl SimpleComponent for DesktopComponent {
             preview.widget().set_hexpand(true);
             preview.widget().set_vexpand(true);
             editor.append(preview.widget());
-            let modes = gtk::Box::new(gtk::Orientation::Horizontal, 4);
-            for (label, mode) in [
-                ("Write", EditorViewMode::Write),
-                ("Preview", EditorViewMode::Preview),
-                ("Split", EditorViewMode::Split),
-            ] {
-                let button = gtk::Button::with_label(label);
-                let mode_sender = sender.input_sender().clone();
-                button.connect_clicked(move |_| {
-                    let _send_result = mode_sender.send(AppMsg::SetViewMode(mode));
-                });
-                modes.append(&button);
-            }
-            editor.append(&modes);
             preview
         };
-        editor.append(&status);
+
+        let editor_footer = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        editor_footer.set_height_request(NATIVE_VISUAL_CONTRACT.footer_height);
+        editor_footer.set_css_classes(&["noter-editor-footer"]);
+        editor_footer.append(&statistics);
+        let modes = gtk::Box::new(gtk::Orientation::Horizontal, 1);
+        modes.set_css_classes(&["noter-mode-group"]);
+        #[cfg(feature = "preview-webkit")]
+        for (label, mode) in [
+            ("Write", EditorViewMode::Write),
+            ("Preview", EditorViewMode::Preview),
+            ("Split", EditorViewMode::Split),
+        ] {
+            let button = gtk::Button::with_label(label);
+            button.set_css_classes(&["noter-mode-button"]);
+            let mode_sender = sender.input_sender().clone();
+            button.connect_clicked(move |_| {
+                let _send_result = mode_sender.send(AppMsg::SetViewMode(mode));
+            });
+            modes.append(&button);
+        }
+        #[cfg(not(feature = "preview-webkit"))]
+        for label in ["Write", "Preview", "Split"] {
+            let button = gtk::Button::with_label(label);
+            button.set_css_classes(if label == "Write" {
+                &["noter-mode-button", "active"]
+            } else {
+                &["noter-mode-button"]
+            });
+            button.set_sensitive(label == "Write");
+            if label != "Write" {
+                button.set_tooltip_text(Some("Available in builds with secure Preview support"));
+            }
+            modes.append(&button);
+        }
+        let help = gtk::Button::with_label("?");
+        help.set_css_classes(&["noter-help-button"]);
+        help.set_tooltip_text(Some("Markdown help"));
+        modes.append(&help);
+        editor_footer.append(&modes);
+        editor_footer.append(&status);
+        editor.append(&editor_footer);
+
         root.append(&sidebar);
         let divider = gtk::Separator::new(gtk::Orientation::Vertical);
         root.append(&divider);
         root.append(&editor);
-        window.set_child(Some(&root));
+        let overlay = gtk::Overlay::new();
+        overlay.set_child(Some(&root));
+        overlay.add_overlay(&notification);
+        window.set_child(Some(&overlay));
 
         let create_sender = sender.input_sender().clone();
         create.connect_clicked(move |_| {
@@ -465,6 +693,24 @@ impl SimpleComponent for DesktopComponent {
         diagnostics.connect_clicked(move |_| {
             let _send_result = diagnostics_sender.send(AppMsg::RequestDiagnostics);
         });
+        let search_for_command = search.clone();
+        focus_search.connect_clicked(move |_| {
+            search_for_command.grab_focus();
+        });
+        let help_window = window.clone();
+        help.connect_clicked(move |_| {
+            gtk::AlertDialog::builder()
+                .modal(true)
+                .message("Markdown shortcuts")
+                .detail(
+                    "**bold**   *italic*   ~~strike~~\n- [ ] task   # heading   [link](https://…)",
+                )
+                .buttons(["Close"])
+                .cancel_button(0)
+                .default_button(0)
+                .build()
+                .show(Some(&help_window));
+        });
         let sidebar_navigation_sender = sender.input_sender().clone();
         sidebar_navigation.connect_clicked(move |_| {
             let _send_result = sidebar_navigation_sender.send(AppMsg::ToggleNavigation);
@@ -500,7 +746,9 @@ impl SimpleComponent for DesktopComponent {
         });
         connect_formatting_button(&bold, &content, MarkdownCommand::Bold, &sender);
         connect_formatting_button(&italic, &content, MarkdownCommand::Italic, &sender);
+        connect_formatting_button(&strike, &content, MarkdownCommand::Strikethrough, &sender);
         connect_formatting_button(&task, &content, MarkdownCommand::TaskList, &sender);
+        connect_formatting_button(&table, &content, MarkdownCommand::Table, &sender);
 
         let shortcuts = gtk::ShortcutController::new();
         let quick_capture_sender = sender.input_sender().clone();
@@ -548,10 +796,13 @@ impl SimpleComponent for DesktopComponent {
             tags,
             content,
             status,
+            statistics,
+            notes_count,
+            empty_state,
             notification,
             recovery_panel,
             clear_all,
-            theme,
+            theme_label,
             #[cfg(feature = "preview-webkit")]
             writing,
             #[cfg(feature = "preview-webkit")]
@@ -771,7 +1022,7 @@ impl SimpleComponent for DesktopComponent {
             widgets.root.remove_css_class("noter-dark");
         }
         widgets
-            .theme
+            .theme_label
             .set_label(if dark { "Light Theme" } else { "Dark Theme" });
         let compact =
             self.app.viewport == noter_core::responsive_navigation::ViewportClass::Compact;
@@ -789,6 +1040,9 @@ impl SimpleComponent for DesktopComponent {
         widgets
             .clear_all
             .set_visible(!self.app.workspace.recently_deleted_notes().is_empty());
+        let rendered_notes = self.app.note_list_render_model().projection.rows.len();
+        widgets.notes_count.set_text(&rendered_notes.to_string());
+        widgets.empty_state.set_visible(rendered_notes == 0);
         if self.recovery.is_some() {
             widgets.title.set_sensitive(false);
             widgets.tags.set_sensitive(false);
@@ -809,6 +1063,16 @@ impl SimpleComponent for DesktopComponent {
             widgets.title.set_sensitive(true);
             widgets.tags.set_sensitive(true);
             widgets.content.set_sensitive(true);
+            let lines = if note.content.is_empty() {
+                0
+            } else {
+                note.content.lines().count()
+            };
+            widgets.statistics.set_text(&format!(
+                "{lines} lines · {} words · {} chars",
+                note.word_count(),
+                note.character_count()
+            ));
         } else {
             widgets.title.set_text("");
             widgets.tags.set_text("");
@@ -816,6 +1080,7 @@ impl SimpleComponent for DesktopComponent {
             widgets.title.set_sensitive(false);
             widgets.tags.set_sensitive(false);
             widgets.content.set_sensitive(false);
+            widgets.statistics.set_text("0 lines · 0 words · 0 chars");
         }
         widgets.status.set_text(match self.app.save_status {
             SaveStatus::Saved => "Saved",
@@ -954,6 +1219,56 @@ fn save_json_file(
             }
         }
     });
+}
+
+fn command_button(icon: &str, label: &str, shortcut: &str) -> gtk::Button {
+    command_button_parts(icon, label, shortcut).0
+}
+
+fn command_button_parts(icon: &str, label: &str, shortcut: &str) -> (gtk::Button, gtk::Label) {
+    let button = gtk::Button::new();
+    button.set_css_classes(&["noter-command"]);
+    let row = gtk::Box::new(gtk::Orientation::Horizontal, 9);
+    let icon = gtk::Label::new(Some(icon));
+    icon.set_css_classes(&["noter-command-icon"]);
+    let label = gtk::Label::new(Some(label));
+    label.set_hexpand(true);
+    label.set_halign(gtk::Align::Start);
+    label.set_xalign(0.0);
+    let shortcut = gtk::Label::new(Some(shortcut));
+    shortcut.set_css_classes(&["noter-command-shortcut"]);
+    row.append(&icon);
+    row.append(&label);
+    row.append(&shortcut);
+    button.set_child(Some(&row));
+    (button, label)
+}
+
+fn formatting_button(label: &str, tooltip: &str) -> gtk::Button {
+    let button = gtk::Button::with_label(label);
+    button.set_css_classes(&["noter-toolbar-button"]);
+    button.set_tooltip_text(Some(tooltip));
+    button
+}
+
+fn install_workspace_fonts(window: &gtk::ApplicationWindow) {
+    let Some(font_map) = window.pango_context().font_map() else {
+        return;
+    };
+    let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    for relative_path in [
+        "node_modules/@fontsource-variable/source-sans-3/files/source-sans-3-latin-wght-normal.woff2",
+        "node_modules/@fontsource-variable/source-sans-3/files/source-sans-3-latin-wght-italic.woff2",
+        "node_modules/@fontsource-variable/source-code-pro/files/source-code-pro-latin-wght-normal.woff2",
+        "node_modules/@fontsource-variable/source-code-pro/files/source-code-pro-latin-wght-italic.woff2",
+    ] {
+        let path = workspace.join(relative_path);
+        if path.exists()
+            && let Err(error) = font_map.add_font_file(&path)
+        {
+            eprintln!("Noter could not register {}: {error}", path.display());
+        }
+    }
 }
 
 fn install_css() {

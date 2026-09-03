@@ -1462,6 +1462,7 @@ version = "2.0.0-alpha.1"
 dependencies = [
  "chrono",
  "noter-core",
+ "pango",
  "relm4",
  "serde",
  "serde_json",

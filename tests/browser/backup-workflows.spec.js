@@ -77,6 +77,27 @@ test("user can export a Backup and see Backup Health update", async ({ page }) =
   await expect(page.getByText("Up to date")).toBeVisible();
 });
 
+test("final web release exports a desktop transition bundle", async ({ page }) => {
+  await seedCollection(page);
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export for desktop" }).click();
+  const download = await downloadPromise;
+
+  expect(download.suggestedFilename()).toMatch(
+    /^noter-desktop-transition-\d{4}-\d{2}-\d{2}\.json$/,
+  );
+  const downloadPath = await download.path();
+  const transition = JSON.parse(fs.readFileSync(downloadPath, "utf8"));
+  expect(transition.kind).toBe("noter.desktop_transition");
+  expect(transition.version).toBe(1);
+  expect(transition.notes).toEqual([existingNote]);
+  expect(transition.recently_deleted_notes).toEqual([]);
+  expect(transition.theme).toBe("light");
+  expect(transition.backup_health).toBeNull();
+  await expect(page.getByRole("status")).toContainText("Desktop transition exported");
+});
+
 test("user previews, cancels, and confirms a Merge Import", async ({ page }, testInfo) => {
   await seedCollection(page);
 

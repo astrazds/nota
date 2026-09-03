@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>net.astrazds.Noter</id>
+  <name>Noter</name>
+  <summary>Write and find local Markdown notes</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <description>
+    <p>Noter is a local-first Markdown note app with a flat, searchable collection, lightweight tags, recoverable deletion, and user-owned backups.</p>
+  </description>
+  <launchable type="desktop-id">net.astrazds.Noter.desktop</launchable>
+  <developer id="net.astrazds">
+    <name>Andrejs Strazds</name>
+  </developer>
+  <url type="homepage">https://repos.astrazds.net/astrazds/noter-leptos-md</url>
+  <provides>
+    <binary>noter-desktop</binary>
+  </provides>
+  <categories>
+    <category>Office</category>
+    <category>Utility</category>
+  </categories>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="2.0.0-alpha.1" date="2026-09-03">
+      <description>
+        <p>Initial native migration preview.</p>
+      </description>
+    </release>
+  </releases>
+</component>

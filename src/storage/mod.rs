@@ -14,8 +14,6 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::Closure;
 use web_sys::console;
 
-pub(crate) mod recovery;
-
 const STORAGE_KEY: &str = "noter-notes";
 const RECENTLY_DELETED_STORAGE_KEY: &str = "noter-recently-deleted-notes";
 const PREVIOUS_STORAGE_KEY: &str = "noter-notes-previous";

@@ -1,26 +1,23 @@
 mod app;
 pub mod backup;
 mod components;
-mod notes;
 mod storage;
 mod ui;
 
 pub(crate) use app::runtime as app_runtime;
 pub(crate) use backup::controls as backup_controls;
-pub(crate) use notes::collection as note_collection;
-pub(crate) use notes::discovery as note_discovery;
-pub(crate) use notes::list_interaction as note_list_interaction;
-pub(crate) use notes::model;
-pub(crate) use notes::sample as sample_notes;
-pub(crate) use notes::search_query;
-pub(crate) use notes::tag_rules;
-pub(crate) use notes::workspace as note_workspace;
-pub(crate) use storage::recovery as storage_recovery;
-pub(crate) use ui::editor_view;
+pub(crate) use noter_core::editor_view;
+pub(crate) use noter_core::markdown_preview;
+pub(crate) use noter_core::model;
+pub(crate) use noter_core::note_discovery;
+pub(crate) use noter_core::note_list_interaction;
+pub(crate) use noter_core::note_workspace;
+pub(crate) use noter_core::responsive_navigation;
+pub(crate) use noter_core::sample_notes;
+pub(crate) use noter_core::storage_recovery;
+pub(crate) use noter_core::tag_rules;
 pub(crate) use ui::markdown_editing;
-pub(crate) use ui::markdown_preview;
 pub(crate) use ui::recipes as ui_recipes;
-pub(crate) use ui::responsive_navigation;
 pub(crate) use ui::theme;
 pub(crate) use ui::writing_surface;
 
@@ -40,6 +37,7 @@ use note_list_interaction::{
     NoteActionControls, NoteListCommand, NoteListInteraction, NoteListRenderModel,
 };
 use note_workspace::{FocusIntent, NoteWorkspace, WorkspaceDisplayState};
+use noter_core::transition::{ThemePreference, TransitionError, export_desktop_transition};
 use responsive_navigation::{
     ResponsiveNavigation, StoredNoteListState, ViewportClass, normalize_view_mode,
 };
@@ -401,6 +399,20 @@ impl AppState {
 
     pub fn export_backup_json(self) -> Result<String, BackupError> {
         export_flat_collection_backup(self.workspace.get_untracked().notes())
+    }
+
+    pub fn export_desktop_transition_json(self) -> Result<String, TransitionError> {
+        let workspace = self.workspace.get_untracked();
+        export_desktop_transition(
+            workspace.notes(),
+            workspace.recently_deleted_notes(),
+            if self.is_dark_mode.get_untracked() {
+                ThemePreference::Dark
+            } else {
+                ThemePreference::Light
+            },
+            self.backup_health_record.get_untracked(),
+        )
     }
 
     pub fn backup_health(self) -> BackupHealth {

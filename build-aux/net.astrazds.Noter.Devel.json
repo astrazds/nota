@@ -1,0 +1,42 @@
+{
+  "app-id": "net.astrazds.Noter",
+  "runtime": "org.gnome.Platform",
+  "runtime-version": "50",
+  "sdk": "org.gnome.Sdk",
+  "sdk-extensions": [
+    "org.freedesktop.Sdk.Extension.rust-stable"
+  ],
+  "command": "noter-desktop",
+  "finish-args": [
+    "--share=ipc",
+    "--socket=fallback-x11",
+    "--socket=wayland",
+    "--device=dri"
+  ],
+  "build-options": {
+    "append-path": "/usr/lib/sdk/rust-stable/bin",
+    "build-args": [
+      "--share=network"
+    ]
+  },
+  "modules": [
+    {
+      "name": "noter",
+      "buildsystem": "meson",
+      "config-opts": [
+        "--buildtype=release"
+      ],
+      "sources": [
+        {
+          "type": "dir",
+          "path": "..",
+          "skip": [
+            ".git",
+            "node_modules",
+            "target"
+          ]
+        }
+      ]
+    }
+  ]
+}

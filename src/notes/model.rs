@@ -69,9 +69,7 @@ impl Note {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::markdown_editing::{
-        format_text, utf16_index_to_byte_index, utf16_range_to_byte_range,
-    };
+    use crate::markdown_editing::format_text;
     use crate::note_discovery::project_note_list;
     use crate::tag_rules::parse_tags_input;
 
@@ -381,23 +379,5 @@ mod tests {
         let notes = vec![n1.clone(), n2];
         let result = projected_ids(&notes, "pro", None);
         assert_eq!(result, vec![n1.id]);
-    }
-
-    #[test]
-    fn should_convert_utf16_ranges_to_safe_utf8_boundaries() {
-        let content = "A😀B";
-        // UTF-16 layout: A(1), 😀(2), B(1)
-        let (start, end) = utf16_range_to_byte_range(content, 1, 3);
-        assert_eq!(&content[start..end], "😀");
-
-        let (start, end) = utf16_range_to_byte_range(content, 3, 4);
-        assert_eq!(&content[start..end], "B");
-    }
-
-    #[test]
-    fn should_clamp_utf16_index_inside_surrogate_pair() {
-        let content = "😀a";
-        let byte_index = utf16_index_to_byte_index(content, 1);
-        assert_eq!(byte_index, 0);
     }
 }

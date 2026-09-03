@@ -1,0 +1,52 @@
+window.noter-root,
+.noter-root {
+  background: #fffdf8;
+  color: #332f2a;
+  font-family: "Source Sans 3", sans-serif;
+}
+
+.noter-root.noter-dark {
+  background: #25221f;
+  color: #f2eadf;
+}
+
+.noter-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.noter-writing-surface {
+  font-family: "Source Code Pro", monospace;
+  font-size: 1rem;
+}
+
+button {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.noter-recovery {
+  background: #fff3d6;
+  border: 1px solid #dba756;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.noter-notification {
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.noter-notification-progress {
+  background: #e9e4dc;
+}
+
+.noter-notification-success {
+  background: #dcebdc;
+  color: #234a2d;
+}
+
+.noter-notification-error {
+  background: #f3d7d2;
+  color: #6f2018;
+}

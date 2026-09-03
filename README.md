@@ -1,8 +1,24 @@
 # Noter
 
-A local-first Markdown note-taking web app built with **Rust**, **Leptos**, and **Tailwind CSS**.
+A local-first Markdown note-taking app. The stable 1.0 line is the existing **Leptos** browser app; the repository now also contains the in-progress Linux-native **Relm4/GTK4** replacement.
 
 Current app version: **1.0.2**.
+
+The native crates use `2.0.0-alpha.1`. This is not a 2.0 cutover: the browser remains the migration source until native parity, packaging, and a manual migration rehearsal pass.
+
+## Native migration preview
+
+- `noter-core` owns toolkit-independent Notes, Flat Collection behavior, Search, Tags, Backup v1, Storage Recovery rules, Markdown Preview generation, and UTF-8 byte-range formatting.
+- `noter-web` remains the final browser migration Adapter and now exposes **Export for desktop**.
+- `noter-desktop` provides the Relm4 root component, GTK Writing Surface, stable-UUID Note factories, native Backup/transition file workflows, Light/Dark Theme preferences, XDG collection storage, atomic Previous Snapshot replacement, corrupt-payload quarantine, and close-time persistence flush.
+
+Run the native development build on Linux with GTK 4.22 or newer:
+
+```bash
+cargo run -p noter-desktop
+```
+
+WebKitGTK 6 Preview support is represented by the `preview-webkit` feature and requires the `webkitgtk-6.0` development package. Flatpak build/install/run gates additionally require Flatpak and Flatpak Builder. Those system prerequisites are intentionally not installed by Cargo.
 
 ## Features
 

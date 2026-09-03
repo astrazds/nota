@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Noter
+Comment=Write and find local Markdown notes
+Exec=noter-desktop
+Icon=net.astrazds.Noter
+Terminal=false
+Type=Application
+Categories=Utility;TextEditor;
+Keywords=notes;markdown;writing;
+StartupNotify=true
+StartupWMClass=net.astrazds.Noter

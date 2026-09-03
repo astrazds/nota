@@ -2,6 +2,7 @@ use crate::backup::{BackupHealth, PendingBackupImport, backup_file_name, prepare
 use crate::{AppState, NotificationTone, theme, ui_recipes};
 use chrono::{DateTime, Utc};
 use leptos::prelude::*;
+use noter_core::transition::desktop_transition_file_name;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::Closure;
 use web_sys::{FileReader, HtmlAnchorElement, HtmlInputElement, window};
@@ -51,6 +52,25 @@ pub(crate) fn export_backup_with_adapter_file_name(
             Err(message) => state.show_notification(message, NotificationTone::Error),
         },
         Err(_) => state.show_notification("Backup export failed", NotificationTone::Error),
+    }
+}
+
+pub(crate) fn export_desktop_transition_with_adapter_at(
+    state: AppState,
+    adapter: &impl BackupDownloadAdapter,
+    exported_at: DateTime<Utc>,
+) {
+    match state.export_desktop_transition_json() {
+        Ok(transition_json) => {
+            match adapter.download(&desktop_transition_file_name(exported_at), &transition_json) {
+                Ok(()) => state
+                    .show_notification("Desktop transition exported", NotificationTone::Success),
+                Err(message) => state.show_notification(message, NotificationTone::Error),
+            }
+        }
+        Err(_) => {
+            state.show_notification("Desktop transition export failed", NotificationTone::Error)
+        }
     }
 }
 
@@ -104,6 +124,9 @@ pub(crate) fn SidebarBackupControls() -> impl IntoView {
     let export_backup = move |_| {
         export_backup_with_adapter(state, &BrowserBackupDownloadAdapter);
     };
+    let export_for_desktop = move |_| {
+        export_desktop_transition_with_adapter_at(state, &BrowserBackupDownloadAdapter, Utc::now());
+    };
 
     let import_backup = move |ev| {
         import_backup_from_input_event(state, pending_backup_import, ev);
@@ -145,6 +168,15 @@ pub(crate) fn SidebarBackupControls() -> impl IntoView {
                         aria-label="Export backup"
                     >
                         "Export"
+                    </button>
+                    <button
+                        type="button"
+                        class=ui_recipes::backup_footer_button
+                        on:click=export_for_desktop
+                        aria-label="Export for desktop"
+                        title="Export active Notes, Recently Deleted, Theme, and Backup Health for Noter Desktop"
+                    >
+                        "Desktop"
                     </button>
                     <label class=ui_recipes::backup_footer_button aria-label="Import backup">
                         "Import"
@@ -383,6 +415,34 @@ mod tests {
             let notification = state.notification.get_untracked().unwrap();
             assert_eq!(notification.message, "Cannot download backup");
             assert_eq!(notification.tone, NotificationTone::Error);
+        });
+    }
+
+    #[test]
+    fn desktop_transition_export_includes_recovery_state_without_changing_backup_health() {
+        Owner::new().with(|| {
+            let state = state_with_notes(vec![Note::new(
+                "Move me".to_string(),
+                "Desktop migration".to_string(),
+            )]);
+            let adapter = RecordingDownloadAdapter::succeeds();
+            let exported_at = Utc.with_ymd_and_hms(2026, 9, 3, 12, 0, 0).unwrap();
+
+            export_desktop_transition_with_adapter_at(state, &adapter, exported_at);
+
+            let calls = adapter.calls.borrow();
+            assert_eq!(calls[0].0, "noter-desktop-transition-2026-09-03.json");
+            assert!(
+                calls[0]
+                    .1
+                    .contains("\"kind\": \"noter.desktop_transition\"")
+            );
+            assert!(calls[0].1.contains("\"recently_deleted_notes\": []"));
+            assert!(state.backup_health_record.get_untracked().is_none());
+            assert_eq!(
+                state.notification.get_untracked().unwrap().message,
+                "Desktop transition exported"
+            );
         });
     }
 

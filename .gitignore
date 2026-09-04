@@ -8,3 +8,9 @@
 /test-results
 /playwright-report
 .ui-review/
+# skills.sh --agent '*' copies; canonical copies live in gitignored .agents/skills
+/.claude
+/.grok
+/skills
+/agent
+/data/skills

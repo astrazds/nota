@@ -16,7 +16,7 @@ Infer the repo from `git remote -v`. `fj issue` accepts `--remote <remote>` if t
 
 ## When a skill says "publish to the issue tracker"
 
-Create a Forgejo issue with `fj issue create`.
+Create a Forgejo issue with `fj issue create`. Latest mattpocock skills name this `to-spec` (was `to-prd`) and `to-tickets` (was `to-issues`).
 
 ## When a skill says "fetch the relevant ticket"
 

@@ -7,3 +7,4 @@
 /.playwright-cli
 /test-results
 /playwright-report
+.ui-review/

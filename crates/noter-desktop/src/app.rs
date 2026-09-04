@@ -174,6 +174,11 @@ impl AppModel {
                 false
             }
             AppMsg::Resize(width) => {
+                // GTK may notify width=0 before the window is mapped. Treating that
+                // as Compact hides the sidebar/editor exclusively and sticks there.
+                if width <= 0.0 {
+                    return false;
+                }
                 self.viewport = ViewportClass::from_width(width);
                 if self.viewport == ViewportClass::Wide {
                     self.note_list_visible = true;
@@ -342,6 +347,20 @@ mod tests {
         app.apply(AppMsg::RequestClearAll);
         assert!(app.apply(AppMsg::ConfirmClearAll));
         assert!(app.workspace.recently_deleted_notes().is_empty());
+    }
+
+    #[test]
+    fn resize_ignores_non_positive_widths_so_unmapped_windows_stay_dual_pane() {
+        let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::System, None);
+        assert_eq!(app.viewport, ViewportClass::Wide);
+        assert!(app.note_list_visible);
+
+        app.apply(AppMsg::Resize(0.0));
+        assert_eq!(app.viewport, ViewportClass::Wide);
+        assert!(app.note_list_visible);
+
+        app.apply(AppMsg::Resize(-1.0));
+        assert_eq!(app.viewport, ViewportClass::Wide);
     }
 
     #[test]

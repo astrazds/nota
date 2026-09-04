@@ -1,14 +1,44 @@
-/* Native rendering of the final web/WASM Local Notebook visual contract. */
-window.noter-root, .noter-root {
-  background: #F7F5F1;
-  color: #25221F;
+/* Native rendering of the final web/WASM Local Notebook visual contract.
+ *
+ * Frame A Quiet Notebook tokens (parity with tailwind apple.notebook + apple.yellow):
+ *   --capture #FFB340 Warm Capture Yellow (primary action)
+ *   --signal  #E7A858 notebook amber (selection / segmented active)
+ * Writing measure: left-aligned 72ch plane via Rust/Pango layout (parity with ui_recipes::note_measure).
+ */
+.noter-root {
+  --frame: #F7F5F1;
+  --surface: #FDFCF9;
+  --sidebar: #F0EDE6;
+  --border: #E6E2DA;
+  --border-strong: #D8D1C5;
+  --graphite: #25221F;
+  --muted: #6E685F;
+  --subtle: #918A80;
+  --selected: #F2E0BE;
+  --signal: #E7A858;
+  --signal-border: #DBA756;
+  --capture: #FFB340;
+  --ink-soft: #3F3A35;
+  --preview-muted: #817A70;
+  --pin: #B16F20;
+  --tag-fg: #79501D;
+
+  background: var(--frame);
+  color: var(--graphite);
   font-family: "Source Sans 3", "Cantarell", sans-serif;
   font-size: 14px;
 }
 
-.noter-sidebar { background: #F0EDE6; border-right: 1px solid #D8D1C5; }
+window.noter-root {
+  background: var(--frame);
+  color: var(--graphite);
+  font-family: "Source Sans 3", "Cantarell", sans-serif;
+  font-size: 14px;
+}
+
+.noter-sidebar { background: var(--sidebar); border-right: 1px solid var(--border-strong); }
 .noter-sidebar-header { padding: 14px 16px 12px 16px; }
-.noter-app-title { color: #25221F; font-size: 20px; font-weight: 700; }
+.noter-app-title { color: var(--graphite); font-size: 20px; font-weight: 700; }
 
 button.noter-navigation-button, button.noter-command,
 button.noter-note-select, menubutton.noter-note-actions > button,
@@ -19,7 +49,7 @@ button.noter-small-button {
   background-image: none;
   border: 0;
   box-shadow: none;
-  color: #6E685F;
+  color: var(--muted);
   text-shadow: none;
 }
 
@@ -34,18 +64,33 @@ button.noter-command {
   min-height: 30px;
   padding: 2px 7px;
   border-radius: 6px;
-  color: #3F3A35;
+  color: var(--ink-soft);
   font-size: 12px;
+}
+/* New Note = Warm Capture Yellow primary (ThemeAccent::PrimaryFill parity). */
+button.noter-command-primary {
+  background: var(--capture);
+  color: var(--graphite);
+  font-weight: 600;
+}
+button.noter-command-primary .noter-command-icon,
+button.noter-command-primary .noter-command-shortcut {
+  color: var(--graphite);
+  opacity: 0.72;
 }
 button.noter-command:hover, button.noter-navigation-button:hover,
 button.noter-toolbar-button:hover, button.noter-mode-button:hover,
 button.noter-help-button:hover, button.noter-footer-button:hover,
 button.noter-small-button:hover, menubutton.noter-note-actions > button:hover {
   background: rgba(37, 34, 31, 0.07);
-  color: #25221F;
+  color: var(--graphite);
 }
-.noter-command-icon { min-width: 16px; color: #6E685F; font-size: 13px; }
-.noter-command-shortcut { color: #918A80; font-size: 10px; }
+button.noter-command-primary:hover {
+  background: var(--signal);
+  color: var(--graphite);
+}
+.noter-command-icon { min-width: 16px; color: var(--muted); font-size: 13px; }
+.noter-command-shortcut { color: var(--subtle); font-size: 10px; }
 
 entry.noter-search {
   min-height: 34px;
@@ -55,12 +100,12 @@ entry.noter-search {
   border: 1px solid rgba(216, 209, 197, 0.78);
   border-radius: 8px;
   box-shadow: none;
-  color: #25221F;
+  color: var(--graphite);
   font-size: 13px;
 }
 entry.noter-search:focus {
-  border-color: #DBA756;
-  box-shadow: 0 0 0 1px rgba(231, 168, 88, 0.35);
+  border-color: var(--signal-border);
+  box-shadow: 0 0 0 1px alpha(var(--signal), 0.35);
 }
 .noter-sidebar-scroll, .noter-sidebar-scroll > viewport {
   background: transparent;
@@ -69,19 +114,19 @@ entry.noter-search:focus {
 .noter-section-header {
   min-height: 28px;
   padding: 4px 16px 3px 16px;
-  color: #6E685F;
+  color: var(--muted);
   font-size: 11px;
   font-weight: 600;
 }
-.noter-section-count { color: #918A80; font-weight: 400; }
+.noter-section-count { color: var(--subtle); font-weight: 400; }
 .noter-empty-state {
   margin: 8px 12px;
   padding: 18px 12px;
-  border: 1px dashed #D8D1C5;
+  border: 1px dashed var(--border-strong);
   border-radius: 8px;
-  color: #6E685F;
+  color: var(--muted);
 }
-.noter-empty-title { color: #3F3A35; font-weight: 600; }
+.noter-empty-title { color: var(--ink-soft); font-weight: 600; }
 .noter-empty-copy { font-size: 12px; }
 
 .noter-note-row {
@@ -93,57 +138,168 @@ entry.noter-search:focus {
 }
 .noter-note-row:hover { background: rgba(253, 252, 249, 0.70); }
 .noter-note-row.selected {
-  background: #F2E0BE;
-  border-color: #DBA756;
-  box-shadow: 0 0 0 1px rgba(231, 168, 88, 0.16);
+  background: var(--selected);
+  border-color: var(--signal-border);
+  box-shadow: 0 0 0 1px alpha(var(--signal), 0.16);
 }
 button.noter-note-select {
   min-height: 56px;
   padding: 7px 4px 7px 9px;
   border-radius: 7px 0 0 7px;
-  color: #25221F;
+  color: var(--graphite);
 }
 button.noter-note-select:hover, button.noter-note-select:active { background: transparent; }
-.noter-note-title { color: #25221F; font-size: 14px; font-weight: 600; }
-.noter-note-date, .noter-note-preview { color: #6E685F; font-size: 11px; }
-.noter-note-preview { color: #817A70; }
-.noter-note-pin { color: #B16F20; font-size: 9px; }
+.noter-note-title { color: var(--graphite); font-size: 14px; font-weight: 600; }
+.noter-note-date, .noter-note-preview { color: var(--muted); font-size: 11px; }
+.noter-note-preview { color: var(--preview-muted); }
+.noter-note-pin { color: var(--pin); font-size: 9px; }
 .noter-note-tags {
   padding: 1px 7px;
-  background: rgba(231, 168, 88, 0.20);
+  background: alpha(var(--signal), 0.20);
   border-radius: 999px;
-  color: #79501D;
+  color: var(--tag-fg);
   font-size: 10px;
 }
 menubutton.noter-note-actions { margin: 4px 3px 0 0; }
 menubutton.noter-note-actions > button {
-  min-width: 26px;
-  min-height: 26px;
-  padding: 3px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 4px;
   border-radius: 999px;
+  color: var(--subtle);
 }
-.noter-note-menu { min-width: 132px; padding: 4px; }
-.noter-note-menu button {
-  min-height: 32px;
-  padding: 4px 10px;
+/* Frame A note action popup (ThemeState::NoteActionMenu parity).
+ * Absolute colors: GTK popovers often do not inherit window custom properties.
+ * Theme class `noter-dark` is set on the popover/menu when the app is dark.
+ * Light: paper surface + graphite ink. Dark: dim-desk sidebar + warm off-white.
+ */
+popover.noter-note-actions-popover {
+  background: transparent;
   border: 0;
-  border-radius: 5px;
   box-shadow: none;
-  font-size: 12px;
+  padding: 0;
+}
+popover.noter-note-actions-popover contents,
+popover.noter-note-actions-popover > contents {
+  padding: 0;
+  background: #FDFCF9;
+  background-color: #FDFCF9;
+  color: #25221F;
+  border: 1px solid #D8D1C5;
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(37, 34, 31, 0.28);
+}
+.noter-note-menu {
+  min-width: 160px;
+  padding: 6px;
+  background: #FDFCF9;
+  background-color: #FDFCF9;
+  color: #25221F;
+}
+.noter-note-menu button,
+button.noter-note-menu-item,
+popover.noter-note-actions-popover button {
+  min-height: 40px;
+  min-width: 0;
+  margin: 0;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 6px;
+  box-shadow: none;
+  background: transparent;
+  background-image: none;
+  background-color: transparent;
+  color: #25221F;
+  font-size: 14px;
+  font-weight: 600;
+  text-shadow: none;
+  opacity: 1;
+}
+.noter-note-menu button:hover,
+button.noter-note-menu-item:hover,
+popover.noter-note-actions-popover button:hover {
+  background: rgba(37, 34, 31, 0.08);
+  background-color: rgba(37, 34, 31, 0.08);
+  color: #25221F;
+}
+.noter-note-menu button.destructive-action,
+.noter-note-menu button.danger,
+button.noter-note-menu-item.destructive-action,
+button.noter-note-menu-item.danger,
+popover.noter-note-actions-popover button.destructive-action,
+popover.noter-note-actions-popover button.danger {
+  color: #B42318;
+  font-weight: 700;
+}
+.noter-note-menu button.destructive-action:hover,
+.noter-note-menu button.danger:hover,
+button.noter-note-menu-item.destructive-action:hover,
+button.noter-note-menu-item.danger:hover,
+popover.noter-note-actions-popover button.destructive-action:hover,
+popover.noter-note-actions-popover button.danger:hover {
+  background: #F2DEDB;
+  background-color: #F2DEDB;
+  color: #861A12;
 }
 
-.noter-deleted-panel { margin: 8px 12px 12px 12px; border-top: 1px solid #D8D1C5; }
+/* Dim Desk note-action popover — class set on the popover itself (not via root inheritance). */
+popover.noter-note-actions-popover.noter-dark contents,
+popover.noter-note-actions-popover.noter-dark > contents {
+  background: #211F1C;
+  background-color: #211F1C;
+  color: #F7F5F1;
+  border: 1px solid #3A3733;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.48);
+}
+.noter-note-menu.noter-dark {
+  background: #211F1C;
+  background-color: #211F1C;
+  color: #F7F5F1;
+}
+.noter-note-menu.noter-dark button,
+button.noter-note-menu-item.noter-dark,
+popover.noter-note-actions-popover.noter-dark button {
+  color: #F7F5F1;
+}
+.noter-note-menu.noter-dark button:hover,
+button.noter-note-menu-item.noter-dark:hover,
+popover.noter-note-actions-popover.noter-dark button:hover {
+  background: rgba(247, 245, 241, 0.10);
+  background-color: rgba(247, 245, 241, 0.10);
+  color: #F7F5F1;
+}
+.noter-note-menu.noter-dark button.destructive-action,
+.noter-note-menu.noter-dark button.danger,
+button.noter-note-menu-item.noter-dark.destructive-action,
+button.noter-note-menu-item.noter-dark.danger,
+popover.noter-note-actions-popover.noter-dark button.destructive-action,
+popover.noter-note-actions-popover.noter-dark button.danger {
+  color: #F97066;
+  font-weight: 700;
+}
+.noter-note-menu.noter-dark button.destructive-action:hover,
+.noter-note-menu.noter-dark button.danger:hover,
+button.noter-note-menu-item.noter-dark.destructive-action:hover,
+button.noter-note-menu-item.noter-dark.danger:hover,
+popover.noter-note-actions-popover.noter-dark button.destructive-action:hover,
+popover.noter-note-actions-popover.noter-dark button.danger:hover {
+  background: rgba(249, 112, 102, 0.16);
+  background-color: rgba(249, 112, 102, 0.16);
+  color: #FCA5A5;
+}
+
+.noter-deleted-panel { margin: 8px 12px 12px 12px; border-top: 1px solid var(--border-strong); }
 .noter-deleted-header {
   min-height: 32px;
   padding: 4px 2px;
-  color: #6E685F;
+  color: var(--muted);
   font-size: 11px;
   font-weight: 600;
 }
 .noter-deleted-row {
   min-height: 34px;
   padding: 3px 2px;
-  color: #6E685F;
+  color: var(--muted);
   font-size: 11px;
 }
 button.noter-small-button {
@@ -153,17 +309,17 @@ button.noter-small-button {
   border-radius: 5px;
   font-size: 10px;
 }
-button.danger, button.destructive-action { color: #A4473F; }
+button.danger, button.destructive-action { color: #C0392B; font-weight: 600; }
 
 .noter-sidebar-footer, .noter-editor-footer {
   min-height: 45px;
-  border-top: 1px solid #D8D1C5;
-  color: #6E685F;
+  border-top: 1px solid var(--border-strong);
+  color: var(--muted);
   font-size: 11px;
 }
 .noter-sidebar-footer { padding: 5px 10px 5px 12px; }
 .noter-footer-label { font-weight: 600; }
-.noter-backup-dot { color: #918A80; font-size: 7px; }
+.noter-backup-dot { color: var(--subtle); font-size: 7px; }
 button.noter-footer-button {
   min-height: 26px;
   min-width: 0;
@@ -171,29 +327,46 @@ button.noter-footer-button {
   border-radius: 5px;
   font-size: 10px;
 }
-separator { min-width: 0; background: #D8D1C5; }
+separator { min-width: 0; background: var(--border-strong); }
 
 .noter-editor, .noter-writing, .noter-content-scroll,
-.noter-content-scroll > viewport { background: #FDFCF9; }
-.noter-editor-header { padding: 16px 32px 10px 32px; background: #FDFCF9; }
+.noter-content-scroll > viewport { background: var(--surface); }
+.noter-editor-header { padding: 16px 32px 10px 32px; background: var(--surface); }
+
+/* Left-aligned writing plane (title, tags, toolbar row, TextView, preview).
+ * Max width is enforced in Rust (Pango ch × contract chars) — GTK CSS rejects max-width. */
+.noter-writing-plane {
+}
+
 entry.noter-title, entry.noter-tags {
-  min-height: 0;
+  /* min-height:0 clipped 23px title glyphs and made placeholders look truncated. */
+  min-height: 28px;
+  min-width: 0;
   padding: 0;
   background: transparent;
   border: 0;
   border-radius: 0;
   box-shadow: none;
-  color: #25221F;
+  color: var(--graphite);
 }
-entry.noter-title { font-size: 20px; font-weight: 600; }
-entry.noter-tags { color: #6E685F; font-size: 12px; }
+/* Note Title ~22–24px semibold (web note_title_text: text-xl / md:text-2xl). */
+entry.noter-title {
+  min-height: 32px;
+  font-size: 23px;
+  font-weight: 600;
+}
+entry.noter-tags {
+  min-height: 24px;
+  color: var(--muted);
+  font-size: 12px;
+}
 entry.noter-title:focus, entry.noter-tags:focus { box-shadow: none; }
 .noter-formatting-toolbar {
   min-height: 35px;
-  padding: 3px 28px;
-  background: #FDFCF9;
-  border-top: 1px solid #E6E2DA;
-  border-bottom: 1px solid #E6E2DA;
+  padding: 3px 32px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
 }
 button.noter-toolbar-button {
   min-width: 28px;
@@ -206,24 +379,24 @@ button.noter-toolbar-button {
   font-weight: 600;
 }
 .noter-writing-surface, .noter-writing-surface text {
-  background: #FDFCF9;
+  background: var(--surface);
   color: #332F2A;
-  caret-color: #B16F20;
+  caret-color: var(--pin);
   font-family: "Source Code Pro", "Monospace", monospace;
   font-size: 14px;
 }
 .noter-writing-surface selection, .noter-writing-surface text selection {
-  background: #F2E0BE;
-  color: #25221F;
+  background: var(--selected);
+  color: var(--graphite);
 }
 .noter-editor-footer {
   padding: 5px 12px 5px 16px;
-  background: #FDFCF9;
-  border-color: #E6E2DA;
+  background: var(--surface);
+  border-color: var(--border);
 }
-.noter-statistics, .noter-save-status { color: #817A70; font-size: 11px; }
+.noter-statistics, .noter-save-status { color: var(--preview-muted); font-size: 11px; }
 .noter-save-status { min-width: 64px; }
-.noter-mode-group { padding: 1px; background: #F0EDE6; border-radius: 6px; }
+.noter-mode-group { padding: 1px; background: var(--sidebar); border-radius: 6px; }
 button.noter-mode-button, button.noter-help-button {
   min-height: 25px;
   min-width: 0;
@@ -231,38 +404,60 @@ button.noter-mode-button, button.noter-help-button {
   border-radius: 5px;
   font-size: 10px;
 }
+/* Amber active segment (ThemeState::SegmentedActive) — no white pill / drop shadow. */
 button.noter-mode-button.active, button.noter-mode-button:checked {
-  background: #FDFCF9;
-  color: #25221F;
-  box-shadow: 0 1px 2px rgba(37, 34, 31, 0.12);
+  background: var(--selected);
+  color: #92400E;
+  border: 1px solid var(--signal-border);
+  box-shadow: none;
 }
 button.noter-help-button { min-width: 25px; padding: 2px 6px; }
 
 .noter-recovery {
   background: #FFF3D6;
-  border: 1px solid #DBA756;
+  border: 1px solid var(--signal-border);
   border-radius: 9px;
   padding: 14px;
   color: #453216;
 }
 .noter-notification {
   padding: 8px 12px;
-  background: #F0EDE6;
-  border: 1px solid #D8D1C5;
+  background: var(--sidebar);
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   box-shadow: 0 6px 18px rgba(37, 34, 31, 0.16);
-  color: #25221F;
+  color: var(--graphite);
   font-size: 12px;
 }
 .noter-notification-success { background: #DDEBE5; border-color: #A8CDBE; color: #245E4B; }
 .noter-notification-error { background: #F2DEDB; border-color: #D8A39E; color: #863C35; }
 
 /* The dim-desk theme is separately tuned, not inverted. */
-.noter-root.noter-dark { background: #151311; color: #F7F5F1; }
-.noter-dark .noter-sidebar { background: #211F1C; border-color: #3A3733; }
+.noter-root.noter-dark {
+  --frame: #151311;
+  --surface: #25221F;
+  --sidebar: #211F1C;
+  --border: #3A3733;
+  --border-strong: #3A3733;
+  --graphite: #F7F5F1;
+  --muted: #A5A39C;
+  --subtle: #918A80;
+  --selected: #3A3022;
+  --signal: #E7A858;
+  --signal-border: #8E682F;
+  --capture: #FFB340;
+  --ink-soft: #D8D1C5;
+  --preview-muted: #A5A39C;
+  --pin: #E7A858;
+  --tag-fg: #E7A858;
+
+  background: var(--frame);
+  color: var(--graphite);
+}
+.noter-dark .noter-sidebar { background: var(--sidebar); border-color: var(--border-strong); }
 .noter-dark .noter-app-title, .noter-dark .noter-note-title,
 .noter-dark button.noter-note-select, .noter-dark entry.noter-title,
-.noter-dark .noter-writing-surface, .noter-dark .noter-writing-surface text { color: #F7F5F1; }
+.noter-dark .noter-writing-surface, .noter-dark .noter-writing-surface text { color: var(--graphite); }
 .noter-dark button.noter-command, .noter-dark button.noter-navigation-button,
 .noter-dark button.noter-toolbar-button, .noter-dark button.noter-mode-button,
 .noter-dark button.noter-help-button, .noter-dark button.noter-footer-button,
@@ -271,38 +466,53 @@ button.noter-help-button { min-width: 25px; padding: 2px 6px; }
 .noter-dark .noter-note-preview, .noter-dark .noter-deleted-header,
 .noter-dark .noter-deleted-row, .noter-dark .noter-sidebar-footer,
 .noter-dark .noter-editor-footer, .noter-dark .noter-statistics,
-.noter-dark .noter-save-status, .noter-dark entry.noter-tags { color: #A5A39C; }
+.noter-dark .noter-save-status, .noter-dark entry.noter-tags { color: var(--muted); }
 .noter-dark button.noter-command:hover, .noter-dark button.noter-navigation-button:hover,
 .noter-dark button.noter-toolbar-button:hover, .noter-dark button.noter-mode-button:hover,
 .noter-dark button.noter-help-button:hover, .noter-dark button.noter-footer-button:hover,
 .noter-dark button.noter-small-button:hover, .noter-dark menubutton.noter-note-actions > button:hover {
   background: rgba(247, 245, 241, 0.08);
-  color: #F7F5F1;
+  color: var(--graphite);
+}
+.noter-dark button.noter-command-primary {
+  background: var(--capture);
+  color: #25221F;
+}
+.noter-dark button.noter-command-primary .noter-command-icon,
+.noter-dark button.noter-command-primary .noter-command-shortcut {
+  color: #25221F;
+  opacity: 0.72;
+}
+.noter-dark button.noter-command-primary:hover {
+  background: var(--signal);
+  color: #25221F;
 }
 .noter-dark entry.noter-search {
   background: rgba(37, 34, 31, 0.72);
-  border-color: #3A3733;
-  color: #F7F5F1;
+  border-color: var(--border-strong);
+  color: var(--graphite);
 }
 .noter-dark .noter-note-row:hover { background: rgba(37, 34, 31, 0.78); }
 .noter-dark .noter-note-row.selected {
-  background: #3A3022;
-  border-color: #8E682F;
-  box-shadow: 0 0 0 1px rgba(231, 168, 88, 0.10);
+  background: var(--selected);
+  border-color: var(--signal-border);
+  box-shadow: 0 0 0 1px alpha(var(--signal), 0.10);
 }
-.noter-dark .noter-note-tags { background: rgba(231, 168, 88, 0.16); color: #E7A858; }
+.noter-dark .noter-note-tags { background: alpha(var(--signal), 0.16); color: var(--signal); }
 .noter-dark .noter-deleted-panel, .noter-dark .noter-sidebar-footer,
-.noter-dark separator { border-color: #3A3733; background-color: #3A3733; }
+.noter-dark separator { border-color: var(--border-strong); background-color: var(--border-strong); }
 .noter-dark .noter-editor, .noter-dark .noter-writing,
 .noter-dark .noter-editor-header, .noter-dark .noter-formatting-toolbar,
 .noter-dark .noter-content-scroll, .noter-dark .noter-content-scroll > viewport,
 .noter-dark .noter-writing-surface, .noter-dark .noter-writing-surface text,
-.noter-dark .noter-editor-footer { background: #25221F; }
-.noter-dark .noter-formatting-toolbar, .noter-dark .noter-editor-footer { border-color: #3A3733; }
-.noter-dark .noter-mode-group { background: #211F1C; }
+.noter-dark .noter-editor-footer { background: var(--surface); }
+.noter-dark .noter-formatting-toolbar, .noter-dark .noter-editor-footer { border-color: var(--border); }
+.noter-dark .noter-mode-group { background: var(--sidebar); }
 .noter-dark button.noter-mode-button.active, .noter-dark button.noter-mode-button:checked {
-  background: #3A3733;
-  color: #F7F5F1;
+  background: alpha(var(--signal), 0.20);
+  color: var(--signal);
+  border: 1px solid var(--signal);
+  box-shadow: none;
 }
-.noter-dark .noter-empty-state { border-color: #3A3733; color: #A5A39C; }
-.noter-dark .noter-empty-title { color: #D8D1C5; }
+.noter-dark .noter-empty-state { border-color: var(--border-strong); color: var(--muted); }
+.noter-dark .noter-empty-title { color: var(--ink-soft); }

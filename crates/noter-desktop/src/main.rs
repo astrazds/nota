@@ -7,20 +7,25 @@ use uuid::Uuid;
 use noter_core::backup::{
     BackupHealth, assess_backup_health, backup_file_name, export_flat_collection_backup,
 };
-#[cfg(feature = "preview-webkit")]
 use noter_core::editor_view::EditorViewMode;
 use noter_core::markdown_editing::MarkdownCommand;
 use noter_core::transition::{desktop_transition_file_name, export_desktop_transition};
 use noter_desktop::APPLICATION_ID;
 use noter_desktop::app::{AppModel, AppMsg, NotificationTone, SaveStatus};
+use noter_core::responsive_navigation::WIDE_VIEWPORT_MIN_WIDTH;
 use noter_desktop::persistence::PersistenceWorker;
 use noter_desktop::selection::gtk_character_range_to_byte_selection;
 use noter_desktop::storage::{
     CollectionEnvelope, LoadOutcome, NativeRecovery, NativeStore, Preferences,
 };
-use noter_desktop::visual_contract::NATIVE_VISUAL_CONTRACT;
+use noter_desktop::visual_contract::{
+    writing_plane_max_width_px, NATIVE_VISUAL_CONTRACT,
+};
 #[cfg(feature = "preview-webkit")]
 use noter_desktop::webkit_preview::SecurePreview;
+
+mod writing_plane;
+use writing_plane::WritingPlane;
 
 struct DesktopComponent {
     app: AppModel,
@@ -50,10 +55,13 @@ struct DesktopWidgets {
     recovery_panel: gtk::Box,
     clear_all: gtk::Button,
     theme_label: gtk::Label,
-    #[cfg(feature = "preview-webkit")]
     writing: gtk::Box,
     #[cfg(feature = "preview-webkit")]
     preview: SecurePreview,
+    /// Non-webkit Preview/Split surface (message stub).
+    #[cfg(not(feature = "preview-webkit"))]
+    preview_fallback: gtk::Box,
+    mode_buttons: Vec<(EditorViewMode, gtk::Button)>,
 }
 
 #[derive(Debug, Clone)]
@@ -65,6 +73,8 @@ struct NoteRow {
     tags: String,
     pinned: bool,
     selected: bool,
+    /// Propagated onto the GTK popover so absolute theme tokens can match dark mode.
+    dark: bool,
 }
 
 #[derive(Debug)]
@@ -164,12 +174,31 @@ impl FactoryComponent for NoteRow {
                 #[wrap(Some)]
                 set_popover: popover = &gtk::Popover {
                     set_position: gtk::PositionType::Bottom,
+                    #[watch]
+                    set_css_classes: if self.dark {
+                        &["noter-note-actions-popover", "noter-dark"]
+                    } else {
+                        &["noter-note-actions-popover"]
+                    },
 
                     gtk::Box {
                         set_orientation: gtk::Orientation::Vertical,
-                        set_css_classes: &["noter-note-menu"],
+                        set_spacing: 2,
+                        #[watch]
+                        set_css_classes: if self.dark {
+                            &["noter-note-menu", "noter-dark"]
+                        } else {
+                            &["noter-note-menu"]
+                        },
 
                         gtk::Button {
+                            set_halign: gtk::Align::Fill,
+                            #[watch]
+                            set_css_classes: if self.dark {
+                                &["noter-note-menu-item", "noter-dark"]
+                            } else {
+                                &["noter-note-menu-item"]
+                            },
                             #[watch]
                             set_label: if self.pinned { "Unpin" } else { "Pin" },
                             connect_clicked[sender, id = self.id] => move |_| {
@@ -177,8 +206,14 @@ impl FactoryComponent for NoteRow {
                             },
                         },
                         gtk::Button {
+                            set_halign: gtk::Align::Fill,
                             set_label: "Delete",
-                            set_css_classes: &["destructive-action"],
+                            #[watch]
+                            set_css_classes: if self.dark {
+                                &["noter-note-menu-item", "destructive-action", "noter-dark"]
+                            } else {
+                                &["noter-note-menu-item", "destructive-action"]
+                            },
                             connect_clicked[sender, id = self.id] => move |_| {
                                 let _send_result = sender.output(NoteRowOutput::Delete(id));
                             },
@@ -285,6 +320,10 @@ impl DesktopComponent {
                     tags,
                     pinned: row.is_pinned,
                     selected: row.is_selected,
+                    dark: matches!(
+                        self.app.theme,
+                        noter_core::transition::ThemePreference::Dark
+                    ),
                 });
             }
         }
@@ -301,10 +340,22 @@ impl DesktopComponent {
     }
 
     fn preferences(&self) -> Preferences {
+        // GTK reports 0×0 before map. `width().max(640)` used to persist 640×480,
+        // which opens Compact exclusive-pane (sidebar XOR editor) on next launch.
+        let width = self.window.width();
+        let height = self.window.height();
         Preferences {
             theme: self.app.theme,
-            window_width: self.window.width().max(640),
-            window_height: self.window.height().max(480),
+            window_width: if width > 0 {
+                width.max(640)
+            } else {
+                Preferences::default().window_width
+            },
+            window_height: if height > 0 {
+                height.max(480)
+            } else {
+                Preferences::default().window_height
+            },
         }
     }
 }
@@ -329,8 +380,10 @@ impl SimpleComponent for DesktopComponent {
         window: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        window.set_default_size(preferences.window_width, preferences.window_height);
+        let (startup_width, startup_height) = frame_a_startup_window_size(&preferences);
+        window.set_default_size(startup_width, startup_height);
         install_workspace_fonts(&window);
+        let writing_plane_max_px = writing_plane_max_width_px(measure_ch_width_px(&window));
         let note_rows_container = gtk::Box::new(gtk::Orientation::Vertical, 0);
         note_rows_container.set_css_classes(&["noter-note-list"]);
         let note_rows = FactoryVecDeque::builder()
@@ -371,6 +424,7 @@ impl SimpleComponent for DesktopComponent {
         let commands = gtk::Box::new(gtk::Orientation::Vertical, 2);
         commands.set_css_classes(&["noter-command-list"]);
         let create = command_button("＋", "New Note", "Ctrl N");
+        create.add_css_class("noter-command-primary");
         create.set_accessible_role(gtk::AccessibleRole::Button);
         let (theme, theme_label) = command_button_parts("◐", "Dark Theme", "");
         theme.set_tooltip_text(Some("Toggle Light and Dark Theme"));
@@ -422,30 +476,22 @@ impl SimpleComponent for DesktopComponent {
         sidebar_content.append(&empty_state);
         sidebar_content.append(note_rows.widget());
 
+        // Footer chrome: Backup health + Export + Restore only (declutter).
+        // Merge Import and Desktop transition export stay available via AppMsg
+        // handlers but are intentionally not shown in this row.
         let data_actions = gtk::Box::new(gtk::Orientation::Horizontal, 4);
         data_actions.set_hexpand(true);
         data_actions.set_halign(gtk::Align::End);
         let export_backup = gtk::Button::with_label("Export");
         export_backup.set_tooltip_text(Some("Export merge Backup"));
-        let import_backup = gtk::Button::with_label("Import");
-        import_backup.set_tooltip_text(Some("Import merge Backup"));
-        let export_transition = gtk::Button::with_label("Desktop");
-        export_transition.set_tooltip_text(Some("Export exact desktop transition bundle"));
         let import_transition = gtk::Button::with_label("Restore");
         import_transition.set_tooltip_text(Some(
             "Restore a desktop transition into an Empty Collection",
         ));
-        for button in [
-            &export_backup,
-            &import_backup,
-            &export_transition,
-            &import_transition,
-        ] {
+        for button in [&export_backup, &import_transition] {
             button.set_css_classes(&["noter-footer-button"]);
         }
         data_actions.append(&export_backup);
-        data_actions.append(&export_transition);
-        data_actions.append(&import_backup);
         data_actions.append(&import_transition);
 
         let deleted_label = gtk::Label::new(Some("Recently Deleted"));
@@ -498,13 +544,26 @@ impl SimpleComponent for DesktopComponent {
             .accessible_role(gtk::AccessibleRole::TextBox)
             .build();
         title.set_css_classes(&["noter-title"]);
+        title.set_hexpand(true);
+        title.set_halign(gtk::Align::Fill);
+        // Single-line title: grow horizontally within the plane (no wrap/ellipsis).
+        title.set_truncate_multiline(true);
         let tags = gtk::Entry::builder()
             .placeholder_text("Add tags, separated by commas")
             .accessible_role(gtk::AccessibleRole::TextBox)
             .build();
         tags.set_css_classes(&["noter-tags"]);
-        editor_header.append(&title);
-        editor_header.append(&tags);
+        tags.set_hexpand(true);
+        tags.set_halign(gtk::Align::Fill);
+        // Left-aligned 72ch writing plane for title + tags (web note_measure parity).
+        let header_inner = gtk::Box::new(gtk::Orientation::Vertical, 4);
+        header_inner.set_hexpand(true);
+        header_inner.set_halign(gtk::Align::Fill);
+        header_inner.append(&title);
+        header_inner.append(&tags);
+        let header_plane = WritingPlane::new(writing_plane_max_px);
+        header_plane.set_child(Some(&header_inner));
+        editor_header.append(&header_plane);
 
         let content = gtk::TextView::builder()
             .wrap_mode(gtk::WrapMode::WordChar)
@@ -513,23 +572,27 @@ impl SimpleComponent for DesktopComponent {
             .accessible_role(gtk::AccessibleRole::TextBox)
             .build();
         content.set_css_classes(&["noter-writing-surface"]);
-        content.set_left_margin(32);
-        content.set_right_margin(32);
+        content.set_left_margin(0);
+        content.set_right_margin(0);
         content.set_top_margin(20);
         content.set_bottom_margin(32);
 
-        let formatting = gtk::Box::new(gtk::Orientation::Horizontal, 2);
+        let formatting = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         formatting.set_css_classes(&["noter-formatting-toolbar"]);
+        let formatting_inner = gtk::Box::new(gtk::Orientation::Horizontal, 2);
         let bold = formatting_button("B", "Bold");
         let italic = formatting_button("I", "Italic");
         let strike = formatting_button("S", "Strikethrough");
         let task = formatting_button("☐", "Task list");
         let table = formatting_button("▦", "Table");
-        formatting.append(&bold);
-        formatting.append(&italic);
-        formatting.append(&strike);
-        formatting.append(&task);
-        formatting.append(&table);
+        formatting_inner.append(&bold);
+        formatting_inner.append(&italic);
+        formatting_inner.append(&strike);
+        formatting_inner.append(&task);
+        formatting_inner.append(&table);
+        let formatting_row = WritingPlane::new(writing_plane_max_px);
+        formatting_row.set_child(Some(&formatting_inner));
+        formatting.append(&formatting_row);
 
         let status = gtk::Label::new(Some("Saved"));
         status.set_halign(gtk::Align::End);
@@ -574,12 +637,18 @@ impl SimpleComponent for DesktopComponent {
         writing.set_css_classes(&["noter-writing"]);
         writing.append(&editor_header);
         writing.append(&formatting);
+        // Left-aligned 72ch body plane inside the scroll viewport.
+        let body_plane = WritingPlane::new(writing_plane_max_px);
+        body_plane.set_margin_start(32);
+        body_plane.set_margin_end(32);
+        body_plane.set_vexpand(true);
+        body_plane.set_child(Some(&content));
         let content_scroll = gtk::ScrolledWindow::builder()
             .hscrollbar_policy(gtk::PolicyType::Never)
             .vscrollbar_policy(gtk::PolicyType::Automatic)
             .hexpand(true)
             .vexpand(true)
-            .child(&content)
+            .child(&body_plane)
             .build();
         content_scroll.set_css_classes(&["noter-content-scroll"]);
         writing.append(&content_scroll);
@@ -596,10 +665,40 @@ impl SimpleComponent for DesktopComponent {
                     eprintln!("Noter could not open external link: {error}");
                 }
             });
+            // Same-origin left-aligned 72ch plane as Write body (HTML also caps at 72ch).
+            let preview_plane = WritingPlane::new(writing_plane_max_px);
+            preview_plane.set_vexpand(true);
+            preview_plane.set_margin_start(32);
+            preview_plane.set_margin_end(32);
             preview.widget().set_hexpand(true);
             preview.widget().set_vexpand(true);
-            editor.append(preview.widget());
+            preview_plane.set_child(Some(preview.widget()));
+            editor.append(&preview_plane);
             preview
+        };
+        #[cfg(not(feature = "preview-webkit"))]
+        let preview_fallback = {
+            let preview_fallback = gtk::Box::new(gtk::Orientation::Vertical, 8);
+            preview_fallback.set_hexpand(true);
+            preview_fallback.set_vexpand(true);
+            preview_fallback.set_margin_start(32);
+            preview_fallback.set_margin_end(32);
+            preview_fallback.set_margin_top(24);
+            preview_fallback.set_css_classes(&["noter-preview-fallback"]);
+            preview_fallback.set_visible(false);
+            let heading = gtk::Label::new(Some("Preview is unavailable in this build"));
+            heading.set_halign(gtk::Align::Start);
+            heading.set_wrap(true);
+            heading.set_css_classes(&["noter-empty-title"]);
+            let copy = gtk::Label::new(Some(
+                "Write mode still works. Rebuild with the preview-webkit feature (WebKitGTK 6) for rendered Markdown Preview and Split.",
+            ));
+            copy.set_halign(gtk::Align::Start);
+            copy.set_wrap(true);
+            preview_fallback.append(&heading);
+            preview_fallback.append(&copy);
+            editor.append(&preview_fallback);
+            preview_fallback
         };
 
         let editor_footer = gtk::Box::new(gtk::Orientation::Horizontal, 8);
@@ -608,33 +707,25 @@ impl SimpleComponent for DesktopComponent {
         editor_footer.append(&statistics);
         let modes = gtk::Box::new(gtk::Orientation::Horizontal, 1);
         modes.set_css_classes(&["noter-mode-group"]);
-        #[cfg(feature = "preview-webkit")]
+        let mut mode_buttons = Vec::new();
         for (label, mode) in [
             ("Write", EditorViewMode::Write),
             ("Preview", EditorViewMode::Preview),
             ("Split", EditorViewMode::Split),
         ] {
             let button = gtk::Button::with_label(label);
-            button.set_css_classes(&["noter-mode-button"]);
+            if mode == EditorViewMode::Write {
+                button.set_css_classes(&["noter-mode-button", "active"]);
+            } else {
+                button.set_css_classes(&["noter-mode-button"]);
+            }
+            button.set_sensitive(true);
             let mode_sender = sender.input_sender().clone();
             button.connect_clicked(move |_| {
                 let _send_result = mode_sender.send(AppMsg::SetViewMode(mode));
             });
             modes.append(&button);
-        }
-        #[cfg(not(feature = "preview-webkit"))]
-        for label in ["Write", "Preview", "Split"] {
-            let button = gtk::Button::with_label(label);
-            button.set_css_classes(if label == "Write" {
-                &["noter-mode-button", "active"]
-            } else {
-                &["noter-mode-button"]
-            });
-            button.set_sensitive(label == "Write");
-            if label != "Write" {
-                button.set_tooltip_text(Some("Available in builds with secure Preview support"));
-            }
-            modes.append(&button);
+            mode_buttons.push((mode, button));
         }
         let help = gtk::Button::with_label("?");
         help.set_css_classes(&["noter-help-button"]);
@@ -672,14 +763,6 @@ impl SimpleComponent for DesktopComponent {
         let export_backup_sender = sender.input_sender().clone();
         export_backup.connect_clicked(move |_| {
             let _send_result = export_backup_sender.send(AppMsg::RequestBackupExport);
-        });
-        let import_backup_sender = sender.input_sender().clone();
-        import_backup.connect_clicked(move |_| {
-            let _send_result = import_backup_sender.send(AppMsg::RequestBackupImport);
-        });
-        let export_transition_sender = sender.input_sender().clone();
-        export_transition.connect_clicked(move |_| {
-            let _send_result = export_transition_sender.send(AppMsg::RequestTransitionExport);
         });
         let import_transition_sender = sender.input_sender().clone();
         import_transition.connect_clicked(move |_| {
@@ -726,13 +809,15 @@ impl SimpleComponent for DesktopComponent {
         });
         let title_sender = sender.input_sender().clone();
         title.connect_changed(move |entry| {
-            if entry.has_focus() {
+            // GTK4 Entry puts keyboard focus on an inner GtkText, so has_focus() is
+            // false while typing — use FOCUS_WITHIN so title edits reach the model.
+            if entry_has_input_focus(entry) {
                 let _send_result = title_sender.send(AppMsg::UpdateTitle(entry.text().to_string()));
             }
         });
         let tags_sender = sender.input_sender().clone();
         tags.connect_changed(move |entry| {
-            if entry.has_focus() {
+            if entry_has_input_focus(entry) {
                 let _send_result = tags_sender.send(AppMsg::UpdateTags(entry.text().to_string()));
             }
         });
@@ -771,7 +856,10 @@ impl SimpleComponent for DesktopComponent {
 
         let resize_sender = sender.input_sender().clone();
         window.connect_notify_local(Some("width"), move |window, _| {
-            let _send_result = resize_sender.send(AppMsg::Resize(window.width() as f64));
+            let width = window.width();
+            if width > 0 {
+                let _send_result = resize_sender.send(AppMsg::Resize(width as f64));
+            }
         });
 
         install_css();
@@ -803,14 +891,16 @@ impl SimpleComponent for DesktopComponent {
             recovery_panel,
             clear_all,
             theme_label,
-            #[cfg(feature = "preview-webkit")]
             writing,
             #[cfg(feature = "preview-webkit")]
             preview,
+            #[cfg(not(feature = "preview-webkit"))]
+            preview_fallback,
+            mode_buttons,
         };
         let _send_result = sender
             .input_sender()
-            .send(AppMsg::Resize(preferences.window_width as f64));
+            .send(AppMsg::Resize(startup_width as f64));
         ComponentParts { model, widgets }
     }
 
@@ -1101,11 +1191,22 @@ impl SimpleComponent for DesktopComponent {
         } else {
             widgets.notification.set_visible(false);
         }
+        let surfaces = self.app.view_mode.surfaces();
+        widgets.writing.set_visible(surfaces.writing);
+        for (mode, button) in &widgets.mode_buttons {
+            if *mode == self.app.view_mode {
+                button.set_css_classes(&["noter-mode-button", "active"]);
+            } else {
+                button.set_css_classes(&["noter-mode-button"]);
+            }
+        }
         #[cfg(feature = "preview-webkit")]
         {
-            let surfaces = self.app.view_mode.surfaces();
-            widgets.writing.set_visible(surfaces.writing);
+            // Preview widget visibility: show whenever preview surface is on (Preview or Split).
             widgets.preview.widget().set_visible(surfaces.preview);
+            if let Some(plane) = widgets.preview.widget().parent() {
+                plane.set_visible(surfaces.preview);
+            }
             if let Some(note) = self.app.workspace.selected_note() {
                 widgets.preview.load_note(
                     note.display_title(),
@@ -1117,6 +1218,10 @@ impl SimpleComponent for DesktopComponent {
                     ),
                 );
             }
+        }
+        #[cfg(not(feature = "preview-webkit"))]
+        {
+            widgets.preview_fallback.set_visible(surfaces.preview);
         }
     }
 
@@ -1244,11 +1349,55 @@ fn command_button_parts(icon: &str, label: &str, shortcut: &str) -> (gtk::Button
     (button, label)
 }
 
+
+/// GTK4 `Entry` keeps keyboard focus on an inner `GtkText`, so `has_focus()` is
+/// false while the user is editing. `FOCUS_WITHIN` is set on the Entry itself.
+fn entry_has_input_focus(entry: &gtk::Entry) -> bool {
+    entry.has_focus()
+        || entry
+            .state_flags()
+            .contains(gtk::StateFlags::FOCUS_WITHIN)
+}
+
 fn formatting_button(label: &str, tooltip: &str) -> gtk::Button {
     let button = gtk::Button::with_label(label);
     button.set_css_classes(&["noter-toolbar-button"]);
     button.set_tooltip_text(Some(tooltip));
     button
+}
+
+
+/// Prefer Frame A dual-pane on open. Compact exclusive-pane remains available by
+/// resizing below the wide breakpoint; do not restore a sub-wide size that was
+/// often just the unrealized-window floor (640×480).
+fn frame_a_startup_window_size(preferences: &Preferences) -> (i32, i32) {
+    let defaults = Preferences::default();
+    if f64::from(preferences.window_width) < WIDE_VIEWPORT_MIN_WIDTH {
+        (
+            defaults.window_width,
+            preferences.window_height.max(defaults.window_height),
+        )
+    } else {
+        (
+            preferences.window_width,
+            preferences.window_height.max(480),
+        )
+    }
+}
+
+/// Pixel width of the CSS `ch` unit (glyph "0") in the notebook body font.
+fn measure_ch_width_px(widget: &impl IsA<gtk::Widget>) -> f64 {
+    let context = widget.pango_context();
+    let mut desc = context
+        .font_description()
+        .unwrap_or_else(|| gtk::pango::FontDescription::from_string("Sans 14"));
+    desc.set_family("Source Sans 3");
+    desc.set_size(14 * gtk::pango::SCALE);
+    let layout = gtk::pango::Layout::new(&context);
+    layout.set_font_description(Some(&desc));
+    layout.set_text("0");
+    let (width, _) = layout.pixel_size();
+    f64::from(width.max(1))
 }
 
 fn install_workspace_fonts(window: &gtk::ApplicationWindow) {

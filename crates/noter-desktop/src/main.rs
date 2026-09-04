@@ -8,7 +8,10 @@ use noter_core::backup::{
     BackupHealth, assess_backup_health, backup_file_name, export_flat_collection_backup,
 };
 use noter_core::editor_view::EditorViewMode;
-use noter_core::markdown_editing::MarkdownCommand;
+use noter_core::markdown_editing::{MarkdownCommand, markdown_cheatsheet_text};
+use noter_core::note_discovery::HighlightSegment;
+use noter_core::note_list_interaction::{NoteListDisplayState, SEARCH_DEBOUNCE_MS};
+use noter_core::note_workspace::FocusIntent;
 use noter_core::transition::{desktop_transition_file_name, export_desktop_transition};
 use noter_desktop::APPLICATION_ID;
 use noter_desktop::app::{AppModel, AppMsg, NotificationTone, SaveStatus};
@@ -35,6 +38,7 @@ struct DesktopComponent {
     worker: Option<PersistenceWorker>,
     note_rows: FactoryVecDeque<NoteRow>,
     deleted_rows: FactoryVecDeque<DeletedRow>,
+    title: gtk::Entry,
 }
 
 struct DesktopWidgets {
@@ -53,6 +57,19 @@ struct DesktopWidgets {
     empty_state: gtk::Box,
     notification: gtk::Label,
     recovery_panel: gtk::Box,
+    restore_previous: gtk::Button,
+    create: gtk::Button,
+    search: gtk::SearchEntry,
+    backup_dot: gtk::Label,
+    backup_label: gtk::Label,
+    result_status: gtk::Label,
+    empty_title: gtk::Label,
+    empty_copy: gtk::Label,
+    empty_create: gtk::Button,
+    tags_pills: gtk::Box,
+    edit_tags: gtk::Button,
+    filter_row: gtk::Box,
+    filter_chip: gtk::Button,
     clear_all: gtk::Button,
     theme_label: gtk::Label,
     writing: gtk::Box,
@@ -67,10 +84,10 @@ struct DesktopWidgets {
 #[derive(Debug, Clone)]
 struct NoteRow {
     id: Uuid,
-    title: String,
+    title_markup: String,
     date: String,
-    preview: String,
-    tags: String,
+    preview_markup: String,
+    tags: Vec<String>,
     pinned: bool,
     selected: bool,
     /// Propagated onto the GTK popover so absolute theme tokens can match dark mode.
@@ -82,6 +99,7 @@ enum NoteRowOutput {
     Select(Uuid),
     TogglePin(Uuid),
     Delete(Uuid),
+    SelectTag(String),
 }
 
 #[relm4::factory]
@@ -125,8 +143,9 @@ impl FactoryComponent for NoteRow {
                             set_xalign: 0.0,
                             set_ellipsize: gtk::pango::EllipsizeMode::End,
                             set_css_classes: &["noter-note-title"],
+                            set_use_markup: true,
                             #[watch]
-                            set_label: &self.title,
+                            set_label: &self.title_markup,
                         },
                         gtk::Label {
                             set_css_classes: &["noter-note-pin"],
@@ -149,19 +168,65 @@ impl FactoryComponent for NoteRow {
                             set_xalign: 0.0,
                             set_ellipsize: gtk::pango::EllipsizeMode::End,
                             set_css_classes: &["noter-note-preview"],
+                            set_use_markup: true,
                             #[watch]
-                            set_label: &self.preview,
+                            set_label: &self.preview_markup,
                         },
                     },
-                    gtk::Label {
-                        set_halign: gtk::Align::Start,
-                        set_xalign: 0.0,
-                        set_ellipsize: gtk::pango::EllipsizeMode::End,
-                        set_css_classes: &["noter-note-tags"],
-                        #[watch]
-                        set_label: &self.tags,
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Horizontal,
+                        set_spacing: 4,
                         #[watch]
                         set_visible: !self.tags.is_empty(),
+
+                        gtk::Button {
+                            set_css_classes: &["noter-note-tags"],
+                            #[watch]
+                            set_visible: self.tags.first().is_some(),
+                            #[watch]
+                            set_label: &self
+                                .tags
+                                .first()
+                                .map(|tag| format!("#{tag}"))
+                                .unwrap_or_default(),
+                            connect_clicked[sender, tag = self.tags.first().cloned()] => move |_| {
+                                if let Some(tag) = tag.clone() {
+                                    let _send_result = sender.output(NoteRowOutput::SelectTag(tag));
+                                }
+                            },
+                        },
+                        gtk::Button {
+                            set_css_classes: &["noter-note-tags"],
+                            #[watch]
+                            set_visible: self.tags.get(1).is_some(),
+                            #[watch]
+                            set_label: &self
+                                .tags
+                                .get(1)
+                                .map(|tag| format!("#{tag}"))
+                                .unwrap_or_default(),
+                            connect_clicked[sender, tag = self.tags.get(1).cloned()] => move |_| {
+                                if let Some(tag) = tag.clone() {
+                                    let _send_result = sender.output(NoteRowOutput::SelectTag(tag));
+                                }
+                            },
+                        },
+                        gtk::Button {
+                            set_css_classes: &["noter-note-tags"],
+                            #[watch]
+                            set_visible: self.tags.get(2).is_some(),
+                            #[watch]
+                            set_label: &self
+                                .tags
+                                .get(2)
+                                .map(|tag| format!("#{tag}"))
+                                .unwrap_or_default(),
+                            connect_clicked[sender, tag = self.tags.get(2).cloned()] => move |_| {
+                                if let Some(tag) = tag.clone() {
+                                    let _send_result = sender.output(NoteRowOutput::SelectTag(tag));
+                                }
+                            },
+                        },
                     },
                 },
             },
@@ -286,6 +351,17 @@ impl FactoryComponent for DeletedRow {
 }
 
 impl DesktopComponent {
+    fn schedule_notification_dismiss(&self, sender: &ComponentSender<Self>) {
+        if self.app.notification.is_none() {
+            return;
+        }
+        let generation = self.app.notification_generation();
+        let sender = sender.input_sender().clone();
+        gtk::glib::timeout_add_local_once(std::time::Duration::from_secs(3), move || {
+            let _send_result = sender.send(AppMsg::DismissNotification(generation));
+        });
+    }
+
     fn schedule_save(&self, sender: &ComponentSender<Self>) {
         if let Some(worker) = &self.worker {
             let _scheduled = worker.schedule(self.app.revision(), self.app.collection());
@@ -301,23 +377,12 @@ impl DesktopComponent {
             let mut rows = self.note_rows.guard();
             rows.clear();
             for row in self.app.note_list_render_model().projection.rows {
-                let tags = row
-                    .tags
-                    .iter()
-                    .map(|tag| format!("#{tag}"))
-                    .collect::<Vec<_>>()
-                    .join(" ");
-                let preview = if row.uses_match_snippet {
-                    format!("Match: {}", row.preview)
-                } else {
-                    row.preview
-                };
                 rows.push_back(NoteRow {
                     id: row.id,
-                    title: row.display_title,
+                    title_markup: markup_or_plain(&row.title_highlights, &row.display_title),
                     date: row.display_date,
-                    preview,
-                    tags,
+                    preview_markup: markup_or_plain(&row.preview_highlights, &row.preview),
+                    tags: row.tags,
                     pinned: row.is_pinned,
                     selected: row.is_selected,
                     dark: matches!(
@@ -392,6 +457,7 @@ impl SimpleComponent for DesktopComponent {
                 NoteRowOutput::Select(id) => AppMsg::SelectNote(id),
                 NoteRowOutput::TogglePin(id) => AppMsg::TogglePin(id),
                 NoteRowOutput::Delete(id) => AppMsg::RequestDelete(id),
+                NoteRowOutput::SelectTag(tag) => AppMsg::SelectTag(tag),
             });
         let deleted_rows_container = gtk::Box::new(gtk::Orientation::Vertical, 0);
         let deleted_rows = FactoryVecDeque::builder()
@@ -442,7 +508,37 @@ impl SimpleComponent for DesktopComponent {
             .accessible_role(gtk::AccessibleRole::SearchBox)
             .build();
         search.set_css_classes(&["noter-search"]);
+        let search_hint = gtk::Popover::new();
+        search_hint.set_parent(&search);
+        search_hint.set_autohide(false);
+        search_hint.set_has_arrow(true);
+        search_hint.set_position(gtk::PositionType::Bottom);
+        let hint_box = gtk::Box::new(gtk::Orientation::Vertical, 4);
+        hint_box.set_margin_start(8);
+        hint_box.set_margin_end(8);
+        hint_box.set_margin_top(6);
+        hint_box.set_margin_bottom(6);
+        let hint_title = gtk::Label::new(Some("Syntax"));
+        hint_title.set_halign(gtk::Align::Start);
+        hint_title.set_css_classes(&["noter-footer-label"]);
+        let hint_copy = gtk::Label::new(Some("\"phrase\"   title:plan   tag:work   is:pinned"));
+        hint_copy.set_halign(gtk::Align::Start);
+        hint_copy.set_wrap(true);
+        hint_box.append(&hint_title);
+        hint_box.append(&hint_copy);
+        search_hint.set_child(Some(&hint_box));
+        let filter_row = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+        filter_row.set_css_classes(&["noter-filter-row"]);
+        let filter_prefix = gtk::Label::new(Some("Filtered by"));
+        filter_prefix.set_css_classes(&["noter-footer-label"]);
+        let filter_chip = gtk::Button::with_label("#tag");
+        filter_chip.set_tooltip_text(Some("Clear tag filter"));
+        filter_chip.set_css_classes(&["noter-footer-button"]);
+        filter_row.append(&filter_prefix);
+        filter_row.append(&filter_chip);
+        filter_row.set_visible(false);
         sidebar_header.append(&search);
+        sidebar_header.append(&filter_row);
         sidebar.append(&sidebar_header);
 
         let sidebar_scroll = gtk::ScrolledWindow::builder()
@@ -463,6 +559,12 @@ impl SimpleComponent for DesktopComponent {
         notes_header.append(&notes_label);
         notes_header.append(&notes_count);
         sidebar_content.append(&notes_header);
+        let result_status = gtk::Label::new(None);
+        result_status.set_halign(gtk::Align::Start);
+        result_status.set_wrap(true);
+        result_status.set_css_classes(&["noter-result-status"]);
+        result_status.set_visible(false);
+        sidebar_content.append(&result_status);
         let empty_state = gtk::Box::new(gtk::Orientation::Vertical, 4);
         empty_state.set_css_classes(&["noter-empty-state"]);
         let empty_title = gtk::Label::new(Some("A quiet place for your notes"));
@@ -473,25 +575,28 @@ impl SimpleComponent for DesktopComponent {
         empty_copy.set_css_classes(&["noter-empty-copy"]);
         empty_state.append(&empty_title);
         empty_state.append(&empty_copy);
+        let empty_create = gtk::Button::with_label("Create a Note");
+        empty_create.set_css_classes(&["noter-footer-button"]);
+        empty_state.append(&empty_create);
         sidebar_content.append(&empty_state);
         sidebar_content.append(note_rows.widget());
 
-        // Footer chrome: Backup health + Export + Restore only (declutter).
-        // Merge Import and Desktop transition export stay available via AppMsg
-        // handlers but are intentionally not shown in this row.
         let data_actions = gtk::Box::new(gtk::Orientation::Horizontal, 4);
         data_actions.set_hexpand(true);
         data_actions.set_halign(gtk::Align::End);
         let export_backup = gtk::Button::with_label("Export");
         export_backup.set_tooltip_text(Some("Export merge Backup"));
+        let import_backup = gtk::Button::with_label("Import");
+        import_backup.set_tooltip_text(Some("Import merge Backup"));
         let import_transition = gtk::Button::with_label("Restore");
         import_transition.set_tooltip_text(Some(
             "Restore a desktop transition into an Empty Collection",
         ));
-        for button in [&export_backup, &import_transition] {
+        for button in [&export_backup, &import_backup, &import_transition] {
             button.set_css_classes(&["noter-footer-button"]);
         }
         data_actions.append(&export_backup);
+        data_actions.append(&import_backup);
         data_actions.append(&import_transition);
 
         let deleted_label = gtk::Label::new(Some("Recently Deleted"));
@@ -560,7 +665,14 @@ impl SimpleComponent for DesktopComponent {
         header_inner.set_hexpand(true);
         header_inner.set_halign(gtk::Align::Fill);
         header_inner.append(&title);
+        let tags_pills = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+        tags_pills.set_css_classes(&["noter-tag-pills"]);
+        let edit_tags = gtk::Button::with_label("Edit tags");
+        edit_tags.set_css_classes(&["noter-footer-button"]);
+        header_inner.append(&tags_pills);
+        header_inner.append(&edit_tags);
         header_inner.append(&tags);
+        tags.set_visible(false);
         let header_plane = WritingPlane::new(writing_plane_max_px);
         header_plane.set_child(Some(&header_inner));
         editor_header.append(&header_plane);
@@ -619,14 +731,22 @@ impl SimpleComponent for DesktopComponent {
         recovery_title.set_wrap(true);
         recovery_title.update_property(&[gtk::accessible::Property::Label("Storage Recovery")]);
         let recovery_copy = gtk::Label::new(Some(
-            "Restore the Previous Snapshot, or preserve the corrupt payload and start with an Empty Collection.",
+            "Restore the Previous Snapshot, start empty, or Import Backup. Editing stays blocked until you choose a path.",
         ));
         recovery_copy.set_wrap(true);
         let recovery_actions = gtk::Box::new(gtk::Orientation::Horizontal, 8);
         let restore_previous = gtk::Button::with_label("Restore Previous Snapshot");
+        restore_previous.set_sensitive(
+            recovery
+                .as_ref()
+                .and_then(|recovery| recovery.previous_snapshot.as_ref())
+                .is_some(),
+        );
         let start_empty = gtk::Button::with_label("Start Empty");
+        let recovery_import = gtk::Button::with_label("Import Backup");
         recovery_actions.append(&restore_previous);
         recovery_actions.append(&start_empty);
+        recovery_actions.append(&recovery_import);
         recovery_panel.append(&recovery_title);
         recovery_panel.append(&recovery_copy);
         recovery_panel.append(&recovery_actions);
@@ -653,8 +773,13 @@ impl SimpleComponent for DesktopComponent {
         content_scroll.set_css_classes(&["noter-content-scroll"]);
         writing.append(&content_scroll);
 
+        let surface_row = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        surface_row.set_hexpand(true);
+        surface_row.set_vexpand(true);
+        surface_row.set_css_classes(&["noter-surface-row"]);
         editor.append(&recovery_panel);
-        editor.append(&writing);
+        editor.append(&surface_row);
+        surface_row.append(&writing);
         #[cfg(feature = "preview-webkit")]
         let preview = {
             let preview = SecurePreview::new(|target| {
@@ -673,7 +798,7 @@ impl SimpleComponent for DesktopComponent {
             preview.widget().set_hexpand(true);
             preview.widget().set_vexpand(true);
             preview_plane.set_child(Some(preview.widget()));
-            editor.append(&preview_plane);
+            surface_row.append(&preview_plane);
             preview
         };
         #[cfg(not(feature = "preview-webkit"))]
@@ -697,7 +822,7 @@ impl SimpleComponent for DesktopComponent {
             copy.set_wrap(true);
             preview_fallback.append(&heading);
             preview_fallback.append(&copy);
-            editor.append(&preview_fallback);
+            surface_row.append(&preview_fallback);
             preview_fallback
         };
 
@@ -748,6 +873,14 @@ impl SimpleComponent for DesktopComponent {
         create.connect_clicked(move |_| {
             let _send_result = create_sender.send(AppMsg::QuickCapture);
         });
+        let empty_create_sender = sender.input_sender().clone();
+        empty_create.connect_clicked(move |_| {
+            let _send_result = empty_create_sender.send(AppMsg::QuickCapture);
+        });
+        let edit_tags_sender = sender.input_sender().clone();
+        edit_tags.connect_clicked(move |_| {
+            let _send_result = edit_tags_sender.send(AppMsg::StartEditTags);
+        });
         let restore_sender = sender.input_sender().clone();
         restore_previous.connect_clicked(move |_| {
             let _send_result = restore_sender.send(AppMsg::RestorePreviousSnapshot);
@@ -763,6 +896,14 @@ impl SimpleComponent for DesktopComponent {
         let export_backup_sender = sender.input_sender().clone();
         export_backup.connect_clicked(move |_| {
             let _send_result = export_backup_sender.send(AppMsg::RequestBackupExport);
+        });
+        let import_backup_sender = sender.input_sender().clone();
+        import_backup.connect_clicked(move |_| {
+            let _send_result = import_backup_sender.send(AppMsg::RequestBackupImport);
+        });
+        let recovery_import_sender = sender.input_sender().clone();
+        recovery_import.connect_clicked(move |_| {
+            let _send_result = recovery_import_sender.send(AppMsg::RequestBackupImport);
         });
         let import_transition_sender = sender.input_sender().clone();
         import_transition.connect_clicked(move |_| {
@@ -782,17 +923,7 @@ impl SimpleComponent for DesktopComponent {
         });
         let help_window = window.clone();
         help.connect_clicked(move |_| {
-            gtk::AlertDialog::builder()
-                .modal(true)
-                .message("Markdown shortcuts")
-                .detail(
-                    "**bold**   *italic*   ~~strike~~\n- [ ] task   # heading   [link](https://…)",
-                )
-                .buttons(["Close"])
-                .cancel_button(0)
-                .default_button(0)
-                .build()
-                .show(Some(&help_window));
+            show_noter_info(&help_window, "Markdown syntax", &markdown_cheatsheet_text());
         });
         let sidebar_navigation_sender = sender.input_sender().clone();
         sidebar_navigation.connect_clicked(move |_| {
@@ -805,7 +936,20 @@ impl SimpleComponent for DesktopComponent {
         let search_sender = sender.input_sender().clone();
         search.connect_search_changed(move |entry| {
             let _send_result = search_sender.send(AppMsg::EditSearch(entry.text().to_string()));
-            let _send_result = search_sender.send(AppMsg::CommitSearch);
+        });
+        let hint = search_hint.clone();
+        let focus = gtk::EventControllerFocus::new();
+        focus.connect_enter(move |_| {
+            hint.popup();
+        });
+        let hint = search_hint.clone();
+        focus.connect_leave(move |_| {
+            hint.popdown();
+        });
+        search.add_controller(focus);
+        let filter_sender = sender.input_sender().clone();
+        filter_chip.connect_clicked(move |_| {
+            let _send_result = filter_sender.send(AppMsg::ClearTag);
         });
         let title_sender = sender.input_sender().clone();
         title.connect_changed(move |entry| {
@@ -821,6 +965,12 @@ impl SimpleComponent for DesktopComponent {
                 let _send_result = tags_sender.send(AppMsg::UpdateTags(entry.text().to_string()));
             }
         });
+        let finish_tags_sender = sender.input_sender().clone();
+        let tags_focus = gtk::EventControllerFocus::new();
+        tags_focus.connect_leave(move |_| {
+            let _send_result = finish_tags_sender.send(AppMsg::FinishEditTags);
+        });
+        tags.add_controller(tags_focus);
         let content_sender = sender.input_sender().clone();
         let content_view = content.clone();
         content.buffer().connect_changed(move |buffer| {
@@ -871,6 +1021,7 @@ impl SimpleComponent for DesktopComponent {
             worker: Some(PersistenceWorker::start(store)),
             note_rows,
             deleted_rows,
+            title: title.clone(),
         };
         model.refresh_factories();
         let widgets = DesktopWidgets {
@@ -889,6 +1040,19 @@ impl SimpleComponent for DesktopComponent {
             empty_state,
             notification,
             recovery_panel,
+            restore_previous,
+            create,
+            search,
+            backup_dot,
+            backup_label,
+            result_status,
+            empty_title,
+            empty_copy,
+            empty_create,
+            tags_pills,
+            edit_tags,
+            filter_row,
+            filter_chip,
             clear_all,
             theme_label,
             writing,
@@ -915,19 +1079,20 @@ impl SimpleComponent for DesktopComponent {
                     last_successful_export_at,
                 } => format!("Backup stale; last export {last_successful_export_at}"),
             };
-            gtk::AlertDialog::builder()
-                .modal(true)
-                .message("About Noter")
-                .detail(format!(
-                    "Version {}\nStorage: {}\n{backup}",
+            let quarantine = if self.store.has_quarantined_corrupt_payloads() {
+                "Corrupt payload quarantined"
+            } else {
+                "No corrupt payload quarantine"
+            };
+            show_noter_info(
+                &self.window,
+                "About Noter",
+                &format!(
+                    "Version {}\nStorage: {}\n{backup}\nRecovery: {quarantine}",
                     env!("CARGO_PKG_VERSION"),
                     self.store.data_dir().display(),
-                ))
-                .buttons(["Close"])
-                .cancel_button(0)
-                .default_button(0)
-                .build()
-                .show(Some(&self.window));
+                ),
+            );
             return;
         }
         if matches!(message, AppMsg::RequestBackupExport) {
@@ -975,13 +1140,29 @@ impl SimpleComponent for DesktopComponent {
             open_json_file(&self.window, true, &sender);
             return;
         }
-        if let AppMsg::ImportBackupJson(json) = &message {
-            match self.app.import_backup(json) {
-                Ok(()) => self.schedule_save(&sender),
-                Err(error) => {
-                    self.app.apply(AppMsg::OperationFailed(error.to_string()));
-                }
+        if let AppMsg::ImportBackupJson(_) = &message {
+            self.app.apply(message);
+            if let Some(preview) = self
+                .app
+                .pending_backup_import()
+                .map(|pending| pending.preview)
+            {
+                show_confirmation(
+                    &self.window,
+                    "Merge Import this Backup?",
+                    &format!(
+                        "Import {} notes: {} new, {} replace",
+                        preview.total_imported_notes,
+                        preview.notes_to_add,
+                        preview.notes_to_replace
+                    ),
+                    "Import",
+                    AppMsg::ConfirmBackupImport,
+                    AppMsg::CancelBackupImport,
+                    &sender,
+                );
             }
+            self.schedule_notification_dismiss(&sender);
             self.refresh_factories();
             return;
         }
@@ -1010,6 +1191,7 @@ impl SimpleComponent for DesktopComponent {
                 match self.store.restore_previous(&recovery) {
                     Ok(collection) => {
                         self.app.replace_loaded_collection(collection);
+                        self.app.set_storage_recovery(false);
                         self.recovery = None;
                         self.refresh_factories();
                     }
@@ -1025,6 +1207,7 @@ impl SimpleComponent for DesktopComponent {
                 match self.store.start_empty(&recovery, chrono::Utc::now()) {
                     Ok((collection, _quarantine)) => {
                         self.app.replace_loaded_collection(collection);
+                        self.app.set_storage_recovery(false);
                         self.recovery = None;
                         self.refresh_factories();
                     }
@@ -1052,9 +1235,29 @@ impl SimpleComponent for DesktopComponent {
         let requested_clear_all = matches!(&message, AppMsg::RequestClearAll);
         let toggled_theme = matches!(&message, AppMsg::ToggleTheme);
         let backup_exported = matches!(&message, AppMsg::BackupExported(_));
+        let confirmed_backup_import = matches!(&message, AppMsg::ConfirmBackupImport);
+        let edited_search = matches!(&message, AppMsg::EditSearch(_));
+        let captured = matches!(&message, AppMsg::QuickCapture);
         if self.app.apply(message) {
             self.schedule_save(&sender);
+            if confirmed_backup_import {
+                self.recovery = None;
+            }
         }
+        if captured && self.app.workspace.focus_intent() == FocusIntent::NoteTitle {
+            let _intent = self.app.workspace.take_focus_intent();
+            self.title.grab_focus();
+        }
+        if edited_search {
+            let sender = sender.input_sender().clone();
+            gtk::glib::timeout_add_local_once(
+                std::time::Duration::from_millis(SEARCH_DEBOUNCE_MS as u64),
+                move || {
+                    let _send_result = sender.send(AppMsg::CommitSearch);
+                },
+            );
+        }
+        self.schedule_notification_dismiss(&sender);
         if toggled_theme && let Err(error) = self.store.save_preferences(&self.preferences()) {
             self.app.apply(AppMsg::OperationFailed(error.to_string()));
         }
@@ -1126,17 +1329,77 @@ impl SimpleComponent for DesktopComponent {
             .editor
             .set_visible(!compact || !self.app.note_list_visible);
         widgets.sidebar.set_hexpand(compact);
+        let backup_health = self.app.backup_health_status(chrono::Utc::now());
+        let backup_dot_class = match backup_health {
+            BackupHealth::Missing => "missing",
+            BackupHealth::Recent { .. } => "recent",
+            BackupHealth::Stale { .. } => "stale",
+        };
+        widgets.backup_dot.set_css_classes(&["noter-backup-dot", backup_dot_class]);
+        widgets
+            .backup_label
+            .set_label(self.app.backup_health_label(chrono::Utc::now()));
         widgets.recovery_panel.set_visible(self.recovery.is_some());
+        let recovering = self.recovery.is_some() || self.app.is_in_storage_recovery();
+        widgets.create.set_sensitive(!recovering);
+        widgets.search.set_sensitive(!recovering);
+        widgets
+            .restore_previous
+            .set_sensitive(
+                self.recovery
+                    .as_ref()
+                    .and_then(|recovery| recovery.previous_snapshot.as_ref())
+                    .is_some(),
+            );
         widgets
             .clear_all
             .set_visible(!self.app.workspace.recently_deleted_notes().is_empty());
-        let rendered_notes = self.app.note_list_render_model().projection.rows.len();
+        let list = self.app.note_list_render_model();
+        let rendered_notes = list.projection.rows.len();
         widgets.notes_count.set_text(&rendered_notes.to_string());
-        widgets.empty_state.set_visible(rendered_notes == 0);
-        if self.recovery.is_some() {
+        if let Some(status) = &list.result_status {
+            widgets.result_status.set_text(&status.text);
+            widgets.result_status.set_visible(true);
+        } else {
+            widgets.result_status.set_visible(false);
+        }
+        match list.display_state {
+            NoteListDisplayState::EmptyCollection => {
+                widgets.empty_state.set_visible(true);
+                widgets.empty_title.set_text("A quiet place for your notes");
+                widgets.empty_copy.set_text("Create a Note to start writing.");
+                widgets.empty_create.set_visible(true);
+            }
+            NoteListDisplayState::FilteredEmpty => {
+                widgets.empty_state.set_visible(true);
+                widgets
+                    .empty_title
+                    .set_text(&list.filtered_empty_message.title);
+                widgets
+                    .empty_copy
+                    .set_text(list.filtered_empty_message.body);
+                widgets.empty_create.set_visible(false);
+            }
+            NoteListDisplayState::Rows => widgets.empty_state.set_visible(false),
+        }
+        if let Some(tag) = self.app.note_list.active_tag() {
+            widgets.filter_chip.set_label(&format!("#{tag}"));
+            widgets.filter_row.set_visible(true);
+        } else {
+            widgets.filter_row.set_visible(false);
+        }
+        while let Some(child) = widgets.tags_pills.first_child() {
+            widgets.tags_pills.remove(&child);
+        }
+        let editing_tags = self.app.is_editing_tags();
+        widgets.tags.set_visible(editing_tags);
+        widgets.edit_tags.set_visible(!recovering && !editing_tags);
+        widgets.tags_pills.set_visible(!editing_tags);
+        if recovering {
             widgets.title.set_sensitive(false);
             widgets.tags.set_sensitive(false);
             widgets.content.set_sensitive(false);
+            widgets.edit_tags.set_sensitive(false);
         } else if let Some(note) = self.app.workspace.selected_note() {
             if widgets.title.text().as_str() != note.title {
                 widgets.title.set_text(&note.title);
@@ -1145,6 +1408,12 @@ impl SimpleComponent for DesktopComponent {
             if widgets.tags.text().as_str() != tags {
                 widgets.tags.set_text(&tags);
             }
+            for tag in &note.tags {
+                let pill = gtk::Label::new(Some(&format!("#{tag}")));
+                pill.set_css_classes(&["noter-note-tags"]);
+                widgets.tags_pills.append(&pill);
+            }
+            widgets.edit_tags.set_sensitive(true);
             let buffer = widgets.content.buffer();
             let current = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false);
             if current.as_str() != note.content {
@@ -1171,6 +1440,7 @@ impl SimpleComponent for DesktopComponent {
             widgets.tags.set_sensitive(false);
             widgets.content.set_sensitive(false);
             widgets.statistics.set_text("0 lines · 0 words · 0 chars");
+            widgets.edit_tags.set_visible(false);
         }
         widgets.status.set_text(match self.app.save_status {
             SaveStatus::Saved => "Saved",
@@ -1198,6 +1468,9 @@ impl SimpleComponent for DesktopComponent {
                 button.set_css_classes(&["noter-mode-button", "active"]);
             } else {
                 button.set_css_classes(&["noter-mode-button"]);
+            }
+            if *mode == EditorViewMode::Split {
+                button.set_sensitive(!compact);
             }
         }
         #[cfg(feature = "preview-webkit")]
@@ -1326,6 +1599,32 @@ fn save_json_file(
     });
 }
 
+fn glib_escape(text: &str) -> String {
+    gtk::glib::markup_escape_text(text).to_string()
+}
+
+fn highlight_markup(segments: &[HighlightSegment]) -> String {
+    segments
+        .iter()
+        .map(|segment| {
+            let text = gtk::glib::markup_escape_text(&segment.text);
+            if segment.is_match {
+                format!("<span background=\"#FFB340\" foreground=\"#25221F\">{text}</span>")
+            } else {
+                text.to_string()
+            }
+        })
+        .collect()
+}
+
+fn markup_or_plain(segments: &[HighlightSegment], plain: &str) -> String {
+    if segments.is_empty() {
+        glib_escape(plain)
+    } else {
+        highlight_markup(segments)
+    }
+}
+
 fn command_button(icon: &str, label: &str, shortcut: &str) -> gtk::Button {
     command_button_parts(icon, label, shortcut).0
 }
@@ -1404,17 +1703,8 @@ fn install_workspace_fonts(window: &gtk::ApplicationWindow) {
     let Some(font_map) = window.pango_context().font_map() else {
         return;
     };
-    let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    for relative_path in [
-        "node_modules/@fontsource-variable/source-sans-3/files/source-sans-3-latin-wght-normal.woff2",
-        "node_modules/@fontsource-variable/source-sans-3/files/source-sans-3-latin-wght-italic.woff2",
-        "node_modules/@fontsource-variable/source-code-pro/files/source-code-pro-latin-wght-normal.woff2",
-        "node_modules/@fontsource-variable/source-code-pro/files/source-code-pro-latin-wght-italic.woff2",
-    ] {
-        let path = workspace.join(relative_path);
-        if path.exists()
-            && let Err(error) = font_map.add_font_file(&path)
-        {
+    for path in noter_desktop::fonts::bundled_font_paths() {
+        if let Err(error) = font_map.add_font_file(&path) {
             eprintln!("Noter could not register {}: {error}", path.display());
         }
     }
@@ -1456,6 +1746,38 @@ fn connect_formatting_button(
         };
         let _send_result = sender.send(AppMsg::ApplyFormatting { selection, command });
     });
+}
+
+fn show_noter_info(parent: &gtk::ApplicationWindow, title: &str, body: &str) {
+    let dialog = gtk::Window::builder()
+        .transient_for(parent)
+        .modal(true)
+        .title(title)
+        .default_width(420)
+        .build();
+    dialog.set_css_classes(&["noter-root"]);
+    let root = gtk::Box::new(gtk::Orientation::Vertical, 12);
+    root.set_margin_start(20);
+    root.set_margin_end(20);
+    root.set_margin_top(16);
+    root.set_margin_bottom(16);
+    let heading = gtk::Label::new(Some(title));
+    heading.set_halign(gtk::Align::Start);
+    heading.set_css_classes(&["noter-empty-title"]);
+    let copy = gtk::Label::new(Some(body));
+    copy.set_halign(gtk::Align::Start);
+    copy.set_wrap(true);
+    copy.set_selectable(true);
+    let close = gtk::Button::with_label("Close");
+    close.set_halign(gtk::Align::End);
+    close.set_css_classes(&["noter-footer-button"]);
+    let dialog_close = dialog.clone();
+    close.connect_clicked(move |_| dialog_close.close());
+    root.append(&heading);
+    root.append(&copy);
+    root.append(&close);
+    dialog.set_child(Some(&root));
+    dialog.present();
 }
 
 fn show_confirmation(
@@ -1515,6 +1837,9 @@ fn main() {
         }
     };
     let preferences = store.load_preferences();
-    let app = AppModel::new(collection, preferences.theme, store.load_backup_health());
+    let mut app = AppModel::new(collection, preferences.theme, store.load_backup_health());
+    if recovery.is_some() {
+        app.set_storage_recovery(true);
+    }
     RelmApp::new(APPLICATION_ID).run::<DesktopComponent>((app, store, recovery, preferences));
 }

@@ -7,7 +7,17 @@
   <project_license>MIT</project_license>
   <description>
     <p>Noter is a local-first Markdown note app with a flat, searchable collection, lightweight tags, recoverable deletion, and user-owned backups.</p>
+    <p>Write Markdown notes privately on your computer, find them with Search, and export a Backup you own. Rendered Preview and Split recommend WebKitGTK 6.</p>
   </description>
+  <recommends>
+    <control>keyboard</control>
+    <control>pointing</control>
+    <control>touch</control>
+  </recommends>
+  <requires>
+    <display_length compare="ge">360</display_length>
+  </requires>
+
   <launchable type="desktop-id">net.astrazds.Noter.desktop</launchable>
   <developer id="net.astrazds">
     <name>Andrejs Strazds</name>
@@ -22,9 +32,9 @@
   </categories>
   <content_rating type="oars-1.1"/>
   <releases>
-    <release version="2.0.0-alpha.1" date="2026-09-03">
+    <release version="2.0.0-alpha.1" date="2026-09-04">
       <description>
-        <p>Initial native migration preview.</p>
+        <p>Native alpha presents the 1.0 Markdown Note App: Search, Tags, recoverable delete, Backup Import Preview, Storage Recovery, and web-to-desktop transition restore. Not a 2.0.0 release.</p>
       </description>
     </release>
   </releases>

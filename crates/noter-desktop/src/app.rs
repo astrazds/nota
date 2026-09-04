@@ -1,6 +1,9 @@
 use chrono::{DateTime, Utc};
 use noter_core::NoteWorkspace;
-use noter_core::backup::{BackupHealthRecord, import_flat_collection_backup};
+use noter_core::backup::{
+    BackupHealth, BackupHealthRecord, PendingBackupImport, assess_backup_health,
+    import_flat_collection_backup, prepare_backup_import,
+};
 use noter_core::editor_view::EditorViewMode;
 use noter_core::markdown_editing::{ByteSelection, MarkdownCommand, apply_markdown_command};
 use noter_core::note_list_interaction::{NoteListInteraction, NoteListRenderModel};
@@ -69,11 +72,16 @@ pub enum AppMsg {
     RequestTransitionImport,
     RequestDiagnostics,
     ImportBackupJson(String),
+    ConfirmBackupImport,
+    CancelBackupImport,
     ImportTransitionJson(String),
     BackupExported(DateTime<Utc>),
     ToggleTheme,
     OperationSucceeded(String),
     OperationFailed(String),
+    DismissNotification(u64),
+    StartEditTags,
+    FinishEditTags,
 }
 
 #[derive(Debug)]
@@ -87,6 +95,10 @@ pub struct AppModel {
     pub save_status: SaveStatus,
     pub notification: Option<GlobalNotification>,
     pub backup_health: Option<BackupHealthRecord>,
+    pending_backup_import: Option<PendingBackupImport>,
+    storage_recovery: bool,
+    notification_generation: u64,
+    editing_tags: bool,
     revision: u64,
 }
 
@@ -109,11 +121,18 @@ impl AppModel {
             save_status: SaveStatus::Saved,
             notification: None,
             backup_health,
+            pending_backup_import: None,
+            storage_recovery: false,
+            notification_generation: 0,
+            editing_tags: false,
             revision: 0,
         }
     }
 
     pub fn apply(&mut self, message: AppMsg) -> bool {
+        if self.storage_recovery && !Self::message_allowed_during_storage_recovery(&message) {
+            return false;
+        }
         let changed = match message {
             AppMsg::QuickCapture => {
                 self.workspace.create_note();
@@ -202,20 +221,14 @@ impl AppModel {
             }
             AppMsg::PersistenceFailed(error) => {
                 self.save_status = SaveStatus::Failed;
-                self.notification = Some(GlobalNotification {
-                    message: error,
-                    tone: NotificationTone::Error,
-                });
+                self.set_notification(error, NotificationTone::Error);
                 false
             }
             AppMsg::BackupExported(exported_at) => {
                 self.backup_health = Some(BackupHealthRecord {
                     last_successful_export_at: exported_at,
                 });
-                self.notification = Some(GlobalNotification {
-                    message: "Backup exported".to_string(),
-                    tone: NotificationTone::Success,
-                });
+                self.set_notification("Backup exported", NotificationTone::Success);
                 false
             }
             AppMsg::ToggleTheme => {
@@ -226,17 +239,50 @@ impl AppModel {
                 false
             }
             AppMsg::OperationSucceeded(message) => {
-                self.notification = Some(GlobalNotification {
-                    message,
-                    tone: NotificationTone::Success,
-                });
+                self.set_notification(message, NotificationTone::Success);
                 false
             }
             AppMsg::OperationFailed(message) => {
-                self.notification = Some(GlobalNotification {
-                    message,
-                    tone: NotificationTone::Error,
-                });
+                self.set_notification(message, NotificationTone::Error);
+                false
+            }
+            AppMsg::DismissNotification(generation) => {
+                if generation == self.notification_generation {
+                    self.notification = None;
+                }
+                false
+            }
+            AppMsg::StartEditTags => {
+                self.editing_tags = true;
+                false
+            }
+            AppMsg::FinishEditTags => {
+                self.editing_tags = false;
+                false
+            }
+            AppMsg::ImportBackupJson(json) => {
+                match prepare_backup_import(self.workspace.notes(), json) {
+                    Ok(pending) => {
+                        self.pending_backup_import = Some(pending);
+                        self.set_notification("Backup ready", NotificationTone::Success);
+                    }
+                    Err(error) => {
+                        self.pending_backup_import = None;
+                        self.set_notification(error.to_string(), NotificationTone::Error);
+                    }
+                }
+                false
+            }
+            AppMsg::ConfirmBackupImport => {
+                let changed = self.confirm_pending_backup_import();
+                if changed {
+                    self.storage_recovery = false;
+                }
+                changed
+            }
+            AppMsg::CancelBackupImport => {
+                self.pending_backup_import = None;
+                self.set_notification("Backup import cancelled", NotificationTone::Progress);
                 false
             }
             AppMsg::RequestBackupExport
@@ -244,7 +290,6 @@ impl AppModel {
             | AppMsg::RequestTransitionExport
             | AppMsg::RequestTransitionImport
             | AppMsg::RequestDiagnostics
-            | AppMsg::ImportBackupJson(_)
             | AppMsg::ImportTransitionJson(_) => false,
         };
 
@@ -257,6 +302,46 @@ impl AppModel {
 
     pub fn revision(&self) -> u64 {
         self.revision
+    }
+
+    pub fn pending_backup_import(&self) -> Option<&PendingBackupImport> {
+        self.pending_backup_import.as_ref()
+    }
+
+    pub fn set_storage_recovery(&mut self, active: bool) {
+        self.storage_recovery = active;
+    }
+
+    pub fn is_in_storage_recovery(&self) -> bool {
+        self.storage_recovery
+    }
+
+    pub fn notification_generation(&self) -> u64 {
+        self.notification_generation
+    }
+
+    pub fn backup_health_status(&self, now: DateTime<Utc>) -> BackupHealth {
+        assess_backup_health(self.backup_health, now)
+    }
+
+    pub fn is_editing_tags(&self) -> bool {
+        self.editing_tags
+    }
+
+    pub fn backup_health_label(&self, now: DateTime<Utc>) -> &'static str {
+        match self.backup_health_status(now) {
+            BackupHealth::Missing => "No backup yet",
+            BackupHealth::Recent { .. } => "Up to date",
+            BackupHealth::Stale { .. } => "Backup stale",
+        }
+    }
+
+    fn set_notification(&mut self, message: impl Into<String>, tone: NotificationTone) {
+        self.notification_generation = self.notification_generation.saturating_add(1);
+        self.notification = Some(GlobalNotification {
+            message: message.into(),
+            tone,
+        });
     }
 
     pub fn collection(&self) -> CollectionEnvelope {
@@ -280,6 +365,20 @@ impl AppModel {
         self.notification = None;
     }
 
+    fn confirm_pending_backup_import(&mut self) -> bool {
+        let Some(pending) = self.pending_backup_import.take() else {
+            return false;
+        };
+        match self.import_backup(&pending.backup_json) {
+            Ok(()) => true,
+            Err(error) => {
+                self.pending_backup_import = Some(pending);
+                self.set_notification(error.to_string(), NotificationTone::Error);
+                false
+            }
+        }
+    }
+
     pub fn import_backup(&mut self, json: &str) -> Result<(), noter_core::backup::BackupError> {
         let mut notes = self.workspace.notes().to_vec();
         let deleted = self.workspace.recently_deleted_notes().to_vec();
@@ -288,7 +387,7 @@ impl AppModel {
         if let Some(id) = imported.selected_id {
             self.workspace.select_note(id);
         }
-        self.mark_external_change("Backup imported");
+        self.set_notification("Backup imported", NotificationTone::Success);
         Ok(())
     }
 
@@ -308,13 +407,30 @@ impl AppModel {
         Ok(())
     }
 
+    fn message_allowed_during_storage_recovery(message: &AppMsg) -> bool {
+        matches!(
+            message,
+            AppMsg::RestorePreviousSnapshot
+                | AppMsg::StartEmptyAfterRecovery
+                | AppMsg::RequestBackupImport
+                | AppMsg::ImportBackupJson(_)
+                | AppMsg::ConfirmBackupImport
+                | AppMsg::CancelBackupImport
+                | AppMsg::RequestDiagnostics
+                | AppMsg::FlushPersistence
+                | AppMsg::PersistenceComplete(_)
+                | AppMsg::PersistenceFailed(_)
+                | AppMsg::OperationSucceeded(_)
+                | AppMsg::OperationFailed(_)
+                | AppMsg::DismissNotification(_)
+                | AppMsg::Resize(_)
+        )
+    }
+
     fn mark_external_change(&mut self, message: &str) {
         self.revision = self.revision.saturating_add(1);
         self.save_status = SaveStatus::Saving;
-        self.notification = Some(GlobalNotification {
-            message: message.to_string(),
-            tone: NotificationTone::Success,
-        });
+        self.set_notification(message, NotificationTone::Success);
     }
 }
 
@@ -431,5 +547,278 @@ mod tests {
         assert!(matches!(error, TransitionError::CollectionNotEmpty));
         assert_eq!(first_run.collection(), before);
         assert_eq!(first_run.revision(), revision);
+    }
+
+    #[test]
+    fn backup_json_prepares_import_preview_without_mutating_the_collection() {
+        use noter_core::backup::export_flat_collection_backup;
+
+        let existing = noter_core::Note::new("Local".to_string(), "Keep me".to_string());
+        let imported = noter_core::Note::new("From backup".to_string(), "New".to_string());
+        let json = export_flat_collection_backup(std::slice::from_ref(&imported)).unwrap();
+        let mut app = AppModel::new(
+            CollectionEnvelope::new(vec![existing.clone()], Vec::new()),
+            ThemePreference::Light,
+            None,
+        );
+
+        app.apply(AppMsg::ImportBackupJson(json));
+
+        assert_eq!(app.workspace.notes(), std::slice::from_ref(&existing));
+        let pending = app
+            .pending_backup_import()
+            .expect("Backup Import Preview should be pending");
+        assert_eq!(pending.preview.notes_to_add, 1);
+        assert_eq!(pending.preview.notes_to_replace, 0);
+        assert_eq!(pending.preview.total_imported_notes, 1);
+        assert_eq!(app.revision(), 0);
+    }
+
+    #[test]
+    fn backup_import_preview_counts_same_identity_notes_as_replacements() {
+        use noter_core::backup::export_flat_collection_backup;
+
+        let mut existing = noter_core::Note::new("Local".to_string(), "Keep me".to_string());
+        let replacement = {
+            let mut note = existing.clone();
+            note.title = "Replaced".to_string();
+            note.content = "Updated".to_string();
+            note
+        };
+        existing.title = "Original".to_string();
+        let json = export_flat_collection_backup(std::slice::from_ref(&replacement)).unwrap();
+        let mut app = AppModel::new(
+            CollectionEnvelope::new(vec![existing.clone()], Vec::new()),
+            ThemePreference::Light,
+            None,
+        );
+
+        app.apply(AppMsg::ImportBackupJson(json));
+
+        let pending = app
+            .pending_backup_import()
+            .expect("Backup Import Preview should be pending");
+        assert_eq!(pending.preview.notes_to_add, 0);
+        assert_eq!(pending.preview.notes_to_replace, 1);
+        assert_eq!(app.workspace.notes()[0].title, "Original");
+        assert!(app.apply(AppMsg::ConfirmBackupImport));
+        assert_eq!(app.workspace.notes()[0].title, "Replaced");
+    }
+
+    #[test]
+    fn storage_recovery_blocks_quick_capture_and_search_until_cleared() {
+        let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::Light, None);
+        app.set_storage_recovery(true);
+
+        assert!(!app.apply(AppMsg::QuickCapture));
+        assert!(app.workspace.notes().is_empty());
+
+        app.apply(AppMsg::EditSearch("secret".to_string()));
+        app.apply(AppMsg::CommitSearch);
+        assert!(app.note_list.search_input().is_empty());
+        assert!(app.note_list.committed_search().is_empty());
+
+        app.set_storage_recovery(false);
+        assert!(app.apply(AppMsg::QuickCapture));
+        assert_eq!(app.workspace.notes().len(), 1);
+    }
+
+    #[test]
+    fn quick_capture_requests_note_title_focus() {
+        use noter_core::note_workspace::FocusIntent;
+
+        let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::Light, None);
+        assert!(app.apply(AppMsg::QuickCapture));
+        assert_eq!(
+            app.workspace.focus_intent(),
+            FocusIntent::NoteTitle
+        );
+    }
+
+    #[test]
+    fn tag_editing_is_opt_in_and_does_not_revise_the_collection() {
+        let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::Light, None);
+        app.apply(AppMsg::StartEditTags);
+        assert!(app.is_editing_tags());
+        assert_eq!(app.revision(), 0);
+        app.apply(AppMsg::FinishEditTags);
+        assert!(!app.is_editing_tags());
+    }
+
+    #[test]
+    fn storage_recovery_allows_backup_import_preview_and_merge() {
+        use noter_core::backup::export_flat_collection_backup;
+
+        let imported = noter_core::Note::new("Recovered".to_string(), "From Backup".to_string());
+        let json = export_flat_collection_backup(std::slice::from_ref(&imported)).unwrap();
+        let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::Light, None);
+        app.set_storage_recovery(true);
+
+        app.apply(AppMsg::ImportBackupJson(json));
+        assert!(app.pending_backup_import().is_some());
+        assert!(app.apply(AppMsg::ConfirmBackupImport));
+        assert!(!app.is_in_storage_recovery());
+        assert_eq!(app.workspace.notes(), std::slice::from_ref(&imported));
+    }
+
+    #[test]
+    fn global_notifications_can_be_dismissed_without_mutating_notes() {
+        let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::Light, None);
+        app.apply(AppMsg::OperationSucceeded("Backup exported".to_string()));
+        assert!(app.notification.is_some());
+        let generation = app.notification_generation();
+        app.apply(AppMsg::DismissNotification(generation));
+        assert!(app.notification.is_none());
+        assert_eq!(app.revision(), 0);
+    }
+
+    #[test]
+    fn backup_health_label_is_actionable_for_missing_recent_and_stale() {
+        use chrono::TimeZone;
+
+        let missing = AppModel::new(CollectionEnvelope::empty(), ThemePreference::Light, None);
+        let now = chrono::Utc.with_ymd_and_hms(2026, 9, 4, 12, 0, 0).unwrap();
+        assert_eq!(missing.backup_health_label(now), "No backup yet");
+
+        let recent = AppModel::new(
+            CollectionEnvelope::empty(),
+            ThemePreference::Light,
+            Some(BackupHealthRecord {
+                last_successful_export_at: now,
+            }),
+        );
+        assert_eq!(recent.backup_health_label(now), "Up to date");
+
+        let stale = AppModel::new(
+            CollectionEnvelope::empty(),
+            ThemePreference::Light,
+            Some(BackupHealthRecord {
+                last_successful_export_at: now - chrono::Duration::days(15),
+            }),
+        );
+        assert_eq!(stale.backup_health_label(now), "Backup stale");
+    }
+
+    #[test]
+    fn search_commit_distinguishes_filtered_empty_from_empty_collection() {
+        use noter_core::note_list_interaction::NoteListDisplayState;
+
+        let note = noter_core::Note::new("Roadmap".to_string(), "Ship native app".to_string());
+        let mut app = AppModel::new(
+            CollectionEnvelope::new(vec![note], Vec::new()),
+            ThemePreference::Light,
+            None,
+        );
+        app.apply(AppMsg::EditSearch("zzzz".to_string()));
+        assert_eq!(
+            app.note_list_render_model().display_state,
+            NoteListDisplayState::Rows
+        );
+        app.apply(AppMsg::CommitSearch);
+        let model = app.note_list_render_model();
+        assert_eq!(model.display_state, NoteListDisplayState::FilteredEmpty);
+        assert!(model.result_status.is_some());
+        assert!(
+            model
+                .filtered_empty_message
+                .title
+                .contains("No notes match search")
+        );
+
+        let empty = AppModel::new(CollectionEnvelope::empty(), ThemePreference::Light, None);
+        assert_eq!(
+            empty.note_list_render_model().display_state,
+            NoteListDisplayState::EmptyCollection
+        );
+    }
+
+    #[test]
+    fn selecting_a_tag_filters_the_note_list_without_a_match_label() {
+        let mut work = noter_core::Note::new("Sprint".to_string(), "body phrase unique".to_string());
+        work.tags = vec!["Work".to_string()];
+        let personal = noter_core::Note::new("Groceries".to_string(), "apples".to_string());
+        let mut app = AppModel::new(
+            CollectionEnvelope::new(vec![work, personal], Vec::new()),
+            ThemePreference::Light,
+            None,
+        );
+
+        app.apply(AppMsg::SelectTag("Work".to_string()));
+        let filtered = app.note_list_render_model();
+        assert_eq!(filtered.projection.rows.len(), 1);
+        assert_eq!(app.note_list.active_tag(), Some("Work"));
+
+        app.apply(AppMsg::ClearTag);
+        assert!(app.note_list.active_tag().is_none());
+        assert_eq!(app.note_list_render_model().projection.rows.len(), 2);
+
+        app.apply(AppMsg::EditSearch("unique".to_string()));
+        app.apply(AppMsg::CommitSearch);
+        let snippet = &app.note_list_render_model().projection.rows[0];
+        assert!(snippet.uses_match_snippet);
+        assert!(!snippet.preview.starts_with("Match:"));
+    }
+
+    #[test]
+    fn confirming_backup_import_preview_applies_merge_import() {
+        use noter_core::backup::export_flat_collection_backup;
+
+        let existing = noter_core::Note::new("Local".to_string(), "Keep me".to_string());
+        let imported = noter_core::Note::new("From backup".to_string(), "New".to_string());
+        let json = export_flat_collection_backup(std::slice::from_ref(&imported)).unwrap();
+        let mut app = AppModel::new(
+            CollectionEnvelope::new(vec![existing.clone()], Vec::new()),
+            ThemePreference::Light,
+            None,
+        );
+
+        app.apply(AppMsg::ImportBackupJson(json));
+        assert!(app.apply(AppMsg::ConfirmBackupImport));
+
+        assert_eq!(app.workspace.notes().len(), 2);
+        assert!(app.pending_backup_import().is_none());
+        assert_eq!(app.workspace.selected_id(), Some(imported.id));
+        assert_eq!(app.save_status, SaveStatus::Saving);
+    }
+
+    #[test]
+    fn canceling_backup_import_preview_leaves_the_collection_unchanged() {
+        use noter_core::backup::export_flat_collection_backup;
+
+        let existing = noter_core::Note::new("Local".to_string(), "Keep me".to_string());
+        let imported = noter_core::Note::new("From backup".to_string(), "New".to_string());
+        let json = export_flat_collection_backup(std::slice::from_ref(&imported)).unwrap();
+        let mut app = AppModel::new(
+            CollectionEnvelope::new(vec![existing.clone()], Vec::new()),
+            ThemePreference::Light,
+            None,
+        );
+
+        app.apply(AppMsg::ImportBackupJson(json));
+        app.apply(AppMsg::CancelBackupImport);
+
+        assert_eq!(app.workspace.notes(), std::slice::from_ref(&existing));
+        assert!(app.pending_backup_import().is_none());
+        assert_eq!(app.revision(), 0);
+    }
+
+    #[test]
+    fn invalid_backup_json_is_rejected_without_a_pending_preview() {
+        let existing = noter_core::Note::new("Local".to_string(), "Keep me".to_string());
+        let mut app = AppModel::new(
+            CollectionEnvelope::new(vec![existing.clone()], Vec::new()),
+            ThemePreference::Light,
+            None,
+        );
+
+        app.apply(AppMsg::ImportBackupJson("{not json".to_string()));
+
+        assert_eq!(app.workspace.notes(), std::slice::from_ref(&existing));
+        assert!(app.pending_backup_import().is_none());
+        assert_eq!(
+            app.notification.as_ref().map(|notification| notification.tone),
+            Some(NotificationTone::Error)
+        );
+        assert_eq!(app.revision(), 0);
     }
 }

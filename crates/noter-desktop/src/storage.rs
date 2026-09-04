@@ -135,7 +135,16 @@ impl NativeStore {
             Err(error) if error.kind() == io::ErrorKind::NotFound => {
                 return Ok(LoadOutcome::Ready(CollectionEnvelope::empty()));
             }
-            Err(source) => return Err(io_error(collection_path, source)),
+            Err(source) => {
+                let previous_snapshot = fs::read(self.previous_collection_path())
+                    .ok()
+                    .and_then(|previous| parse_collection(&previous).ok());
+                return Ok(LoadOutcome::Recovery(NativeRecovery {
+                    corrupt_collection_path: collection_path,
+                    previous_snapshot,
+                    reason: source.to_string(),
+                }));
+            }
         };
 
         match parse_collection(&raw) {
@@ -216,6 +225,20 @@ impl NativeStore {
     pub fn save_backup_health(&self, health: &BackupHealthRecord) -> Result<(), StorageError> {
         let raw = serde_json::to_vec_pretty(health).map_err(StorageError::Serialize)?;
         write_atomic(&self.backup_health_path(), &raw)
+    }
+
+    pub fn has_quarantined_corrupt_payloads(&self) -> bool {
+        fs::read_dir(&self.data_dir)
+            .ok()
+            .map(|entries| {
+                entries.filter_map(Result::ok).any(|entry| {
+                    entry
+                        .file_name()
+                        .to_string_lossy()
+                        .starts_with("collection.corrupt-")
+                })
+            })
+            .unwrap_or(false)
     }
 
     fn collection_path(&self) -> PathBuf {
@@ -387,6 +410,23 @@ mod tests {
         let (empty, quarantine) = store.start_empty(&recovery, now).unwrap();
         assert_eq!(empty, CollectionEnvelope::empty());
         assert_eq!(fs::read_to_string(quarantine).unwrap(), "{broken");
+        assert!(store.has_quarantined_corrupt_payloads());
+    }
+
+    #[test]
+    fn corrupt_current_state_without_previous_snapshot_still_enters_recovery() {
+        let temp = tempfile::tempdir().unwrap();
+        let store = NativeStore::at(temp.path());
+        fs::write(temp.path().join("collection.json"), b"{broken").unwrap();
+
+        let LoadOutcome::Recovery(recovery) = store.load_collection().unwrap() else {
+            panic!("corrupt current state must enter Storage Recovery");
+        };
+        assert!(recovery.previous_snapshot.is_none());
+        assert!(matches!(
+            store.restore_previous(&recovery),
+            Err(StorageError::InvalidCollection(_))
+        ));
     }
 
     #[test]

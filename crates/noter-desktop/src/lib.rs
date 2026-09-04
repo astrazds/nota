@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 pub mod app;
+pub mod fonts;
 pub mod persistence;
 pub mod preview;
 pub mod selection;

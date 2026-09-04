@@ -58,6 +58,58 @@ pub struct FormattingResult {
     pub caret_byte: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MarkdownCheatsheetSection {
+    pub title: &'static str,
+    pub items: &'static [&'static str],
+}
+
+pub const MARKDOWN_CHEATSHEET_SECTIONS: &[MarkdownCheatsheetSection] = &[
+    MarkdownCheatsheetSection {
+        title: "Headings",
+        items: &[
+            "# Heading 1",
+            "## Heading 2",
+            "### Heading 3",
+        ],
+    },
+    MarkdownCheatsheetSection {
+        title: "Emphasis",
+        items: &["**bold**", "*italic*", "~~strikethrough~~"],
+    },
+    MarkdownCheatsheetSection {
+        title: "Lists",
+        items: &["- Unordered item", "1. Ordered item", "- [ ] Task"],
+    },
+    MarkdownCheatsheetSection {
+        title: "Links & code",
+        items: &[
+            "[Link text](https://example.com)",
+            "`inline code`",
+            "```\ncode block\n```",
+        ],
+    },
+];
+
+pub fn markdown_cheatsheet_text() -> String {
+    MARKDOWN_CHEATSHEET_SECTIONS
+        .iter()
+        .map(|section| {
+            format!(
+                "{}\n{}",
+                section.title,
+                section
+                    .items
+                    .iter()
+                    .map(|item| format!("  {item}"))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
+
 pub fn apply_markdown_command(
     content: &str,
     selection: ByteSelection,
@@ -65,6 +117,19 @@ pub fn apply_markdown_command(
 ) -> FormattingResult {
     let (prefix, suffix) = command.affixes();
     apply_markdown_format(content, selection, prefix, suffix)
+}
+
+#[cfg(test)]
+mod cheatsheet_tests {
+    use super::*;
+
+    #[test]
+    fn markdown_cheatsheet_includes_shared_syntax_sections() {
+        let text = markdown_cheatsheet_text();
+        assert!(text.contains("Emphasis"));
+        assert!(text.contains("**bold**"));
+        assert!(text.contains("- [ ] Task"));
+    }
 }
 
 pub fn apply_markdown_format(

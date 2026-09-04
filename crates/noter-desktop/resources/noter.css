@@ -320,6 +320,9 @@ button.danger, button.destructive-action { color: #C0392B; font-weight: 600; }
 .noter-sidebar-footer { padding: 5px 10px 5px 12px; }
 .noter-footer-label { font-weight: 600; }
 .noter-backup-dot { color: var(--subtle); font-size: 7px; }
+.noter-backup-dot.missing { color: var(--subtle); }
+.noter-backup-dot.recent { color: #10B981; }
+.noter-backup-dot.stale { color: var(--signal); }
 button.noter-footer-button {
   min-height: 26px;
   min-width: 0;

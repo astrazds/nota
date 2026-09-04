@@ -33,3 +33,12 @@ install_data(
   rename: 'net.astrazds.Noter.svg',
   install_dir: get_option('datadir') / 'icons/hicolor/scalable/apps',
 )
+install_data(
+  [
+    'assets/fonts/source-sans-3-latin-wght-normal.woff2',
+    'assets/fonts/source-sans-3-latin-wght-italic.woff2',
+    'assets/fonts/source-code-pro-latin-wght-normal.woff2',
+    'assets/fonts/source-code-pro-latin-wght-italic.woff2',
+  ],
+  install_dir: get_option('datadir') / 'net.astrazds.Noter/fonts',
+)

@@ -1,31 +1,34 @@
 # Noter
 
-A local-first Markdown note-taking app. The stable 1.0 line is the existing **Leptos** browser app; the repository now also contains the in-progress Linux-native **Relm4/GTK4** replacement.
+A local-first Markdown note-taking app. The stable 1.0 line is the **Leptos** browser app. The repository also contains the Linux-native **Relm4/GTK4** replacement.
 
-Current app version: **1.0.2**.
+Current browser version: **1.0.2**.
 
-The native crates use `2.0.0-alpha.1`. This is not a 2.0 cutover: the browser remains the migration source until native parity, packaging, and a manual migration rehearsal pass.
+Native crates remain **`2.0.0-alpha.1`**. This is not a 2.0 cutover: the browser stays the migration source, and ADR-0009 still withholds a 2.0.0 tag until Flatpak install/run and publication are approved. Native now presents the 1.0 product rules (Backup Import Preview, Storage Recovery, Search-led discovery, Preview/Split, installed fonts). A clean-profile web-to-desktop rehearsal has been recorded against a Meson-installed binary.
 
-## Native migration preview
+## Native migration
 
-- `noter-core` owns toolkit-independent Notes, Flat Collection behavior, Search, Tags, Backup v1, Storage Recovery rules, Markdown Preview generation, and UTF-8 byte-range formatting.
-- `noter-web` remains the final browser migration Adapter and now exposes **Export for desktop**.
-- `noter-desktop` provides the Relm4 root component, GTK Writing Surface, stable-UUID Note factories, native Backup/transition file workflows, Light/Dark Theme preferences, XDG collection storage, atomic Previous Snapshot replacement, corrupt-payload quarantine, and close-time persistence flush.
+- `noter-core` owns toolkit-independent Notes, Flat Collection behavior, Search, Tags, Backup v1, Storage Recovery rules, Markdown Preview generation, UTF-8 byte-range formatting, and the Markdown syntax cheatsheet.
+- `noter-web` remains the final browser migration Adapter and exposes **Export for desktop** (`noter.desktop_transition` v1).
+- `noter-desktop` is the Relm4 root `AppModel`/`AppMsg` Component: GTK Writing Surface, Note List factories, Backup Import Preview then Merge Import, desktop-transition Restore into an Empty Collection, Storage Recovery, Search Hint and Discovery Depth UI, Tag pills with an Edit tags flow, Light/Dark Theme, XDG collection storage, atomic Previous Snapshot replacement, Corrupt Payload Quarantine, Diagnostics, and close-time persistence flush.
 
 Run the native development build on Linux with GTK 4.22 or newer:
 
 ```bash
 cargo run -p noter-desktop
+cargo run -p noter-desktop --features preview-webkit
 ```
 
-WebKitGTK 6 Preview support is represented by the `preview-webkit` feature and requires the `webkitgtk-6.0` development package. Flatpak build/install/run gates additionally require Flatpak and Flatpak Builder. Those system prerequisites are intentionally not installed by Cargo.
+WebKitGTK 6 Preview and Split rendering uses the `preview-webkit` feature and needs the `webkitgtk-6.0` development package. Default `cargo run -p noter-desktop` does not enable that feature; Meson/Flatpak builds do. Source Sans 3 and Source Code Pro ship in `assets/fonts` and install to the application data directory, so installed runs do not read `node_modules`.
+
+Devel Flatpak uses application ID `net.astrazds.Noter.Devel`. Production desktop, icon, and binary stay `net.astrazds.Noter`. Flatpak build/install/run still requires Flatpak and Flatpak Builder; those tools are not installed by Cargo.
 
 ## Features
 
 - **Local-First Note Identity**: Quiet note-app structure with a scannable Frame A sidebar, calm writing surface, aligned main frame/sidebar borders, compact editor footer, warm selected Note state, and paper-neutral popup models.
 - **Brand App Icons**: Browser tab, Apple touch, PWA, maskable, monochrome, and favicon-safe icons use the Noter folded-note mark from the brand toolkit.
 - **Documented Design System**: `PRODUCT.md`, `DESIGN.md`, `docs/brand-toolkit.md`, and `.impeccable/design.json` capture the product register, brand direction, typography, palette, component rules, and visual anti-patterns used by agents and contributors.
-- **Self-Hosted Typography**: Source Sans 3 carries the product UI, while Source Code Pro is reserved for Markdown/source editing. Fonts are bundled locally through Trunk and Tailwind, with no remote font provider.
+- **Self-Hosted Typography**: Source Sans 3 carries the product UI, while Source Code Pro is reserved for Markdown/source editing. The browser bundles fonts through Trunk and Tailwind. Native installs the same Source families from `assets/fonts`. There is no remote font provider.
 - **Markdown Support**: Markdown writing with explicit Write, Preview, and desktop Split view modes in a stable editor-area footer that matches the sidebar footer height and compact control rhythm.
   - Supports CommonMark plus tables, footnotes, strikethrough, and task lists.
   - Raw HTML in notes is rendered as text for safety.
@@ -105,6 +108,7 @@ In debug builds, a browser with no saved `noter-notes` LocalStorage entry starts
 Run the Rust unit tests:
 ```bash
 cargo test
+cargo test -p noter-desktop --all-targets
 ```
 
 Check browser-target compilation:
@@ -133,6 +137,7 @@ Tests cover core domain logic including:
 - **Filtering & Sorting**: Real-time search, scoped query parsing, quoted phrase matching, title/Tag highlighting, compact body Match Snippets, render-ready note list projection, active Search/Tag result status, filtered-empty explanations, active tag filtering, and note pinning logic.
 - **Browser Visual Regressions**: Playwright coverage verifies Light/Dark Theme readability, Search Hint contrast and placement, selected Note state, emitted Tailwind/style contracts, local Source font loading, app icon/manifest assets, Frame A material surfaces, editor/sidebar footer height parity, compact footer controls, compact desktop Tag chips, labelled desktop actions, 44px mobile touch targets, popup panel dialog semantics, startup notification quietness, Preview/Split Note Title consistency, Note Metadata ordering, dark Preview/Split prose, Write/Preview/Split pane alignment, Backup Controls placement, and floating Global Notification layering.
 - **Browser Workflow Regressions**: Playwright coverage exercises Quick Capture, Note Title editing, Note creation/edit/save, scoped Search, pinning, Tags, Formatting Tools, Preview safety, Backup export/import, Responsive Navigation, Markdown syntax help, recoverable delete/restore, and Clear All.
+- **Native Workflow Smoke**: `noter-desktop` tests cover Backup Import Preview then Merge Import, Storage Recovery including Import Backup, Search filtered-empty vs Empty Collection, Quick Capture Note Title focus, Preview/Split View Mode surfaces, bundled fonts without `node_modules`, and a clean-profile web-to-desktop transition restore that rejects a second exact restore and then uses Merge Import.
 - **Formatting**: Named Markdown commands and UTF-16/UTF-8-safe selection handling.
 - **Note Logic**: Workspace behaviours for quick capture, note creation, selected note editing, recoverable delete/restore/individual clear/count-confirmed Clear All, delete confirmation, title extraction, date formatting, preview truncation, and deserialisation.
 - **Tags**: Parsing, display formatting, autocomplete suggestions, normalization, individual removal, cleanup planning, case-insensitive matching, collection, and sorting.
@@ -155,6 +160,8 @@ The app keeps high-leverage behaviour behind focused Rust Modules:
 - `src/components/`: Leptos rendering Modules for the app shell, sidebar, editor, popups, and shared modal model. These should stay thin and call the deeper product Modules above.
 
 Crate-level aliases preserve the established Module names (`note_workspace`, `note_discovery`, `ui_recipes`, `storage_recovery`, and similar) so existing tests and call sites can use the product vocabulary while the physical file structure stays grouped by area.
+
+Native presentation lives in `crates/noter-desktop/`: `AppModel`/`AppMsg` for product behaviour, XDG `NativeStore` persistence, bundled font lookup, WebKit Preview when enabled, and the Relm4 GTK shell in the desktop binary.
 
 ## Domain Docs
 

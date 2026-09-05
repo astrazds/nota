@@ -22,7 +22,7 @@
   <developer id="net.astrazds">
     <name>Andrejs Strazds</name>
   </developer>
-  <url type="homepage">https://repos.astrazds.net/astrazds/nota</url>
+  <url type="homepage">https://github.com/astrazds/nota</url>
   <provides>
     <binary>nota-desktop</binary>
   </provides>

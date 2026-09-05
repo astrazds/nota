@@ -23,7 +23,7 @@ Keep this note pinned while testing note ordering, note actions, and task-list r
 - [ ] Try ~~strikethrough~~ on completed details
 - [ ] Toggle the sidebar and confirm this title stays selected
 
-Related link: [Nota repository](https://repos.astrazds.net/astrazds/nota)
+Related link: [Nota repository](https://github.com/astrazds/nota)
 "#
             .trim()
             .to_string(),

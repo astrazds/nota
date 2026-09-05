@@ -6,7 +6,7 @@ rust-version = "1.95"
 authors = ["Andrejs Strazds"]
 description = "Browser migration Adapter for Nota, a local-first Markdown note app."
 license = "MIT"
-repository = "https://repos.astrazds.net/astrazds/nota"
+repository = "https://github.com/astrazds/nota"
 readme = "README.md"
 keywords = ["notes", "markdown", "leptos", "wasm", "tailwindcss"]
 categories = ["wasm", "web-programming"]
@@ -20,7 +20,7 @@ edition = "2024"
 rust-version = "1.95"
 authors = ["Andrejs Strazds"]
 license = "MIT"
-repository = "https://repos.astrazds.net/astrazds/nota"
+repository = "https://github.com/astrazds/nota"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

@@ -12,7 +12,7 @@ Users should not need to think in terms of files, folders, cloud sync, command s
 
 ## Product Purpose
 
-Noter exists to make local note-taking feel dependable and low-friction in the browser. Success means a user can create a Note quickly, stay oriented in a Flat Collection, edit the Writing Surface without chrome getting in the way, preview Markdown when needed, recover accidental deletes, and export/import a local Backup without risking the current collection.
+Noter exists to make local note-taking feel dependable and low-friction on the user's own machine. Success means a user can create a Note quickly, stay oriented in a Flat Collection, edit the Writing Surface without chrome getting in the way, preview Markdown when needed, recover accidental deletes, and export/import a local Backup without risking the current collection.
 
 The primary product frame is a Markdown Note App, not a Markdown workbench. Markdown powers the content, but the main product experience is creating, recognising, finding, organising, and safely preserving Notes.
 

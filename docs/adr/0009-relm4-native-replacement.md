@@ -16,12 +16,12 @@ Accepted decisions:
 - Build the native interface from GTK4 plus bundled CSS/resources instead of adopting libadwaita's visual conventions. Preserve the Local-First Note Identity, Pane Rhythm, accessible names, keyboard paths, focus restoration, and minimum target sizing.
 - Convert GTK character offsets to validated UTF-8 byte ranges at the toolkit boundary. Shared formatting Interfaces use byte ranges and contain no browser UTF-16 concepts.
 - Render Preview in a non-editable WebKitGTK 6 `WebView`. Disable JavaScript and persistent storage, load only generated HTML, apply a deny-by-default CSP, allow same-document footnote anchors, prevent in-view external navigation, and pass only validated HTTP(S)/mailto targets to the system handler after user activation.
-- Package with a thin Meson installation layer and a Flatpak manifest on GNOME 50. Keep `cargo run -p noter-desktop` as the development path.
-- Do not call the migration complete or release 2.0.0 until parity, native smoke, metadata validation, Flatpak build/install/run, and a manual clean-profile web-to-desktop rehearsal pass. Until then, native crates use a 2.0.0 prerelease version.
+- Package with a thin Meson installation layer. Keep `cargo run -p noter-desktop` as the development path. The first shippable native artifact is an AppImage wrapping that Meson prefix (ADR-0010). The GNOME 50 Devel Flatpak manifest stays in tree for later.
+- Do not call the migration complete or release 2.0.0 until parity, native smoke, metadata validation, an AppImage that runs, and a manual clean-profile web-to-desktop rehearsal pass. Until then, native crates use a 2.0.0 prerelease version. Flatpak build/install/run is no longer the first packaging gate.
 
 Consequences:
 
 - The repository temporarily carries two frontends, but only `noter-web` owns browser storage, DOM selection conversion, and the transition download Adapter.
 - `noter-core` becomes the durable behavior boundary rather than a generic storage or UI abstraction layer.
-- WebKitGTK 6 development headers and Flatpak tooling are build prerequisites for their respective gates, not dependencies installed implicitly by the repository.
+- WebKitGTK 6 development headers are a build prerequisite for Preview. AppImage packaging downloads linuxdeploy tools on demand. Flatpak tooling remains optional until that later gate.
 - Browser hosting retirement, publication, tagging, branch creation, and release actions remain separate approvals.

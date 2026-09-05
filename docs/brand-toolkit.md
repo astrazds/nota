@@ -18,12 +18,13 @@ Concept artifact:
 Approved product frame:
 
 - **Frame A, Quiet Notebook Frame** is the product UI reference for the main app frame: light paper default, compact restrained sidebar, warm selected Note row, thin editor toolbar, stable editor-area footer, and paper-neutral popup panels.
+- The post-1.0 product surface is the Relm4/GTK4 native window. Use browser Adapter screenshots only when the migration Adapter itself is the subject.
 
 ## Brand Promise
 
 Noter is a calm, local-first Markdown note app for capturing, writing, finding, organising, previewing, deleting, recovering, and backing up personal Notes.
 
-Markdown is a capability, not the brand frame. The brand frame is a dependable local notebook in the browser: private, low-friction, recoverable, and hard to disrupt.
+Markdown is a capability, not the brand frame. The brand frame is a dependable local notebook on the user's machine: private, low-friction, recoverable, and hard to disrupt.
 
 ## Audience
 
@@ -41,7 +42,7 @@ The product should reduce the user's need to reason about software. A good Noter
 Three physical words:
 
 - **Calm**: quiet surfaces, predictable actions, no decorative urgency.
-- **Local**: private, owned, browser-resident, not cloud-branded.
+- **Local**: private, owned, on-device, not cloud-branded.
 - **Practical**: clear labels, fast recovery, compact controls, direct outcomes.
 
 The personality is expert restraint, not minimalism for its own sake. The product should feel trustworthy because it is explicit about user-owned data, destructive actions, and recovery paths.
@@ -366,7 +367,7 @@ Screenshot guidance:
 - Show readable Note Titles and Tags.
 - Do not expose private or joke data.
 - Include Light and Dark Theme only when comparing theme support.
-- Keep browser chrome minimal unless the browser context matters.
+- Prefer the native window; keep browser chrome out of frame unless the browser Adapter is the subject.
 
 ## Motion
 

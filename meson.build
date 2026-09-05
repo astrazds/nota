@@ -42,3 +42,10 @@ install_data(
   ],
   install_dir: get_option('datadir') / 'net.astrazds.Noter/fonts',
 )
+
+test(
+  'appimage-appdir-contract',
+  python,
+  args: [files('build-aux/test_package_appimage.py')],
+  workdir: meson.project_source_root() / 'build-aux',
+)

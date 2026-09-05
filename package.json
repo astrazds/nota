@@ -2,7 +2,7 @@
   "name": "noter",
   "version": "1.0.2",
   "private": true,
-  "description": "A local-first Markdown note-taking web app built with Rust, Leptos, and Tailwind CSS.",
+  "description": "Browser migration Adapter for Noter, a local-first Markdown note app.",
   "license": "MIT",
   "repository": {
     "type": "git",

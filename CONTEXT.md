@@ -121,7 +121,7 @@ The sidebar behaviour that adapts note navigation for smaller screens.
 _Avoid_: Floating expand handle
 
 **Backup**:
-A versioned local export of the Flat Collection that preserves Notes and can be stored outside the browser.
+A versioned local export of the Flat Collection that preserves Notes and can be stored outside the live collection.
 _Avoid_: Sync, cloud backup
 
 **Backup Health**:
@@ -129,7 +129,7 @@ Lightweight metadata about the last successful Backup export, used to show wheth
 _Avoid_: Sync status
 
 **Storage Recovery**:
-The startup state shown when browser-saved Notes or Recently Deleted payloads cannot be parsed, requiring the user to choose Restore previous snapshot, Start empty, or Import Backup before normal editing resumes.
+The startup state shown when saved Notes or Recently Deleted payloads cannot be parsed, requiring the user to choose Restore previous snapshot, Start empty, or Import Backup before normal editing resumes.
 _Avoid_: Silent reset, automatic data loss
 
 **Previous Snapshot**:
@@ -137,7 +137,7 @@ The last valid active Notes and Recently Deleted collection pair preserved befor
 _Avoid_: Undo history, version history
 
 **Corrupt Payload Quarantine**:
-The preserved copy of corrupt browser storage payloads after the user chooses to start empty, used for diagnostics rather than normal app loading.
+The preserved copy of corrupt saved payloads after the user chooses to start empty, used for diagnostics rather than normal app loading.
 _Avoid_: Backup, recovery point
 
 **Diagnostics Surface**:
@@ -203,12 +203,12 @@ _Avoid_: Replace import by default
 - **Product Metadata** belongs outside the primary note workflow.
 - Each **Theme** needs coherent surface, text, border, selection, and accent treatment.
 - **Responsive Navigation** keeps the **Note List** available without interrupting the **Writing Surface**.
-- A **Backup** preserves the **Flat Collection** outside browser storage.
+- A **Backup** preserves the **Flat Collection** outside the live collection.
 - **Backup Health** describes the recency of the user's last successful **Backup** export without implying sync.
 - Missing or stale **Backup Health** should be actionable in **Backup Controls** without becoming a warning banner.
 - **Storage Recovery** should block normal editing until the user chooses an explicit recovery path.
 - A **Previous Snapshot** covers active Notes and **Recently Deleted** together.
-- **Corrupt Payload Quarantine** preserves broken browser payloads only after the user chooses to start empty.
+- **Corrupt Payload Quarantine** preserves broken saved payloads only after the user chooses to start empty.
 - **Diagnostics Surface** owns **Product Metadata** and storage diagnostics outside the primary note workflow.
 - **Storage Recovery** should keep **Backup Import Preview** and **Merge Import** available because Backup remains the explicit user-owned recovery mechanism.
 - **Backup Controls** belong in the sidebar footer as secondary utilities, not in primary navigation.
@@ -298,7 +298,7 @@ _Avoid_: Replace import by default
 > **Dev:** "Should corrupt saved Notes fall back to starter notes or an empty collection?"
 > **Domain expert:** "No — show **Storage Recovery** so the user explicitly restores a **Previous Snapshot**, starts empty, or imports a **Backup**."
 >
-> **Dev:** "Should starting empty discard corrupt browser payloads immediately?"
+> **Dev:** "Should starting empty discard corrupt saved payloads immediately?"
 > **Domain expert:** "No — use **Corrupt Payload Quarantine** so diagnostics can still explain that recovery happened."
 >
 > **Dev:** "Should app version and storage mode live in the Backup footer?"

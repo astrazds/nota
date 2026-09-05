@@ -17,9 +17,13 @@ This is a single-context repo:
 ```text
 /
 ├── CONTEXT.md
+├── PRODUCT.md
+├── DESIGN.md
 ├── docs/brand-toolkit.md
-├── docs/adr/
-└── src/
+├── docs/adr/          ← including ADR-0009 native replacement and ADR-0010 AppImage
+├── crates/noter-core/
+├── crates/noter-desktop/
+└── src/               ← browser Adapter until native cutover
 ```
 
 ## Use the glossary's vocabulary

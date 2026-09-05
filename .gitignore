@@ -1,6 +1,9 @@
 /target
 /node_modules
 /dist
+/build
+/build-aux/.tool-cache
+__pycache__/
 /.pi
 /.agents
 /.scratch

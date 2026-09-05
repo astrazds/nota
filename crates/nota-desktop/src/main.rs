@@ -377,10 +377,7 @@ impl DesktopComponent {
 
     fn refresh_factories(&mut self) {
         {
-            let dark = matches!(
-                self.app.theme,
-                nota_core::transition::ThemePreference::Dark
-            );
+            let dark = matches!(self.app.theme, nota_core::transition::ThemePreference::Dark);
             let next: Vec<NoteRow> = self
                 .app
                 .note_list_render_model()
@@ -1378,10 +1375,7 @@ impl SimpleComponent for DesktopComponent {
     }
 
     fn update_view(&self, widgets: &mut Self::Widgets, sender: ComponentSender<Self>) {
-        let dark = matches!(
-            self.app.theme,
-            nota_core::transition::ThemePreference::Dark
-        );
+        let dark = matches!(self.app.theme, nota_core::transition::ThemePreference::Dark);
         if dark {
             widgets.root.add_css_class("nota-dark");
             self.window.add_css_class("nota-dark");
@@ -1392,8 +1386,7 @@ impl SimpleComponent for DesktopComponent {
         widgets
             .theme_label
             .set_label(if dark { "Light Theme" } else { "Dark Theme" });
-        let compact =
-            self.app.viewport == nota_core::responsive_navigation::ViewportClass::Compact;
+        let compact = self.app.viewport == nota_core::responsive_navigation::ViewportClass::Compact;
         widgets.sidebar_navigation.set_visible(compact);
         widgets.editor_navigation.set_visible(compact);
         widgets.divider.set_visible(!compact);
@@ -1599,10 +1592,7 @@ impl SimpleComponent for DesktopComponent {
                     note.display_title(),
                     &note.tags,
                     &note.content,
-                    matches!(
-                        self.app.theme,
-                        nota_core::transition::ThemePreference::Dark
-                    ),
+                    matches!(self.app.theme, nota_core::transition::ThemePreference::Dark),
                 );
             }
         }

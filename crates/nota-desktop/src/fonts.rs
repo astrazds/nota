@@ -9,7 +9,8 @@ pub const BUNDLED_FONT_FILES: &[&str] = &[
 
 pub fn bundled_font_search_dirs() -> Vec<PathBuf> {
     let mut dirs = Vec::new();
-    if let Some(dir) = std::env::var_os("NOTA_FONT_DIR").or_else(|| std::env::var_os("NOTER_FONT_DIR"))
+    if let Some(dir) =
+        std::env::var_os("NOTA_FONT_DIR").or_else(|| std::env::var_os("NOTER_FONT_DIR"))
     {
         dirs.push(PathBuf::from(dir));
     }
@@ -22,28 +23,21 @@ pub fn bundled_font_search_dirs() -> Vec<PathBuf> {
         "/usr/share/{}/fonts",
         crate::APPLICATION_ID
     )));
-    dirs.push(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../assets/fonts"),
-    );
+    dirs.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../assets/fonts"));
     dirs
 }
 
 pub fn bundled_font_paths() -> Vec<PathBuf> {
     bundled_font_search_dirs()
         .into_iter()
-        .flat_map(|dir| {
-            BUNDLED_FONT_FILES
-                .iter()
-                .map(move |file| dir.join(file))
-        })
+        .flat_map(|dir| BUNDLED_FONT_FILES.iter().map(move |file| dir.join(file)))
         .filter(|path| path.is_file())
         .collect()
 }
 
 pub fn is_node_modules_font_path(path: &Path) -> bool {
-    path.components().any(|component| {
-        component.as_os_str() == "node_modules"
-    })
+    path.components()
+        .any(|component| component.as_os_str() == "node_modules")
 }
 
 #[cfg(test)]
@@ -52,7 +46,15 @@ mod tests {
 
     #[test]
     fn bundled_fonts_do_not_depend_on_node_modules() {
-        assert!(bundled_font_search_dirs().iter().all(|dir| !is_node_modules_font_path(dir)));
-        assert!(BUNDLED_FONT_FILES.iter().all(|file| file.ends_with(".woff2")));
+        assert!(
+            bundled_font_search_dirs()
+                .iter()
+                .all(|dir| !is_node_modules_font_path(dir))
+        );
+        assert!(
+            BUNDLED_FONT_FILES
+                .iter()
+                .all(|file| file.ends_with(".woff2"))
+        );
     }
 }

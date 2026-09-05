@@ -432,11 +432,7 @@ mod tests {
 
             let calls = adapter.calls.borrow();
             assert_eq!(calls[0].0, "nota-desktop-transition-2026-09-03.json");
-            assert!(
-                calls[0]
-                    .1
-                    .contains("\"kind\": \"nota.desktop_transition\"")
-            );
+            assert!(calls[0].1.contains("\"kind\": \"nota.desktop_transition\""));
             assert!(calls[0].1.contains("\"recently_deleted_notes\": []"));
             assert!(state.backup_health_record.get_untracked().is_none());
             assert_eq!(

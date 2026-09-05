@@ -32,12 +32,12 @@ use chrono::Utc;
 use editor_view::EditorViewMode;
 use leptos::prelude::*;
 use model::Note;
+use nota_core::transition::{ThemePreference, TransitionError, export_desktop_transition};
 use note_discovery::{NoteListItem, SelectedNoteVisibility};
 use note_list_interaction::{
     NoteActionControls, NoteListCommand, NoteListInteraction, NoteListRenderModel,
 };
 use note_workspace::{FocusIntent, NoteWorkspace, WorkspaceDisplayState};
-use nota_core::transition::{ThemePreference, TransitionError, export_desktop_transition};
 use responsive_navigation::{
     ResponsiveNavigation, StoredNoteListState, ViewportClass, normalize_view_mode,
 };

@@ -51,13 +51,9 @@ fn clean_profile_restores_web_transition_once_then_uses_merge_import() {
     assert!(relaunched.backup_health.is_some());
 
     let before = relaunched.collection();
-    let error = AppModel::new(
-        before.clone(),
-        relaunched.theme,
-        relaunched.backup_health,
-    )
-    .import_transition(WEB_TRANSITION_V1)
-    .expect_err("a second desktop transition restore must be rejected");
+    let error = AppModel::new(before.clone(), relaunched.theme, relaunched.backup_health)
+        .import_transition(WEB_TRANSITION_V1)
+        .expect_err("a second desktop transition restore must be rejected");
     assert!(matches!(error, TransitionError::CollectionNotEmpty));
 
     let extra = nota_core::Note::new("After migration".to_string(), "Merge path".to_string());

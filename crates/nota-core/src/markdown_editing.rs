@@ -67,11 +67,7 @@ pub struct MarkdownCheatsheetSection {
 pub const MARKDOWN_CHEATSHEET_SECTIONS: &[MarkdownCheatsheetSection] = &[
     MarkdownCheatsheetSection {
         title: "Headings",
-        items: &[
-            "# Heading 1",
-            "## Heading 2",
-            "### Heading 3",
-        ],
+        items: &["# Heading 1", "## Heading 2", "### Heading 3"],
     },
     MarkdownCheatsheetSection {
         title: "Emphasis",

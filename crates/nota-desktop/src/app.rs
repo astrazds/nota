@@ -567,12 +567,8 @@ mod tests {
     fn selecting_a_note_keeps_note_list_row_order() {
         let mut older = nota_core::Note::new("Older".to_string(), String::new());
         let mut newer = nota_core::Note::new("Newer".to_string(), String::new());
-        older.last_modified = chrono::Utc
-            .with_ymd_and_hms(2026, 1, 1, 0, 0, 0)
-            .unwrap();
-        newer.last_modified = chrono::Utc
-            .with_ymd_and_hms(2026, 1, 2, 0, 0, 0)
-            .unwrap();
+        older.last_modified = chrono::Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap();
+        newer.last_modified = chrono::Utc.with_ymd_and_hms(2026, 1, 2, 0, 0, 0).unwrap();
         let older_id = older.id;
         let newer_id = newer.id;
         let mut app = AppModel::new(
@@ -825,8 +821,7 @@ mod tests {
 
     #[test]
     fn selecting_a_tag_filters_the_note_list_without_a_match_label() {
-        let mut work =
-            nota_core::Note::new("Sprint".to_string(), "body phrase unique".to_string());
+        let mut work = nota_core::Note::new("Sprint".to_string(), "body phrase unique".to_string());
         work.tags = vec!["Work".to_string()];
         let personal = nota_core::Note::new("Groceries".to_string(), "apples".to_string());
         let mut app = AppModel::new(

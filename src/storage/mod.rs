@@ -230,9 +230,8 @@ impl BrowserNotesStorage {
     }
 
     fn load_json(&self, key: &str) -> Option<String> {
-        self.read_item(key).or_else(|| {
-            legacy_browser_storage_key(key).and_then(|legacy| self.read_item(legacy))
-        })
+        self.read_item(key)
+            .or_else(|| legacy_browser_storage_key(key).and_then(|legacy| self.read_item(legacy)))
     }
 
     fn read_item(&self, key: &str) -> Option<String> {

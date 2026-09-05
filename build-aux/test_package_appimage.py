@@ -9,6 +9,7 @@ from pathlib import Path
 
 from package_appimage import (
     AppDirError,
+    _find_produced_appimage,
     prepare_appdir,
     verify_appdir,
     write_custom_apprun,
@@ -170,6 +171,29 @@ class PrepareAppdirTests(unittest.TestCase):
             with self.assertRaises(AppDirError) as raised:
                 prepare_appdir(Path(raw) / "AppDir", Path(raw) / "missing")
             self.assertIn("WebKit helper not found", str(raised.exception))
+
+
+class FindProducedAppimageTests(unittest.TestCase):
+    def test_selects_a_new_appimage_instead_of_an_older_file_in_the_same_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            stale = directory / "Nota-x86_64.AppImage"
+            stale.write_bytes(b"old")
+            previous = {stale: stale.stat().st_mtime}
+            produced = directory / "Nota-x86_64-new.AppImage"
+            produced.write_bytes(b"new")
+            chosen = _find_produced_appimage(directory, previous)
+            self.assertEqual(chosen, produced)
+
+    def test_rejects_a_directory_that_only_contains_preexisting_appimages(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            stale = directory / "Nota-x86_64.AppImage"
+            stale.write_bytes(b"old")
+            previous = {stale: stale.stat().st_mtime}
+            with self.assertRaises(AppDirError) as raised:
+                _find_produced_appimage(directory, previous)
+            self.assertIn("did not produce an AppImage", str(raised.exception))
 
 
 class CustomApprunTests(unittest.TestCase):

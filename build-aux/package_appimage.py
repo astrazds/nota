@@ -160,6 +160,9 @@ def package_appimage(
     prepare_appdir(appdir, webkit_libdir)
     linuxdeploy = _ensure_linuxdeploy(tools_dir)
     output.parent.mkdir(parents=True, exist_ok=True)
+    previous_appimages = {
+        path: path.stat().st_mtime for path in output.parent.glob("*.AppImage")
+    }
     env = os.environ.copy()
     env["LINUXDEPLOY"] = str(linuxdeploy)
     env["DEPLOY_GTK_VERSION"] = "4"
@@ -184,7 +187,7 @@ def package_appimage(
     for helper in WEBKIT_HELPERS:
         command.extend(["--executable", str(appdir / WEBKIT_LIBDIR / helper)])
     subprocess.run(command, check=True, cwd=output.parent, env=env)
-    produced = _find_produced_appimage(output.parent)
+    produced = _find_produced_appimage(output.parent, previous_appimages)
     output.parent.mkdir(parents=True, exist_ok=True)
     if produced.resolve() != output.resolve():
         shutil.move(str(produced), str(output))
@@ -221,11 +224,18 @@ def _download(destination: Path, url: str) -> Path:
     return destination
 
 
-def _find_produced_appimage(directory: Path) -> Path:
-    matches = sorted(directory.glob("*.AppImage"))
+def _find_produced_appimage(
+    directory: Path, previous: dict[Path, float] | None = None
+) -> Path:
+    previous = previous or {}
+    matches = [
+        path
+        for path in directory.glob("*.AppImage")
+        if path not in previous or path.stat().st_mtime > previous[path]
+    ]
     if not matches:
         raise AppDirError(f"linuxdeploy did not produce an AppImage in {directory}")
-    return matches[-1]
+    return max(matches, key=lambda path: path.stat().st_mtime)
 
 
 def main(argv: list[str] | None = None) -> int:

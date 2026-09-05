@@ -21,7 +21,9 @@ DESTDIR="$PWD/build/AppDir" meson install -C build
 python3 build-aux/package_appimage.py package build/AppDir --output dist/Nota-x86_64.AppImage
 ```
 
-That packager downloads linuxdeploy tools into `build-aux/.tool-cache` on demand, bundles WebKitGTK 6 helpers, and verifies the AppDir contract (`python3 build-aux/test_package_appimage.py`). The Devel Flatpak manifest stays in tree for later; Flatpak Builder is not required for the AppImage.
+That packager downloads linuxdeploy tools into `build-aux/.tool-cache` on demand, bundles WebKitGTK 6 helpers, and verifies the AppDir contract (`python3 build-aux/test_package_appimage.py`). It keeps the AppImage linuxdeploy just wrote, even if `dist/` already has an older `*.AppImage`. The Devel Flatpak manifest stays in tree for later; Flatpak Builder is not required for the AppImage.
+
+Clean-profile web-to-desktop rehearsal (ADR-0009/0010) is `/appimage-rehearsal`. The procedure is `docs/agents/appimage-rehearsal.md`.
 
 ## Features
 
@@ -143,7 +145,7 @@ Tests cover core domain logic including:
 - **Browser Visual Regressions**: Playwright coverage verifies Light/Dark Theme readability, Search Hint contrast and placement, selected Note state, emitted Tailwind/style contracts, local Source font loading, app icon/manifest assets, Frame A material surfaces, editor/sidebar footer height parity, compact footer controls, compact desktop Tag chips, labelled desktop actions, 44px mobile touch targets, popup panel dialog semantics, startup notification quietness, Preview/Split Note Title consistency, Note Metadata ordering, dark Preview/Split prose, Write/Preview/Split pane alignment, Backup Controls placement, and floating Global Notification layering.
 - **Browser Workflow Regressions**: Playwright coverage exercises Quick Capture, Note Title editing, Note creation/edit/save, scoped Search, pinning, Tags, Formatting Tools, Preview safety, Backup export/import, Responsive Navigation, Markdown syntax help, recoverable delete/restore, and Clear All.
 - **Native Workflow Smoke**: `nota-desktop` tests cover Backup Import Preview then Merge Import, Storage Recovery including Import Backup, Search filtered-empty vs Empty Collection, Quick Capture Note Title focus, Preview/Split View Mode surfaces, bundled fonts without `node_modules`, XDG `net.astrazds.Nota` discovery with `net.astrazds.Noter` and legacy `noter` migration, Tag suggestions, Note List in-place selection, paper-dialog visual contracts, and a clean-profile web-to-desktop transition restore that rejects a second exact restore and then uses Merge Import.
-- **AppImage AppDir contract**: `build-aux/test_package_appimage.py` (also `meson test`) checks the installed layout, bundled WebKitGTK 6 helpers, font files, desktop file `Exec=nota-desktop`, and the runtime hook that sets `NOTA_FONT_DIR` and overlays WebKit helpers.
+- **AppImage AppDir contract**: `build-aux/test_package_appimage.py` (also `meson test`) checks the installed layout, bundled WebKitGTK 6 helpers, font files, desktop file `Exec=nota-desktop`, and the runtime hook that sets `NOTA_FONT_DIR` and overlays WebKit helpers. The clean-profile web-to-desktop rehearsal is `docs/agents/appimage-rehearsal.md`.
 - **Formatting**: Named Markdown commands and UTF-16/UTF-8-safe selection handling.
 - **Note Logic**: Workspace behaviours for quick capture, note creation, selected note editing, recoverable delete/restore/individual clear/count-confirmed Clear All, delete confirmation, title extraction, date formatting, preview truncation, and deserialisation.
 - **Tags**: Parsing, display formatting, autocomplete suggestions, normalization, individual removal, cleanup planning, case-insensitive matching, collection, and sorting.

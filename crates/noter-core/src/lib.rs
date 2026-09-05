@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-//! Toolkit-independent Noter domain behavior shared by migration frontends.
+//! Toolkit-independent Nota domain behavior shared by migration frontends.
 
 pub mod backup;
 pub mod markdown_editing;

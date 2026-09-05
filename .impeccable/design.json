@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-05-07T06:00:45Z",
-  "title": "Design System: Noter",
+  "title": "Design System: Nota",
   "extensions": {
     "colorMeta": {
       "warm-capture-yellow": {
@@ -135,7 +135,7 @@
     ],
     "narrative": {
       "northStar": "The Local Notebook",
-      "overview": "Noter should feel like a dependable notebook sitting on a quiet desk: immediate, familiar, private, and hard to disrupt. The system is restrained product UI, built around a scannable sidebar, a generous Writing Surface, contextual Markdown tools, compact footers, and warm accent states that appear only when they help the task.\n\nThe visual language rejects an Apple Notes clone, a developer Markdown workbench, a folder or notebook-heavy organiser, a command-palette-first productivity shell, and a cloud-sync product. It should not use hover-only actions, permanent status chrome, generic destructive confirmations, or decorative visual noise around the Note.",
+      "overview": "Nota should feel like a dependable notebook sitting on a quiet desk: immediate, familiar, private, and hard to disrupt. The system is restrained product UI, built around a scannable sidebar, a generous Writing Surface, contextual Markdown tools, compact footers, and warm accent states that appear only when they help the task.\n\nThe visual language rejects an Apple Notes clone, a developer Markdown workbench, a folder or notebook-heavy organiser, a command-palette-first productivity shell, and a cloud-sync product. It should not use hover-only actions, permanent status chrome, generic destructive confirmations, or decorative visual noise around the Note.",
       "keyCharacteristics": [
         "Restrained palette with Warm Capture Yellow reserved for action, selection, focus, and progress.",
         "Light surfaces read as paper neutrals; Dark Theme reads as Dim Desk Surfaces, not inverted colors.",
@@ -172,8 +172,8 @@
         "Do use full borders, tonal backgrounds, rings, and explicit labels for important states."
       ],
       "donts": [
-        "Don't make Noter feel like an Apple Notes clone.",
-        "Don't make Noter feel like a developer Markdown workbench.",
+        "Don't make Nota feel like an Apple Notes clone.",
+        "Don't make Nota feel like a developer Markdown workbench.",
         "Don't introduce a folder or notebook-heavy organiser.",
         "Don't turn Search into a command-palette-first productivity shell.",
         "Don't imply cloud sync through persistent status chrome.",

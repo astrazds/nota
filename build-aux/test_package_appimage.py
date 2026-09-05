@@ -46,7 +46,7 @@ def complete_appdir(root: Path) -> None:
                 "\n".join(
                     [
                         "[Desktop Entry]",
-                        "Name=Noter",
+                        "Name=Nota",
                         "Exec=noter-desktop",
                         "Icon=net.astrazds.Noter",
                         "Type=Application",
@@ -98,7 +98,7 @@ class VerifyAppdirTests(unittest.TestCase):
                 "\n".join(
                     [
                         "[Desktop Entry]",
-                        "Name=Noter",
+                        "Name=Nota",
                         "Exec=/usr/bin/noter-desktop",
                         "Icon=net.astrazds.Noter",
                         "Type=Application",
@@ -147,7 +147,7 @@ class PrepareAppdirTests(unittest.TestCase):
                         "\n".join(
                             [
                                 "[Desktop Entry]",
-                                "Name=Noter",
+                                "Name=Nota",
                                 "Exec=noter-desktop",
                                 "Icon=net.astrazds.Noter",
                                 "Type=Application",

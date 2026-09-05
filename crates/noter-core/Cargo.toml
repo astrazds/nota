@@ -6,7 +6,7 @@ rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Toolkit-independent domain model for Noter"
+description = "Toolkit-independent domain model for Nota"
 
 [dependencies]
 chrono = { version = "0.4.44", features = ["serde"] }

@@ -1,6 +1,6 @@
 # Editor-first controls and Clear All recovery
 
-Noter should keep the Note content as the primary workspace while still making writing, previewing, and recovery actions quick to reach.
+Nota should keep the Note content as the primary workspace while still making writing, previewing, and recovery actions quick to reach.
 
 Accepted decisions:
 
@@ -24,4 +24,4 @@ Implementation notes:
 - The shared footer height is enforced with the local `noter-footer-height` utility because the build pipeline did not emit the Tailwind `min-h-12` utility reliably.
 - Browser verification should cover Write, Preview, Split, compact navigation, Light/Dark contrast, floating notifications, footer rhythm, Search Hint readability, Backup Controls placement, and the Clear All confirmation/cancel/confirm flow.
 
-This keeps Noter aligned with the domain model in `CONTEXT.md`: Formatting Tools are contextual writing aids, View Mode Controls belong with the editor area, and Recently Deleted remains recoverable until the user explicitly confirms permanent removal.
+This keeps Nota aligned with the domain model in `CONTEXT.md`: Formatting Tools are contextual writing aids, View Mode Controls belong with the editor area, and Recently Deleted remains recoverable until the user explicitly confirms permanent removal.

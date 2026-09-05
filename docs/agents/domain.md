@@ -20,7 +20,7 @@ This is a single-context repo:
 ├── PRODUCT.md
 ├── DESIGN.md
 ├── docs/brand-toolkit.md
-├── docs/adr/          ← including ADR-0009 native replacement and ADR-0010 AppImage
+├── docs/adr/          ← including ADR-0009 native replacement, ADR-0010 AppImage, ADR-0011 Nota name
 ├── crates/noter-core/
 ├── crates/noter-desktop/  ← Relm4/GTK4 product; XDG data under net.astrazds.Noter
 └── src/               ← browser Adapter until native cutover

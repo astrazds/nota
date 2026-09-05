@@ -1,6 +1,6 @@
 # Local Notebook visual system and typography
 
-Noter now has enough product UI surface area that visual decisions need to be explicit rather than inferred from scattered Tailwind classes.
+Nota now has enough product UI surface area that visual decisions need to be explicit rather than inferred from scattered Tailwind classes.
 
 Accepted decisions:
 
@@ -15,7 +15,7 @@ Accepted decisions:
 - Keep the Write, Preview, and Split panes on one Pane Rhythm: matching content origin, shared `72ch` measure, consistent Note Title scale, and the same footer-height contract.
 - Keep Preview left-aligned inside the shared reading measure instead of centring the rendered article.
 - Keep Preview prose inversion on the rendered article so Light and Dark Theme readability works in both full Preview and Split.
-- Tint Dark Theme Preview prose headings, links, and bold text toward the Noter frame neutral rather than pure white.
+- Tint Dark Theme Preview prose headings, links, and bold text toward the Nota frame neutral rather than pure white.
 - Treat the sidebar footer as a compact Backup utility surface with a stable label, terse health summary, and paired Export/Import actions.
 - Use warm neutral hover/focus states instead of generic black overlays for sidebar Search, Note actions, menus, Tag pills, and toolbar controls.
 - Make editor Tag pills compact and read-only by default, with removal deferred to the Edit tags flow.
@@ -38,4 +38,4 @@ Implementation notes:
 - `tests/browser/visual-contracts.spec.js` protects both generated CSS contracts and rendered browser geometry.
 - PRD #77 captured and validated the critique-to-polish follow-through for these visual contracts.
 
-This keeps Noter aligned with `CONTEXT.md`: Tags remain lightweight Note Metadata, Markdown tooling stays contextual, Product Metadata and design machinery stay outside the primary workflow, and the UI remains a local-first note app rather than a developer workbench or platform clone.
+This keeps Nota aligned with `CONTEXT.md`: Tags remain lightweight Note Metadata, Markdown tooling stays contextual, Product Metadata and design machinery stay outside the primary workflow, and the UI remains a local-first note app rather than a developer workbench or platform clone.

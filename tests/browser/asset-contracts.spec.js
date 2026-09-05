@@ -55,8 +55,8 @@ test("app exposes brand icon assets for browser tabs and install surfaces", asyn
   expect(manifestResponse.ok()).toBe(true);
   const manifest = await manifestResponse.json();
   expect(manifest).toMatchObject({
-    name: "Noter",
-    short_name: "Noter",
+    name: "Nota",
+    short_name: "Nota",
     display: "standalone",
     background_color: "#F7F5F1",
     theme_color: "#FFB340",

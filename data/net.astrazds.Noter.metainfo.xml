@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
   <id>net.astrazds.Noter</id>
-  <name>Noter</name>
+  <name>Nota</name>
   <summary>Write and find local Markdown notes</summary>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
   <description>
-    <p>Noter is a local-first Markdown note app with a flat, searchable collection, lightweight tags, recoverable deletion, and user-owned backups.</p>
+    <p>Nota is a local-first Markdown note app with a flat, searchable collection, lightweight tags, recoverable deletion, and user-owned backups.</p>
     <p>Write Markdown notes privately on your computer, find them with Search, and export a Backup you own. Rendered Preview and Split recommend WebKitGTK 6.</p>
   </description>
   <recommends>
@@ -22,7 +22,7 @@
   <developer id="net.astrazds">
     <name>Andrejs Strazds</name>
   </developer>
-  <url type="homepage">https://repos.astrazds.net/astrazds/noter-leptos-md</url>
+  <url type="homepage">https://repos.astrazds.net/astrazds/nota</url>
   <provides>
     <binary>noter-desktop</binary>
   </provides>

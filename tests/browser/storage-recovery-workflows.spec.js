@@ -128,9 +128,9 @@ test("start empty quarantines corrupt payloads and diagnostics report the quaran
     );
   });
 
-  await page.getByRole("button", { name: "About Noter" }).click();
-  await expect(page.getByRole("dialog", { name: "About Noter" })).toContainText("Local browser storage");
-  await expect(page.getByRole("dialog", { name: "About Noter" })).toContainText("Corrupt payload quarantined");
+  await page.getByRole("button", { name: "About Nota" }).click();
+  await expect(page.getByRole("dialog", { name: "About Nota" })).toContainText("Local browser storage");
+  await expect(page.getByRole("dialog", { name: "About Nota" })).toContainText("Corrupt payload quarantined");
 });
 
 test("Backup import remains available from storage recovery", async ({ page }, testInfo) => {

@@ -1,5 +1,5 @@
 ---
-name: Noter
+name: Nota
 description: Local-first Markdown notes with calm surfaces, warm accents, and task-stable controls.
 colors:
   warm-capture-yellow: "#FFB340"
@@ -96,13 +96,13 @@ components:
     padding: "2px 6px"
 ---
 
-# Design System: Noter
+# Design System: Nota
 
 ## 1. Overview
 
 **Creative North Star: "The Local Notebook"**
 
-Noter should feel like a dependable notebook sitting on a quiet desk: immediate, familiar, private, and hard to disrupt. The system is restrained product UI, built around a scannable sidebar, a generous Writing Surface, contextual Markdown tools, compact footers, and warm accent states that appear only when they help the task.
+Nota should feel like a dependable notebook sitting on a quiet desk: immediate, familiar, private, and hard to disrupt. The system is restrained product UI, built around a scannable sidebar, a generous Writing Surface, contextual Markdown tools, compact footers, and warm accent states that appear only when they help the task.
 
 The visual language rejects an Apple Notes clone, a developer Markdown workbench, a folder or notebook-heavy organiser, a command-palette-first productivity shell, and a cloud-sync product. It should not use hover-only actions, permanent status chrome, generic destructive confirmations, or decorative visual noise around the Note.
 
@@ -154,7 +154,7 @@ The palette is a quiet local note system: paper-like neutrals, tuned dark desk s
 
 ## 4. Elevation
 
-Noter is flat by default. Depth is conveyed mostly through tonal layering, borders, dividers, selected-state rings, and compact spacing. Shadows are reserved for overlays, transient hints, modals, menus, tag suggestions, global notifications, and split Preview inset treatment.
+Nota is flat by default. Depth is conveyed mostly through tonal layering, borders, dividers, selected-state rings, and compact spacing. Shadows are reserved for overlays, transient hints, modals, menus, tag suggestions, global notifications, and split Preview inset treatment.
 
 ### Shadow Vocabulary
 - **Hint Lift** (`shadow-sm`): Search Hint and action menus that appear temporarily above the Note List without changing layout.
@@ -216,8 +216,8 @@ Noter is flat by default. Depth is conveyed mostly through tonal layering, borde
 - **Do** use paper-neutral product windows for About, Markdown help, and confirmations.
 
 ### Don't:
-- **Don't** make Noter feel like an Apple Notes clone.
-- **Don't** make Noter feel like a developer Markdown workbench.
+- **Don't** make Nota feel like an Apple Notes clone.
+- **Don't** make Nota feel like a developer Markdown workbench.
 - **Don't** introduce a folder or notebook-heavy organiser.
 - **Don't** turn Search into a command-palette-first productivity shell.
 - **Don't** imply cloud sync through persistent status chrome.

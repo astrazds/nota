@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package a Meson DESTDIR tree as a Noter AppImage AppDir."""
+"""Package a Meson DESTDIR tree as a Nota AppImage AppDir."""
 
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ LINUXDEPLOY_GTK = "https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plu
 LINUXDEPLOY_APPIMAGE = "https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-x86_64.AppImage"
 
 RUNTIME_HOOK = """\
-# Noter AppImage runtime: bundled fonts, WebKit helpers, and Wayland.
+# Nota AppImage runtime: bundled fonts, WebKit helpers, and Wayland.
 APPDIR="${APPDIR:-"$(dirname "$(readlink -f "$0")")"}"
 unset GDK_BACKEND
 export NOTER_FONT_DIR="$APPDIR/usr/share/net.astrazds.Noter/fonts"
@@ -68,7 +68,7 @@ fi
 
 
 class AppDirError(Exception):
-    """The AppDir is missing required Noter or WebKit files."""
+    """The AppDir is missing required Nota or WebKit files."""
 
 
 def verify_appdir(root: Path) -> None:
@@ -231,7 +231,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
 
-    verify = sub.add_parser("verify-appdir", help="check an AppDir against the Noter contract")
+    verify = sub.add_parser("verify-appdir", help="check an AppDir against the Nota contract")
     verify.add_argument("appdir", type=Path)
 
     prepare = sub.add_parser("prepare-appdir", help="add WebKit helpers and the runtime hook")
@@ -243,7 +243,7 @@ def main(argv: list[str] | None = None) -> int:
     package.add_argument(
         "--output",
         type=Path,
-        default=Path("dist/Noter-x86_64.AppImage"),
+        default=Path("dist/Nota-x86_64.AppImage"),
     )
     package.add_argument(
         "--tools-dir",

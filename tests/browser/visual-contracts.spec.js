@@ -61,7 +61,7 @@ test("typography uses local Source families for UI and Markdown editing", async 
   };
   const sizes = {
     sidebarTitle: await navigation
-      .getByRole("heading", { name: "Noter" })
+      .getByRole("heading", { name: "Nota" })
       .evaluate((element) => parseFloat(getComputedStyle(element).fontSize)),
     noteTitle: await title.evaluate((element) => parseFloat(getComputedStyle(element).fontSize)),
     noteListTitle: await navigation
@@ -88,8 +88,8 @@ test("typography uses local Source families for UI and Markdown editing", async 
     editorFooter: 11,
   });
 
-  await page.getByRole("button", { name: "About Noter" }).click();
-  const aboutTypography = await page.getByRole("dialog", { name: "About Noter" }).evaluate((dialog) => {
+  await page.getByRole("button", { name: "About Nota" }).click();
+  const aboutTypography = await page.getByRole("dialog", { name: "About Nota" }).evaluate((dialog) => {
     const heading = dialog.querySelector("h2");
     const description = dialog.querySelector("#about-modal-description");
     const body = dialog.querySelector("dl");
@@ -157,7 +157,7 @@ test("mobile sidebar and Backup footer controls keep touch-safe hit areas", asyn
     navigation.getByRole("button", { name: "Create new note" }),
     navigation.getByRole("button", { name: "Switch to dark mode" }),
     navigation.getByRole("button", { name: "Focus search notes" }),
-    navigation.getByRole("button", { name: "About Noter" }),
+    navigation.getByRole("button", { name: "About Nota" }),
     navigation.getByRole("button", { name: "Note actions" }).first(),
     navigation.getByRole("button", { name: "Filter by tag product" }),
     navigation.getByRole("button", { name: "Filter by tag writing" }),
@@ -213,15 +213,15 @@ test("Markdown syntax modal keeps dense reference content accessible", async ({ 
   expect(bodyMetrics.scrollHeight).toBeGreaterThan(bodyMetrics.clientHeight);
 });
 
-test("About Noter uses the main-frame popup model like Markdown help", async ({ page }) => {
+test("About Nota uses the main-frame popup model like Markdown help", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await seedNotes(page);
 
   const navigation = page.getByRole("navigation", { name: "Notes sidebar" });
-  const aboutButton = navigation.getByRole("button", { name: "About Noter" });
+  const aboutButton = navigation.getByRole("button", { name: "About Nota" });
   await aboutButton.click();
 
-  const dialog = page.getByRole("dialog", { name: "About Noter" });
+  const dialog = page.getByRole("dialog", { name: "About Nota" });
   await expect(dialog).toHaveAttribute("aria-labelledby", "about-modal-title");
   await expect(dialog).toHaveAttribute("aria-describedby", "about-modal-description");
   await expect(dialog).toContainText("Local browser storage");
@@ -234,7 +234,7 @@ test("About Noter uses the main-frame popup model like Markdown help", async ({ 
   await expect(dialog.locator("xpath=parent::*")).not.toHaveAttribute("role", "dialog");
 
   const closeBox = await dialog
-    .getByRole("button", { name: "Close About Noter" })
+    .getByRole("button", { name: "Close About Nota" })
     .evaluate((element) => element.getBoundingClientRect().toJSON());
   expect(closeBox.width).toBeGreaterThanOrEqual(44);
   expect(closeBox.height).toBeGreaterThanOrEqual(44);

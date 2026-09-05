@@ -239,7 +239,7 @@ pub fn Editor() -> impl IntoView {
                             <div class="w-full max-w-md text-center">
                                 <h2 class=ui_recipes::empty_state_title_text>"Saved Notes could not be loaded"</h2>
                                 <p class=ui_recipes::empty_state_body_text>
-                                    "Choose a recovery path to continue using Noter."
+                                    "Choose a recovery path to continue using Nota."
                                 </p>
                                 <div class="mt-6 flex flex-wrap items-center justify-center gap-2">
                                     <button

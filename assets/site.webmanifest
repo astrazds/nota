@@ -1,6 +1,6 @@
 {
-  "name": "Noter",
-  "short_name": "Noter",
+  "name": "Nota",
+  "short_name": "Nota",
   "description": "Local-first Markdown notes.",
   "start_url": "/",
   "scope": "/",

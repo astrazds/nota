@@ -24,4 +24,4 @@ Implementation notes:
 - `markdown_preview` renders the sanitized Markdown body and still suppresses a first content `h1` that duplicates the Note Title.
 - Coverage for this split lives on the body renderer path used by the app, including duplicate-heading behavior, preview safety policy, theme contrast class recipes, modal body visibility, and notification styling.
 
-This keeps Noter aligned with the domain model in `CONTEXT.md`: Search and the Note List remain primary, Tags stay lightweight, Backup remains a secondary local utility, and Preview is a View Mode for the same Note rather than a separate document frame.
+This keeps Nota aligned with the domain model in `CONTEXT.md`: Search and the Note List remain primary, Tags stay lightweight, Backup remains a secondary local utility, and Preview is a View Mode for the same Note rather than a separate document frame.

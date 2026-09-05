@@ -1,6 +1,6 @@
 # Fast capture and local recovery
 
-Noter should make the common local-first risks explicit: users need to capture a Note quickly, avoid accidental data loss, and know whether they have a recent local recovery point.
+Nota should make the common local-first risks explicit: users need to capture a Note quickly, avoid accidental data loss, and know whether they have a recent local recovery point.
 
 Accepted decisions:
 

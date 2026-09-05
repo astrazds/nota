@@ -2,11 +2,11 @@
   "name": "noter",
   "version": "1.0.2",
   "private": true,
-  "description": "Browser migration Adapter for Noter, a local-first Markdown note app.",
+  "description": "Browser migration Adapter for Nota, a local-first Markdown note app.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://repos.astrazds.net/astrazds/noter-leptos-md.git"
+    "url": "git+https://repos.astrazds.net/astrazds/nota.git"
   },
   "scripts": {
     "dev": "env -u NO_COLOR trunk serve --open",

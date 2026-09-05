@@ -6,13 +6,13 @@ product
 
 ## Users
 
-Noter is for people who want a fast, private, local-first place to capture, write, find, organise, preview, delete, recover, and back up personal Markdown notes. They are usually in a writing or retrieval workflow: adding a thought quickly, editing an existing Note, searching by title/content/Tags, checking rendered Markdown, or protecting their local collection with a Backup.
+Nota is for people who want a fast, private, local-first place to capture, write, find, organise, preview, delete, recover, and back up personal Markdown notes. They are usually in a writing or retrieval workflow: adding a thought quickly, editing an existing Note, searching by title/content/Tags, checking rendered Markdown, or protecting their local collection with a Backup.
 
 Users should not need to think in terms of files, folders, cloud sync, command systems, or Markdown tooling first. The product should feel like a focused note app that happens to support Markdown well.
 
 ## Product Purpose
 
-Noter exists to make local note-taking feel dependable and low-friction on the user's own machine. Success means a user can create a Note quickly, stay oriented in a Flat Collection, edit the Writing Surface without chrome getting in the way, preview Markdown when needed, recover accidental deletes, and export/import a local Backup without risking the current collection.
+Nota exists to make local note-taking feel dependable and low-friction on the user's own machine. Success means a user can create a Note quickly, stay oriented in a Flat Collection, edit the Writing Surface without chrome getting in the way, preview Markdown when needed, recover accidental deletes, and export/import a local Backup without risking the current collection.
 
 The post-1.0 product surface is the Linux Relm4/GTK4 window. The 1.0.2 browser app remains a migration Adapter until native cutover. The primary product frame is a Markdown Note App, not a Markdown workbench. Markdown powers the content, but the main product experience is creating, recognising, finding, organising, and safely preserving Notes.
 
@@ -24,7 +24,7 @@ The interface should feel quiet, familiar, and trustworthy: a note app with its 
 
 ## Anti-references
 
-Do not make Noter feel like an Apple Notes clone, a developer Markdown workbench, a folder or notebook-heavy organiser, a command-palette-first productivity shell, or a cloud-sync product.
+Do not make Nota feel like an Apple Notes clone, a developer Markdown workbench, a folder or notebook-heavy organiser, a command-palette-first productivity shell, or a cloud-sync product.
 
 Avoid hover-only actions, persistent syntax instruction blocks, permanent utility/status chrome, destructive import defaults, generic destructive confirmations, visual clutter around the Writing Surface, and UI patterns that make Tags feel like primary navigation.
 

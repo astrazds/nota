@@ -1,6 +1,6 @@
-# Noter Brand Toolkit
+# Nota Brand Toolkit
 
-This toolkit turns Noter's product, design, and domain language into practical brand guidance for contributors, agents, screenshots, project pages, README updates, release notes, and future marketing surfaces.
+This toolkit turns Nota's product, design, and domain language into practical brand guidance for contributors, agents, screenshots, project pages, README updates, release notes, and future marketing surfaces.
 
 Source documents:
 
@@ -23,20 +23,20 @@ Approved product frame:
 
 ## Brand Promise
 
-Noter is a calm, local-first Markdown note app for capturing, writing, finding, organising, previewing, deleting, recovering, and backing up personal Notes.
+Nota is a calm, local-first Markdown note app for capturing, writing, finding, organising, previewing, deleting, recovering, and backing up personal Notes.
 
 Markdown is a capability, not the brand frame. The brand frame is a dependable local notebook on the user's machine: private, low-friction, recoverable, and hard to disrupt.
 
 ## Audience
 
-Noter is for people who want a fast personal note app without managing files, folders, cloud sync, command systems, or Markdown tooling first. They are usually in one of four states:
+Nota is for people who want a fast personal note app without managing files, folders, cloud sync, command systems, or Markdown tooling first. They are usually in one of four states:
 
 - Capturing something quickly before it disappears.
 - Returning to an existing Note they vaguely remember.
 - Writing or previewing Markdown without wanting an editor showcase.
 - Protecting or recovering their local collection.
 
-The product should reduce the user's need to reason about software. A good Noter surface feels like the Note was already waiting for them.
+The product should reduce the user's need to reason about software. A good Nota surface feels like the Note was already waiting for them.
 
 ## Personality
 
@@ -66,7 +66,7 @@ Avoid these frames:
 
 ## Voice
 
-Noter copy is plain, operational, and specific. It should name the thing that will happen, especially when recovery or data movement is involved.
+Nota copy is plain, operational, and specific. It should name the thing that will happen, especially when recovery or data movement is involved.
 
 Use:
 
@@ -93,7 +93,7 @@ Avoid:
 - Name destructive impact before the action happens.
 - Do not imply cloud persistence. Backup is local export/import unless the product later adds another storage model.
 - Keep helper copy short enough to stay out of the Writing Surface.
-- Avoid generic productivity claims. Say what the user can do in Noter.
+- Avoid generic productivity claims. Say what the user can do in Nota.
 - Do not use decorative technical language for ordinary note tasks.
 
 ## Naming Language
@@ -141,12 +141,12 @@ External brand surfaces can be warmer than the app. They should not become loude
 
 ## Color
 
-Noter has two color strategies:
+Nota has two color strategies:
 
 1. **Restrained product UI**: tinted neutrals plus Warm Capture Yellow at low coverage.
 2. **Committed brand moments**: Warm Capture Yellow can carry larger areas in README, website, launch, or screenshot compositions.
 
-Use OKLCH when adding new colors in CSS. Tint all near-white and near-black neutrals toward the Noter palette. Avoid pure `#fff` and `#000`.
+Use OKLCH when adding new colors in CSS. Tint all near-white and near-black neutrals toward the Nota palette. Avoid pure `#fff` and `#000`.
 
 ### Core Roles
 
@@ -171,7 +171,7 @@ Use OKLCH when adding new colors in CSS. Tint all near-white and near-black neut
 
 ## Typography
 
-Noter's product typography is already decided:
+Nota's product typography is already decided:
 
 - UI and reading surfaces: Source Sans 3 Variable.
 - Markdown/source editing and syntax examples: Source Code Pro Variable.
@@ -180,7 +180,7 @@ Noter's product typography is already decided:
 
 ### Type Character
 
-Source Sans 3 gives Noter a humanist, open-source, practical voice. It is readable without feeling platform-native or decorative. Source Code Pro is a tool for Markdown editing, not a brand costume.
+Source Sans 3 gives Nota a humanist, open-source, practical voice. It is readable without feeling platform-native or decorative. Source Code Pro is a tool for Markdown editing, not a brand costume.
 
 ### Type Rules
 
@@ -194,7 +194,7 @@ Source Sans 3 gives Noter a humanist, open-source, practical voice. It is readab
 
 ## Logo And Mark Direction
 
-Noter does not need a loud mascot, cloud, or developer symbol. The mark should make the product feel like a local note object: captured, readable, and recoverable.
+Nota does not need a loud mascot, cloud, or developer symbol. The mark should make the product feel like a local note object: captured, readable, and recoverable.
 
 ### Recommended Mark Lane
 
@@ -235,19 +235,19 @@ Avoid:
 
 ### Wordmark
 
-Use `Noter` in Source Sans 3 with confident weight. Keep the wordmark simple enough to sit beside a product screenshot without becoming a logo showcase.
+Use `Nota` in Source Sans 3 with confident weight. Keep the wordmark simple enough to sit beside a product screenshot without becoming a logo showcase.
 
 Rules:
 
 - No gradient fill.
 - No decorative ligatures.
 - No tight negative tracking.
-- No all-caps `NOTER` as the primary wordmark.
+- No all-caps `NOTA` as the primary wordmark.
 - Keep the mark and wordmark separable.
 
 ### Application Icon Assets
 
-Noter now ships a practical app icon set based on the folded-note mark direction. Keep these assets in sync when the mark changes:
+Nota now ships a practical app icon set based on the folded-note mark direction. Keep these assets in sync when the mark changes:
 
 - `assets/icons/noter-icon.svg`: full rounded-square app icon source for install and larger surfaces.
 - `assets/icons/noter-maskable.svg`: mask-safe PWA source with generous background coverage.
@@ -277,7 +277,7 @@ The product layout is a working notebook, not a marketing dashboard.
 
 ### External Layout Rules
 
-External brand layouts may be more spacious and expressive, but they should still feel like Noter:
+External brand layouts may be more spacious and expressive, but they should still feel like Nota:
 
 - Lead with a real product screenshot or a precise Note object composition.
 - Let one surface, Note, or recovery action be the hero.
@@ -394,7 +394,7 @@ External brand pages may use slightly more motion, but it should feel like paper
 
 ## Accessibility
 
-Accessibility is part of the brand. Noter earns trust by making important states visible and operable.
+Accessibility is part of the brand. Nota earns trust by making important states visible and operable.
 
 Requirements:
 
@@ -412,14 +412,14 @@ Requirements:
 
 README presentation should answer:
 
-- What is Noter?
+- What is Nota?
 - Why local-first?
 - What can a user safely do?
 - What does the app look like?
 
 Use a product screenshot early. Keep the headline literal:
 
-> Noter
+> Nota
 
 Supporting copy can carry the value:
 
@@ -437,7 +437,7 @@ Avoid internal implementation labels unless the audience is contributors.
 
 ### Landing Page Or Project Page
 
-If Noter gets an external landing page, use a Committed brand moment:
+If Nota gets an external landing page, use a Committed brand moment:
 
 - Warm paper or yellow-led first viewport.
 - Product screenshot or note-object imagery.
@@ -462,8 +462,8 @@ Do not make a SaaS hero with abstract stats, floating cards, gradient text, or c
 
 ### Do Not
 
-- Do not make Noter look like Apple Notes.
-- Do not make Noter feel like a developer Markdown workbench.
+- Do not make Nota look like Apple Notes.
+- Do not make Nota feel like a developer Markdown workbench.
 - Do not turn Tags into a folder replacement.
 - Do not hide Note Actions behind hover-only controls.
 - Do not imply cloud sync.
@@ -486,6 +486,6 @@ Before shipping a UI or external brand surface, ask:
 5. Does this avoid cloud, folder, command-palette, and developer-editor framing?
 6. Is Markdown supporting writing rather than becoming the product identity?
 7. Are Light and Dark surfaces tuned, not inverted?
-8. Would this still feel like Noter without copying Apple Notes?
+8. Would this still feel like Nota without copying Apple Notes?
 
 If the answer to any question is no, revise before adding more visual polish.

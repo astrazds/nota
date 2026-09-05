@@ -462,7 +462,7 @@ impl SimpleComponent for DesktopComponent {
 
     fn init_root() -> Self::Root {
         gtk::ApplicationWindow::builder()
-            .title("Noter")
+            .title("Nota")
             .default_width(1180)
             .default_height(760)
             .build()
@@ -504,7 +504,7 @@ impl SimpleComponent for DesktopComponent {
         let sidebar_header = gtk::Box::new(gtk::Orientation::Vertical, 12);
         sidebar_header.set_css_classes(&["noter-sidebar-header"]);
         let identity = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-        let app_title = gtk::Label::new(Some("Noter"));
+        let app_title = gtk::Label::new(Some("Nota"));
         app_title.set_hexpand(true);
         app_title.set_halign(gtk::Align::Start);
         app_title.set_css_classes(&["noter-app-title"]);
@@ -523,7 +523,7 @@ impl SimpleComponent for DesktopComponent {
         let (theme, theme_label) = command_button_parts("◐", "Dark Theme", "");
         theme.set_tooltip_text(Some("Toggle Light and Dark Theme"));
         let focus_search = command_button("⌕", "Search", "Ctrl F");
-        let diagnostics = command_button("ⓘ", "About Noter", "");
+        let diagnostics = command_button("ⓘ", "About Nota", "");
         diagnostics.set_tooltip_text(Some("Show version, storage, and Backup Health"));
         commands.append(&create);
         commands.append(&theme);
@@ -763,7 +763,7 @@ impl SimpleComponent for DesktopComponent {
         recovery_panel.set_margin_top(20);
         recovery_panel.set_margin_start(32);
         recovery_panel.set_margin_end(32);
-        let recovery_title = gtk::Label::new(Some("Noter could not read the saved collection"));
+        let recovery_title = gtk::Label::new(Some("Nota could not read the saved collection"));
         recovery_title.set_wrap(true);
         recovery_title.update_property(&[gtk::accessible::Property::Label("Storage Recovery")]);
         let recovery_copy = gtk::Label::new(Some(
@@ -824,7 +824,7 @@ impl SimpleComponent for DesktopComponent {
                     target.as_str(),
                     None::<&gtk::gio::AppLaunchContext>,
                 ) {
-                    eprintln!("Noter could not open external link: {error}");
+                    eprintln!("Nota could not open external link: {error}");
                 }
             });
             // Same-origin left-aligned 72ch plane as Write body (HTML also caps at 72ch).
@@ -1156,7 +1156,7 @@ impl SimpleComponent for DesktopComponent {
             match export_flat_collection_backup(self.app.workspace.notes()) {
                 Ok(json) => save_json_file(
                     &self.window,
-                    "Export Noter Backup",
+                    "Export Nota Backup",
                     &backup_file_name(chrono::Utc::now()),
                     json,
                     AppMsg::BackupExported(chrono::Utc::now()),
@@ -1177,7 +1177,7 @@ impl SimpleComponent for DesktopComponent {
             ) {
                 Ok(json) => save_json_file(
                     &self.window,
-                    "Export for Noter Desktop",
+                    "Export for Nota Desktop",
                     &desktop_transition_file_name(chrono::Utc::now()),
                     json,
                     AppMsg::OperationSucceeded("Desktop transition exported".to_string()),
@@ -1616,10 +1616,10 @@ impl SimpleComponent for DesktopComponent {
         if let Some(worker) = self.worker.take()
             && let Err(error) = worker.shutdown()
         {
-            eprintln!("Noter could not flush the latest collection during shutdown: {error}");
+            eprintln!("Nota could not flush the latest collection during shutdown: {error}");
         }
         if let Err(error) = self.store.save_preferences(&self.preferences()) {
-            eprintln!("Noter could not save its preferences during shutdown: {error}");
+            eprintln!("Nota could not save its preferences during shutdown: {error}");
         }
     }
 }
@@ -1631,9 +1631,9 @@ fn open_json_file(
 ) {
     let dialog = gtk::FileDialog::builder()
         .title(if transition {
-            "Restore Noter Desktop Transition"
+            "Restore Nota Desktop Transition"
         } else {
-            "Import Noter Backup"
+            "Import Nota Backup"
         })
         .modal(true)
         .build();
@@ -1815,7 +1815,7 @@ fn install_workspace_fonts(window: &gtk::ApplicationWindow) {
     };
     for path in noter_desktop::fonts::bundled_font_paths() {
         if let Err(error) = font_map.add_font_file(&path) {
-            eprintln!("Noter could not register {}: {error}", path.display());
+            eprintln!("Nota could not register {}: {error}", path.display());
         }
     }
 }
@@ -1996,8 +1996,8 @@ fn show_about_dialog(
 ) {
     let dialog = paper_dialog(
         parent,
-        "About Noter",
-        Some(&format!("Noter {version}")),
+        "About Nota",
+        Some(&format!("Nota {version}")),
         460,
         0,
     );
@@ -2022,7 +2022,7 @@ fn show_markdown_help(parent: &gtk::ApplicationWindow) {
     let dialog = paper_dialog(
         parent,
         "Markdown syntax",
-        Some("Syntax Noter renders in Preview."),
+        Some("Syntax Nota renders in Preview."),
         720,
         520,
     );
@@ -2153,11 +2153,11 @@ fn show_confirmation(
 
 fn main() {
     gtk::gio::resources_register_include!("noter.gresource")
-        .expect("bundled Noter resources must register");
+        .expect("bundled Nota resources must register");
     let store = match NativeStore::discover() {
         Ok(store) => store,
         Err(error) => {
-            eprintln!("Noter could not locate its data directory: {error}");
+            eprintln!("Nota could not locate its data directory: {error}");
             return;
         }
     };
@@ -2165,13 +2165,13 @@ fn main() {
         Ok(LoadOutcome::Ready(collection)) => (collection, None),
         Ok(LoadOutcome::Recovery(recovery)) => {
             eprintln!(
-                "Noter detected corrupt collection storage: {}",
+                "Nota detected corrupt collection storage: {}",
                 recovery.reason
             );
             (CollectionEnvelope::empty(), Some(recovery))
         }
         Err(error) => {
-            eprintln!("Noter could not load its collection: {error}");
+            eprintln!("Nota could not load its collection: {error}");
             (CollectionEnvelope::empty(), None)
         }
     };

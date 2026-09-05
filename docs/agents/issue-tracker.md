@@ -1,6 +1,6 @@
 # Issue tracker: Forgejo
 
-Issues and PRDs for this repo live as self-hosted Forgejo issues in `astrazds/noter-leptos-md`. Use the `fj` CLI for all operations.
+Issues and PRDs for this repo live as self-hosted Forgejo issues in `astrazds/nota`. Use the `fj` CLI for all operations.
 
 ## Conventions
 

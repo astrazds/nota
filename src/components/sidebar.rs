@@ -164,7 +164,7 @@ pub fn Sidebar(show_about: RwSignal<bool>) -> impl IntoView {
                 <div class="sticky top-0 z-10 space-y-2.5 border-b border-apple-notebook-borderStrong p-4 dark:border-apple-notebook-darkBorder">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center">
-                            <h1 class=sidebar_title_classes>"Noter"</h1>
+                            <h1 class=sidebar_title_classes>"Nota"</h1>
                         </div>
                         <div class="flex items-center space-x-1">
                             <button
@@ -222,9 +222,9 @@ pub fn Sidebar(show_about: RwSignal<bool>) -> impl IntoView {
                         </button>
                         <button
                             on:click=move |_| show_about.set(true)
-                            title="About Noter"
+                            title="About Nota"
                             class=diagnostics_button_classes
-                            aria-label="About Noter"
+                            aria-label="About Nota"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 17h.01M12 13v-3m0 11a9 9 0 100-18 9 9 0 000 18z" />

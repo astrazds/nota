@@ -174,7 +174,7 @@ pub(crate) fn SidebarBackupControls() -> impl IntoView {
                         class=ui_recipes::backup_footer_button
                         on:click=export_for_desktop
                         aria-label="Export for desktop"
-                        title="Export active Notes, Recently Deleted, Theme, and Backup Health for Noter Desktop"
+                        title="Export active Notes, Recently Deleted, Theme, and Backup Health for Nota Desktop"
                     >
                         "Desktop"
                     </button>

@@ -1,6 +1,6 @@
 # Static browser storage for 1.0
 
-For the 1.0 milestone, Noter remains a static browser app with local browser storage, explicit Backup, Recently Deleted recovery, and user-visible trust improvements around the existing Flat Collection model. SQLite, IndexedDB record-store migration, desktop shells, local services, sync, and server backends are deferred until after 1.0 because a storage-engine migration would introduce the highest data-risk change in the part of the app users most need to trust.
+For the 1.0 milestone, Nota remains a static browser app with local browser storage, explicit Backup, Recently Deleted recovery, and user-visible trust improvements around the existing Flat Collection model. SQLite, IndexedDB record-store migration, desktop shells, local services, sync, and server backends are deferred until after 1.0 because a storage-engine migration would introduce the highest data-risk change in the part of the app users most need to trust.
 
 Accepted decisions:
 
@@ -19,7 +19,7 @@ Accepted decisions:
 - Keep Backup as the explicit local recovery mechanism for 1.0; do not introduce sync semantics or a server backend.
 - Defer installable PWA and offline service-worker work unless it proves nearly free, because it creates a separate trust surface around asset caching and update behavior.
 - Keep the full existing Rust, build, and browser verification gate for 1.0, and add one focused recovery smoke path for corrupt storage, previous snapshot restore, start empty, and Backup import availability.
-- Defer SQLite to a post-1.0 ADR if Noter moves toward a desktop shell, local service, or browser SQLite/OPFS direction.
+- Defer SQLite to a post-1.0 ADR if Nota moves toward a desktop shell, local service, or browser SQLite/OPFS direction.
 
 Considered options:
 
@@ -41,5 +41,5 @@ Consequences:
 - 1.0 should make stale Backup Health more actionable rather than changing what stale means without usage evidence.
 - Diagnostics must stay outside the primary Note workflow so Product Metadata does not return to the sidebar footer or editor chrome.
 - PWA/offline app work can become a 1.1 milestone after the Notes storage and Backup recovery path is hardened.
-- The release gate should reflect that Noter's highest-risk regressions are both storage correctness and user-visible browser workflows.
+- The release gate should reflect that Nota's highest-risk regressions are both storage correctness and user-visible browser workflows.
 - Future storage work must start with migration safety from the 1.0 LocalStorage keys and preserve the existing Backup import/export story.

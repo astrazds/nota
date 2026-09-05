@@ -6,7 +6,7 @@ rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Linux-first Relm4/GTK4 desktop application for Noter"
+description = "Linux-first Relm4/GTK4 desktop application for Nota"
 
 [features]
 default = ["gui"]

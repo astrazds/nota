@@ -1,6 +1,6 @@
 # Relm4 native replacement after 1.0
 
-Noter will replace its browser application with a Linux-first Relm4/GTK4 desktop application after the 1.0 line. This supersedes ADR-0008 for the post-1.0 product while preserving ADR-0008 as the accepted browser-release decision and migration source. The browser release remains available only as a temporary migration Adapter until native parity and data transfer are verified.
+Nota will replace its browser application with a Linux-first Relm4/GTK4 desktop application after the 1.0 line. This supersedes ADR-0008 for the post-1.0 product while preserving ADR-0008 as the accepted browser-release decision and migration source. The browser release remains available only as a temporary migration Adapter until native parity and data transfer are verified.
 
 Accepted decisions:
 

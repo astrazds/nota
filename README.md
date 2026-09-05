@@ -1,4 +1,4 @@
-# Noter
+# Nota
 
 A local-first Markdown note-taking app. The Linux-native **Relm4/GTK4** app is the post-1.0 product (`2.0.0-alpha.1`). The stable **1.0.2** line is the **Leptos** browser Adapter, kept as the migration source until native cutover.
 
@@ -18,7 +18,7 @@ The first native distribution path is an AppImage wrapping the Meson prefix (ADR
 meson setup build --prefix=/usr --buildtype=release
 meson compile -C build
 DESTDIR="$PWD/build/AppDir" meson install -C build
-python3 build-aux/package_appimage.py package build/AppDir --output dist/Noter-x86_64.AppImage
+python3 build-aux/package_appimage.py package build/AppDir --output dist/Nota-x86_64.AppImage
 ```
 
 That packager downloads linuxdeploy tools into `build-aux/.tool-cache` on demand, bundles WebKitGTK 6 helpers, and verifies the AppDir contract (`python3 build-aux/test_package_appimage.py`). The Devel Flatpak manifest stays in tree for later; Flatpak Builder is not required for the AppImage.
@@ -26,7 +26,7 @@ That packager downloads linuxdeploy tools into `build-aux/.tool-cache` on demand
 ## Features
 
 - **Local-First Note Identity**: Quiet note-app structure with a scannable Frame A sidebar, calm writing surface, aligned main frame/sidebar borders, compact editor footer, warm selected Note state, and paper-neutral popup models.
-- **Brand App Icons**: Browser tab, Apple touch, PWA, maskable, monochrome, and favicon-safe icons use the Noter folded-note mark from the brand toolkit.
+- **Brand App Icons**: Browser tab, Apple touch, PWA, maskable, monochrome, and favicon-safe icons use the Nota folded-note mark from the brand toolkit.
 - **Documented Design System**: `PRODUCT.md`, `DESIGN.md`, `docs/brand-toolkit.md`, and `.impeccable/design.json` capture the product register, brand direction, typography, palette, component rules, and visual anti-patterns used by agents and contributors.
 - **Self-Hosted Typography**: Source Sans 3 carries the product UI, while Source Code Pro is reserved for Markdown/source editing. The browser bundles fonts through Trunk and Tailwind. Native installs the same Source families from `assets/fonts`. There is no remote font provider.
 - **Markdown Support**: Markdown writing with explicit Write, Preview, and desktop Split view modes in a stable editor-area footer that matches the sidebar footer height and compact control rhythm.
@@ -44,9 +44,9 @@ That packager downloads linuxdeploy tools into `build-aux/.tool-cache` on demand
 - **Local Persistence**: Debounced saves while typing, preserving the previous valid active/Recently Deleted collection snapshot before each safe save. The browser Adapter uses `LocalStorage`. Native stores a versioned `collection.json` under `$XDG_DATA_HOME/net.astrazds.Noter`.
 - **Quick Capture**: Create a new Note from the sidebar, empty state, or `Ctrl/Cmd+N`; compact viewports return directly to the Writing Surface with the Note Title focused.
 - **Recoverable Delete**: Deleted Notes move to Recently Deleted so accidental deletes can be restored, individually cleared, or cleared all at once after a count-specific confirmation.
-- **Storage Recovery**: If saved Notes or Recently Deleted payloads become corrupt, Noter starts in a recovery state with Restore previous snapshot, Start empty, and Import Backup paths before normal editing resumes.
+- **Storage Recovery**: If saved Notes or Recently Deleted payloads become corrupt, Nota starts in a recovery state with Restore previous snapshot, Start empty, and Import Backup paths before normal editing resumes.
 - **Backup & Restore**: Export a versioned Flat Collection backup, track the last successful export with actionable stale/missing Backup Health nudges, and preview add/replace impact before safely merge-importing backups from compact sidebar footer controls.
-- **Diagnostics**: About Noter is a paper-neutral product window from the sidebar and exposes version, storage path, Backup Health, and corrupt-payload quarantine state without adding persistent metadata to the main note workflow.
+- **Diagnostics**: About Nota is a paper-neutral product window from the sidebar and exposes version, storage path, Backup Health, and corrupt-payload quarantine state without adding persistent metadata to the main note workflow.
 - **Debug Starter Notes**: Browser Adapter debug builds seed three representative notes when there is no saved collection yet, giving manual testing coverage for pinning, tags, rich Markdown, preview safety, search, and responsive editing.
 - **Tuned Themes**: Supports Light and Dark themes with coherent surfaces, borders, selection states, and accents.
 - **Polished Sidebar Utilities**: Search has a clear affordance, Recently Deleted actions use explicit recovery/destructive copy, and Backup controls sit in a compact labelled footer row.
@@ -172,7 +172,7 @@ The browser Adapter lives under `src/app/`, `src/components/`, and the remaining
 - `CONTEXT.md` captures the product language used by agents and contributors.
 - `PRODUCT.md` captures the product register, users, purpose, brand personality, anti-references, design principles, and accessibility expectations.
 - `DESIGN.md` captures the Local Notebook visual system, including palette, typography, elevation, component rules, and do/don't guidance.
-- `docs/brand-toolkit.md` captures Noter's brand promise, voice, logo/mark direction, external surface guidance, and brand checks.
+- `docs/brand-toolkit.md` captures Nota's brand promise, voice, logo/mark direction, external surface guidance, and brand checks.
 - `.impeccable/design.json` mirrors the reusable design tokens and component examples used for UI review.
 - `docs/adr/` records accepted design and architecture decisions, including ADR-0009 (Relm4 native replacement) and ADR-0010 (AppImage as the first native distribution artifact).
 

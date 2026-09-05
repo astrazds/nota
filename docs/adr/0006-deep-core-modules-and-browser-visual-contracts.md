@@ -1,6 +1,6 @@
 # Deep core modules and browser visual contracts
 
-Noter should stay easy to change while keeping the product focused on one thing well: creating, writing, finding, organising, previewing, deleting, and locally backing up Notes.
+Nota should stay easy to change while keeping the product focused on one thing well: creating, writing, finding, organising, previewing, deleting, and locally backing up Notes.
 
 Accepted decisions:
 
@@ -22,4 +22,4 @@ Implementation notes:
 - Backup Health persistence remains browser storage on wasm targets; native tests verify AppState updates without touching `web_sys::window()`.
 - The architecture Modules are intentionally conservative: each wraps existing product behaviour behind a deeper Interface instead of adding folders, sync, command palette behaviour, or destructive Backup replacement.
 
-This keeps Noter aligned with `CONTEXT.md`: Search and the Note List remain primary discovery, Tags remain lightweight Note Metadata, Backup stays a local utility, Preview remains a View Mode for the same Note, and Global Notifications stay transient above app chrome.
+This keeps Nota aligned with `CONTEXT.md`: Search and the Note List remain primary discovery, Tags remain lightweight Note Metadata, Backup stays a local utility, Preview remains a View Mode for the same Note, and Global Notifications stay transient above app chrome.

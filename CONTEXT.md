@@ -1,6 +1,6 @@
-# Noter
+# Nota
 
-Noter is a local-first Markdown note app focused on writing, finding, and organising personal notes. Markdown powers note content, but the primary product experience is a note app rather than a Markdown workbench.
+Nota is a local-first Markdown note app focused on writing, finding, and organising personal notes. Markdown powers note content, but the primary product experience is a note app rather than a Markdown workbench.
 
 ## Language
 
@@ -222,7 +222,7 @@ _Avoid_: Replace import by default
 ## Example dialogue
 
 > **Dev:** "Should the split Markdown preview be the default workspace?"
-> **Domain expert:** "No — Noter is a **Markdown Note App**, so the default should foreground the **Note** and keep Markdown tooling contextual."
+> **Domain expert:** "No — Nota is a **Markdown Note App**, so the default should foreground the **Note** and keep Markdown tooling contextual."
 >
 > **Dev:** "Should preview live beside the editor all the time?"
 > **Domain expert:** "No — make the **Writing Surface** the default and let preview be an explicit **View Mode**."
@@ -240,7 +240,7 @@ _Avoid_: Replace import by default
 > **Domain expert:** "No — **Quick Capture** should create the **Note**, select it, and return to the **Writing Surface** with the **Note Title** ready."
 >
 > **Dev:** "Should the UI copy Apple Notes as closely as possible?"
-> **Domain expert:** "No — use a **Local-First Note Identity** that feels familiar but belongs to Noter."
+> **Domain expert:** "No — use a **Local-First Note Identity** that feels familiar but belongs to Nota."
 >
 > **Dev:** "Should save feedback live in the sidebar footer?"
 > **Domain expert:** "No — **Save Status** belongs near the active **Note** and editing context."
@@ -319,7 +319,7 @@ _Avoid_: Replace import by default
 
 ## Flagged ambiguities
 
-- "Markdown workbench" was considered as the product shape — resolved: Noter should be framed as a **Markdown Note App**.
+- "Markdown workbench" was considered as the product shape — resolved: Nota should be framed as a **Markdown Note App**.
 - "Preview toggle" sounded like a layout control — resolved: preview is a **View Mode** for a **Note**.
 - Split leftover-space allocation — resolved: Split divides the editor area 50/50 of the current viewport, then keeps **Pane Rhythm** inside each pane.
 - Stock GTK alerts for About/help/confirmations — resolved: use paper-neutral product windows.
@@ -344,7 +344,7 @@ _Avoid_: Replace import by default
 - "Delete Note?" was generic — resolved: **Delete Confirmation** should identify the target **Note** and clarify that it moves to **Recently Deleted**.
 - "Deleted" implied immediate permanent loss — resolved: deleted Notes move to **Recently Deleted** until restored or explicitly cleared.
 - "Title" could be confused with the first Markdown heading — resolved: **Note Title** is a distinct Note property.
-- "Folders" and "notebooks" imply a new primary organisation model — resolved: Noter uses a **Flat Collection** for now.
+- "Folders" and "notebooks" imply a new primary organisation model — resolved: Nota uses a **Flat Collection** for now.
 - "Backup import" could imply destructive replacement — resolved: backup v1 uses **Merge Import** and leaves replace import out of scope until a clear workflow needs it.
 - "Backup import" could feel blind — resolved: use **Backup Import Preview** to confirm add/replace impact before applying a **Merge Import**.
 - "Backup status" could imply cloud sync — resolved: **Backup Health** only tracks last successful local export metadata.
@@ -352,3 +352,4 @@ _Avoid_: Replace import by default
 - "Previous notes" could imply full history — resolved: a **Previous Snapshot** is one last-known-good active/Recently Deleted collection pair, not version history.
 - "Start empty" could destroy evidence of the corrupt payload — resolved: use **Corrupt Payload Quarantine** for diagnostics after the user chooses that path.
 - "Diagnostics" could become persistent app chrome — resolved: keep Product Metadata and storage diagnostics in a secondary **Diagnostics Surface**.
+- "Noter" and `noter-leptos-md` were the previous product and repository names — resolved: the product and repository are **Nota**. Technical identifiers (`noter-desktop`, `net.astrazds.Noter`, crate paths) stay until a dedicated identifier migration.

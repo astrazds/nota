@@ -4,7 +4,7 @@
 
 ### Issue tracker
 
-Issues and PRDs are tracked in self-hosted Forgejo issues for `astrazds/noter-leptos-md`. See `docs/agents/issue-tracker.md`.
+Issues and PRDs are tracked in self-hosted Forgejo issues for `astrazds/nota`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

@@ -20,7 +20,7 @@ pub fn CheatsheetModal(show: RwSignal<bool>) -> impl IntoView {
                         "Markdown syntax"
                     </h2>
                     <p class=ui_recipes::modal_description_text>
-                        "Syntax Noter renders in Preview."
+                        "Syntax Nota renders in Preview."
                     </p>
                 </div>
                 <button
@@ -69,7 +69,7 @@ pub fn CheatsheetModal(show: RwSignal<bool>) -> impl IntoView {
                     )}
                     {section_group(
                         "Extended syntax",
-                        "Special cases and Noter safety behaviour.",
+                        "Special cases and Nota safety behaviour.",
                         false,
                     )}
                 </div>

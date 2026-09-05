@@ -21,7 +21,7 @@ pub fn AboutModal(show: RwSignal<bool>) -> impl IntoView {
                         id="about-modal-title"
                         class=ui_recipes::modal_title_text
                     >
-                        "About Noter"
+                        "About Nota"
                     </h2>
                     <p
                         id="about-modal-description"
@@ -32,7 +32,7 @@ pub fn AboutModal(show: RwSignal<bool>) -> impl IntoView {
                 </div>
                 <button
                     on:click=move |_| close_modal()
-                    aria-label="Close About Noter"
+                    aria-label="Close About Nota"
                     class=move || format!("inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md transition-colors sm:h-10 sm:w-10 {}", ThemeState::SidebarToggle.classes())
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
@@ -94,7 +94,7 @@ fn focus_about_button() {
     let Some(document) = leptos::web_sys::window().and_then(|window| window.document()) else {
         return;
     };
-    let Ok(Some(element)) = document.query_selector("[aria-label='About Noter']") else {
+    let Ok(Some(element)) = document.query_selector("[aria-label='About Nota']") else {
         return;
     };
     let Some(element) = element.dyn_ref::<leptos::web_sys::HtmlElement>() else {
@@ -104,7 +104,7 @@ fn focus_about_button() {
 }
 
 fn about_app_version_label() -> String {
-    format!("Noter {}", env!("CARGO_PKG_VERSION"))
+    format!("Nota {}", env!("CARGO_PKG_VERSION"))
 }
 
 fn about_storage_mode_label() -> &'static str {
@@ -125,7 +125,7 @@ mod tests {
 
     #[test]
     fn about_labels_expose_release_storage_and_quarantine_state() {
-        assert!(about_app_version_label().starts_with("Noter "));
+        assert!(about_app_version_label().starts_with("Nota "));
         assert_eq!(about_storage_mode_label(), "Local browser storage");
         assert_eq!(
             about_corrupt_payload_status(true),

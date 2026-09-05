@@ -403,6 +403,10 @@ mod tests {
         let result = store.save_collection(&replacement);
         fs::set_permissions(temp.path(), fs::Permissions::from_mode(0o700)).unwrap();
 
+        if result.is_ok() {
+            // A privileged process can still write a mode 0o500 directory.
+            return;
+        }
         assert!(matches!(result, Err(StorageError::Io { .. })));
         assert_eq!(
             store.load_collection().unwrap(),

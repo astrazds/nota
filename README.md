@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/astrazds/nota/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/astrazds/nota/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/astrazds/nota/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/astrazds/nota/actions/workflows/ci.yml/badge.svg?branch=main"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 </p>
 
@@ -137,12 +137,13 @@ cargo check --target wasm32-unknown-unknown --all-features
 python3 build-aux/test_package_appimage.py
 ```
 
-GitHub Actions runs formatting, `nota-core` tests, a wasm check, and the AppDir
-contract, then a native job in the [gtk4-rs GTK 4 container](https://relm4.org/book/stable/continuous_integration.html)
-so Relm4's `gnome_50` stack is not tied to Ubuntu LTS packages. Browser
-Playwright coverage (`npm ci`, `npx playwright install chromium`,
-`npm run test:browser`) stays a local gate because Trunk has to emit
-load-bearing CSS during startup.
+CI on `main` is the [CI workflow](https://github.com/astrazds/nota/actions/workflows/ci.yml).
+It runs formatting, `nota-core` tests, a wasm check, and the AppDir contract,
+then a native job in the [gtk4-rs GTK 4 container](https://relm4.org/book/stable/continuous_integration.html)
+so Relm4's `gnome_50` stack (GTK 4.22 and libadwaita 1.9) is not tied to Ubuntu
+LTS packages. Browser Playwright coverage (`npm ci`,
+`npx playwright install chromium`, `npm run test:browser`) stays a local gate
+because Trunk has to emit load-bearing CSS during startup.
 
 Contributions are welcome; read [CONTRIBUTING.md](CONTRIBUTING.md) before
 opening a pull request. Nota is licensed under [MIT](LICENSE).

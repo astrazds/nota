@@ -24,9 +24,12 @@ to review.
    python3 build-aux/test_package_appimage.py
    ```
 
-   Native GTK work also needs GTK 4.22 and, for Preview/Split, WebKitGTK 6.
-   Browser visual and workflow contracts additionally need `npm ci`,
-   `npx playwright install chromium`, and `npm run test:browser`.
+   Native GTK work also needs GTK 4.22, libadwaita 1.9, and, for
+   Preview/Split, WebKitGTK 6. GitHub Actions runs that native job in the
+   [gtk4-rs GTK 4 container](https://relm4.org/book/stable/continuous_integration.html)
+   rather than Ubuntu LTS packages. Browser visual and workflow contracts
+   additionally need `npm ci`, `npx playwright install chromium`, and
+   `npm run test:browser`.
 
 ## Pull requests
 

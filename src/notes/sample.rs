@@ -71,7 +71,7 @@ fn preview_mode() -> &'static str {
 2. Filter by the `Mobile` tag.
 3. Edit the title, body, and tags without losing focus.
 
-HTML should stay escaped: <script>alert("noter")</script>
+HTML should stay escaped: <script>alert("nota")</script>
 "#
             .trim()
             .to_string(),

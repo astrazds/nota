@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   check:
     runs-on: ubuntu-26.04
@@ -42,8 +45,14 @@ jobs:
         run: python3 build-aux/test_package_appimage.py
 
   native:
-    runs-on: ubuntu-26.04
+    # Relm4: https://relm4.org/book/stable/continuous_integration.html
+    # Use the gtk4-rs image so GTK/libadwaita match gnome_50, not Ubuntu LTS.
+    runs-on: ubuntu-latest
     timeout-minutes: 45
+    container:
+      image: ghcr.io/gtk-rs/gtk4-rs/gtk4:latest
+    env:
+      DISPLAY: ":99.0"
 
     steps:
       - name: Check out repository
@@ -54,10 +63,8 @@ jobs:
         with:
           components: clippy
 
-      - name: Install GTK 4 and WebKitGTK 6
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
+      - name: Install WebKitGTK 6
+        run: dnf install --assumeyes webkitgtk6.0-devel
 
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
@@ -66,4 +73,6 @@ jobs:
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       - name: Test workspace
-        run: xvfb-run -a cargo test --workspace --all-features
+        run: xvfb-run --auto-servernum cargo test --workspace --all-features
+
+      - uses: bcomnes/cleanup-xvfb@v1.0.9

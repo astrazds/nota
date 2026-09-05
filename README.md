@@ -138,9 +138,10 @@ python3 build-aux/test_package_appimage.py
 ```
 
 GitHub Actions runs formatting, `nota-core` tests, a wasm check, and the AppDir
-contract, then a native job that installs GTK 4 / WebKitGTK 6 and runs the
-workspace tests. Browser Playwright coverage (`npm ci`, `npx playwright install
-chromium`, `npm run test:browser`) stays a local gate because Trunk has to emit
+contract, then a native job in the [gtk4-rs GTK 4 container](https://relm4.org/book/stable/continuous_integration.html)
+so Relm4's `gnome_50` stack is not tied to Ubuntu LTS packages. Browser
+Playwright coverage (`npm ci`, `npx playwright install chromium`,
+`npm run test:browser`) stays a local gate because Trunk has to emit
 load-bearing CSS during startup.
 
 Contributions are welcome; read [CONTRIBUTING.md](CONTRIBUTING.md) before

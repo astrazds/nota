@@ -43,11 +43,11 @@ const notes = [
 async function seedCollection(page, { sidebarOpen = true } = {}) {
   await page.addInitScript(
     ({ notes, sidebarOpen }) => {
-      window.localStorage.setItem("noter-notes", JSON.stringify(notes));
-      window.localStorage.setItem("noter-recently-deleted-notes", "[]");
-      window.localStorage.setItem("noter-dark-mode", "false");
-      window.localStorage.setItem("noter-sidebar-open", JSON.stringify(sidebarOpen));
-      window.localStorage.removeItem("noter-backup-health");
+      window.localStorage.setItem("nota-notes", JSON.stringify(notes));
+      window.localStorage.setItem("nota-recently-deleted-notes", "[]");
+      window.localStorage.setItem("nota-dark-mode", "false");
+      window.localStorage.setItem("nota-sidebar-open", JSON.stringify(sidebarOpen));
+      window.localStorage.removeItem("nota-backup-health");
     },
     { notes, sidebarOpen },
   );

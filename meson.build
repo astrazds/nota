@@ -1,13 +1,13 @@
 project(
-  'noter',
+  'nota',
   version: '2.0.0-alpha.1',
   meson_version: '>= 1.3.0',
 )
 
 python = find_program('python3')
-noter_binary = custom_target(
-  'noter-desktop',
-  output: 'noter-desktop',
+nota_binary = custom_target(
+  'nota-desktop',
+  output: 'nota-desktop',
   command: [
     python,
     files('build-aux/cargo-build.py'),
@@ -29,7 +29,7 @@ install_data(
   install_dir: get_option('datadir') / 'metainfo',
 )
 install_data(
-  'assets/icons/noter-icon.svg',
+  'assets/icons/nota-icon.svg',
   rename: 'net.astrazds.Nota.svg',
   install_dir: get_option('datadir') / 'icons/hicolor/scalable/apps',
 )

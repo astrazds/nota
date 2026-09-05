@@ -16,7 +16,7 @@ from package_appimage import (
 
 
 REQUIRED_RELATIVE_PATHS = (
-    "usr/bin/noter-desktop",
+    "usr/bin/nota-desktop",
     "usr/share/applications/net.astrazds.Nota.desktop",
     "usr/share/icons/hicolor/scalable/apps/net.astrazds.Nota.svg",
     "usr/share/metainfo/net.astrazds.Nota.metainfo.xml",
@@ -27,7 +27,7 @@ REQUIRED_RELATIVE_PATHS = (
     "usr/lib/webkitgtk-6.0/WebKitWebProcess",
     "usr/lib/webkitgtk-6.0/WebKitNetworkProcess",
     "usr/lib/webkitgtk-6.0/WebKitGPUProcess",
-    "apprun-hooks/noter-runtime.sh",
+    "apprun-hooks/nota-runtime.sh",
 )
 
 
@@ -47,13 +47,13 @@ def complete_appdir(root: Path) -> None:
                     [
                         "[Desktop Entry]",
                         "Name=Nota",
-                        "Exec=noter-desktop",
+                        "Exec=nota-desktop",
                         "Icon=net.astrazds.Nota",
                         "Type=Application",
                     ]
                 ),
             )
-        elif relative.endswith("noter-runtime.sh"):
+        elif relative.endswith("nota-runtime.sh"):
             write_file(
                 root,
                 relative,
@@ -76,11 +76,11 @@ class VerifyAppdirTests(unittest.TestCase):
             with self.assertRaises(AppDirError) as raised:
                 verify_appdir(root)
             message = str(raised.exception)
-            self.assertIn("usr/bin/noter-desktop", message)
+            self.assertIn("usr/bin/nota-desktop", message)
             self.assertIn("net.astrazds.Nota.desktop", message)
             self.assertIn("source-sans-3-latin-wght-normal.woff2", message)
             self.assertIn("WebKitWebProcess", message)
-            self.assertIn("noter-runtime.sh", message)
+            self.assertIn("nota-runtime.sh", message)
 
     def test_complete_appdir_is_accepted(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
@@ -88,7 +88,7 @@ class VerifyAppdirTests(unittest.TestCase):
             complete_appdir(root)
             verify_appdir(root)
 
-    def test_desktop_file_must_launch_noter_desktop_by_name(self) -> None:
+    def test_desktop_file_must_launch_nota_desktop_by_name(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
             complete_appdir(root)
@@ -99,7 +99,7 @@ class VerifyAppdirTests(unittest.TestCase):
                     [
                         "[Desktop Entry]",
                         "Name=Nota",
-                        "Exec=/usr/bin/noter-desktop",
+                        "Exec=/usr/bin/nota-desktop",
                         "Icon=net.astrazds.Nota",
                         "Type=Application",
                     ]
@@ -107,13 +107,13 @@ class VerifyAppdirTests(unittest.TestCase):
             )
             with self.assertRaises(AppDirError) as raised:
                 verify_appdir(root)
-            self.assertIn("Exec=noter-desktop", str(raised.exception))
+            self.assertIn("Exec=nota-desktop", str(raised.exception))
 
     def test_runtime_hook_must_point_webkit_and_fonts_inside_the_appdir(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
             complete_appdir(root)
-            write_file(root, "apprun-hooks/noter-runtime.sh", "export PATH=/usr/bin\n")
+            write_file(root, "apprun-hooks/nota-runtime.sh", "export PATH=/usr/bin\n")
             with self.assertRaises(AppDirError) as raised:
                 verify_appdir(root)
             message = str(raised.exception)
@@ -137,7 +137,7 @@ class PrepareAppdirTests(unittest.TestCase):
                 path
                 for path in REQUIRED_RELATIVE_PATHS
                 if not path.startswith("usr/lib/webkitgtk-6.0/")
-                and path != "apprun-hooks/noter-runtime.sh"
+                and path != "apprun-hooks/nota-runtime.sh"
             ]
             for relative in meson_paths:
                 if relative.endswith(".desktop"):
@@ -148,7 +148,7 @@ class PrepareAppdirTests(unittest.TestCase):
                             [
                                 "[Desktop Entry]",
                                 "Name=Nota",
-                                "Exec=noter-desktop",
+                                "Exec=nota-desktop",
                                 "Icon=net.astrazds.Nota",
                                 "Type=Application",
                             ]
@@ -158,7 +158,7 @@ class PrepareAppdirTests(unittest.TestCase):
                     write_file(root, relative)
             prepare_appdir(root, webkit)
             verify_appdir(root)
-            hook = (root / "apprun-hooks/noter-runtime.sh").read_text()
+            hook = (root / "apprun-hooks/nota-runtime.sh").read_text()
             self.assertIn("NOTA_FONT_DIR", hook)
             self.assertIn("WEBKIT_EXEC_PATH", hook)
             self.assertIn("unset GDK_BACKEND", hook)
@@ -183,7 +183,7 @@ class CustomApprunTests(unittest.TestCase):
             self.assertIn("apprun-hooks", text)
             self.assertIn("bwrap", text)
             self.assertIn("/usr/lib/webkitgtk-6.0", text)
-            self.assertIn("usr/bin/noter-desktop", text)
+            self.assertIn("usr/bin/nota-desktop", text)
 
 
 if __name__ == "__main__":

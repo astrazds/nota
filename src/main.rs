@@ -6,16 +6,16 @@ mod ui;
 
 pub(crate) use app::runtime as app_runtime;
 pub(crate) use backup::controls as backup_controls;
-pub(crate) use noter_core::editor_view;
-pub(crate) use noter_core::markdown_preview;
-pub(crate) use noter_core::model;
-pub(crate) use noter_core::note_discovery;
-pub(crate) use noter_core::note_list_interaction;
-pub(crate) use noter_core::note_workspace;
-pub(crate) use noter_core::responsive_navigation;
-pub(crate) use noter_core::sample_notes;
-pub(crate) use noter_core::storage_recovery;
-pub(crate) use noter_core::tag_rules;
+pub(crate) use nota_core::editor_view;
+pub(crate) use nota_core::markdown_preview;
+pub(crate) use nota_core::model;
+pub(crate) use nota_core::note_discovery;
+pub(crate) use nota_core::note_list_interaction;
+pub(crate) use nota_core::note_workspace;
+pub(crate) use nota_core::responsive_navigation;
+pub(crate) use nota_core::sample_notes;
+pub(crate) use nota_core::storage_recovery;
+pub(crate) use nota_core::tag_rules;
 pub(crate) use ui::markdown_editing;
 pub(crate) use ui::recipes as ui_recipes;
 pub(crate) use ui::theme;
@@ -37,7 +37,7 @@ use note_list_interaction::{
     NoteActionControls, NoteListCommand, NoteListInteraction, NoteListRenderModel,
 };
 use note_workspace::{FocusIntent, NoteWorkspace, WorkspaceDisplayState};
-use noter_core::transition::{ThemePreference, TransitionError, export_desktop_transition};
+use nota_core::transition::{ThemePreference, TransitionError, export_desktop_transition};
 use responsive_navigation::{
     ResponsiveNavigation, StoredNoteListState, ViewportClass, normalize_view_mode,
 };

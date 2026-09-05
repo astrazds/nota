@@ -5,7 +5,7 @@
  *   --signal  #E7A858 notebook amber (selection / segmented active)
  * Writing measure: left-aligned 72ch plane via Rust/Pango layout (parity with ui_recipes::note_measure).
  */
-.noter-root {
+.nota-root {
   --frame: #F7F5F1;
   --surface: #FDFCF9;
   --sidebar: #F0EDE6;
@@ -29,22 +29,22 @@
   font-size: 14px;
 }
 
-window.noter-root {
+window.nota-root {
   background: var(--frame);
   color: var(--graphite);
   font-family: "Source Sans 3", "Cantarell", sans-serif;
   font-size: 14px;
 }
 
-.noter-sidebar { background: var(--sidebar); border-right: 1px solid var(--border-strong); }
-.noter-sidebar-header { padding: 14px 16px 12px 16px; }
-.noter-app-title { color: var(--graphite); font-size: 20px; font-weight: 700; }
+.nota-sidebar { background: var(--sidebar); border-right: 1px solid var(--border-strong); }
+.nota-sidebar-header { padding: 14px 16px 12px 16px; }
+.nota-app-title { color: var(--graphite); font-size: 20px; font-weight: 700; }
 
-button.noter-navigation-button, button.noter-command,
-button.noter-note-select, menubutton.noter-note-actions > button,
-button.noter-toolbar-button, button.noter-mode-button,
-button.noter-help-button, button.noter-footer-button,
-button.noter-small-button {
+button.nota-navigation-button, button.nota-command,
+button.nota-note-select, menubutton.nota-note-actions > button,
+button.nota-toolbar-button, button.nota-mode-button,
+button.nota-help-button, button.nota-footer-button,
+button.nota-small-button {
   background: transparent;
   background-image: none;
   border: 0;
@@ -53,14 +53,14 @@ button.noter-small-button {
   text-shadow: none;
 }
 
-button.noter-navigation-button {
+button.nota-navigation-button {
   min-height: 28px;
   padding: 2px 8px;
   border-radius: 6px;
   font-size: 11px;
 }
-.noter-command-list { margin-top: 1px; }
-button.noter-command {
+.nota-command-list { margin-top: 1px; }
+button.nota-command {
   min-height: 30px;
   padding: 2px 7px;
   border-radius: 6px;
@@ -68,31 +68,31 @@ button.noter-command {
   font-size: 12px;
 }
 /* New Note = Warm Capture Yellow primary (ThemeAccent::PrimaryFill parity). */
-button.noter-command-primary {
+button.nota-command-primary {
   background: var(--capture);
   color: var(--graphite);
   font-weight: 600;
 }
-button.noter-command-primary .noter-command-icon,
-button.noter-command-primary .noter-command-shortcut {
+button.nota-command-primary .nota-command-icon,
+button.nota-command-primary .nota-command-shortcut {
   color: var(--graphite);
   opacity: 0.72;
 }
-button.noter-command:hover, button.noter-navigation-button:hover,
-button.noter-toolbar-button:hover, button.noter-mode-button:hover,
-button.noter-help-button:hover, button.noter-footer-button:hover,
-button.noter-small-button:hover, menubutton.noter-note-actions > button:hover {
+button.nota-command:hover, button.nota-navigation-button:hover,
+button.nota-toolbar-button:hover, button.nota-mode-button:hover,
+button.nota-help-button:hover, button.nota-footer-button:hover,
+button.nota-small-button:hover, menubutton.nota-note-actions > button:hover {
   background: rgba(37, 34, 31, 0.07);
   color: var(--graphite);
 }
-button.noter-command-primary:hover {
+button.nota-command-primary:hover {
   background: var(--signal);
   color: var(--graphite);
 }
-.noter-command-icon { min-width: 16px; color: var(--muted); font-size: 13px; }
-.noter-command-shortcut { color: var(--subtle); font-size: 10px; }
+.nota-command-icon { min-width: 16px; color: var(--muted); font-size: 13px; }
+.nota-command-shortcut { color: var(--subtle); font-size: 10px; }
 
-entry.noter-search {
+entry.nota-search {
   min-height: 34px;
   margin-top: 2px;
   padding: 1px 9px;
@@ -103,57 +103,57 @@ entry.noter-search {
   color: var(--graphite);
   font-size: 13px;
 }
-entry.noter-search:focus {
+entry.nota-search:focus {
   border-color: var(--signal-border);
   box-shadow: 0 0 0 1px alpha(var(--signal), 0.35);
 }
-.noter-sidebar-scroll, .noter-sidebar-scroll > viewport {
+.nota-sidebar-scroll, .nota-sidebar-scroll > viewport {
   background: transparent;
   border: 0;
 }
-.noter-section-header {
+.nota-section-header {
   min-height: 28px;
   padding: 4px 16px 3px 16px;
   color: var(--muted);
   font-size: 11px;
   font-weight: 600;
 }
-.noter-section-count { color: var(--subtle); font-weight: 400; }
-.noter-empty-state {
+.nota-section-count { color: var(--subtle); font-weight: 400; }
+.nota-empty-state {
   margin: 8px 12px;
   padding: 18px 12px;
   border: 1px dashed var(--border-strong);
   border-radius: 8px;
   color: var(--muted);
 }
-.noter-empty-title { color: var(--ink-soft); font-weight: 600; }
-.noter-empty-copy { font-size: 12px; }
+.nota-empty-title { color: var(--ink-soft); font-weight: 600; }
+.nota-empty-copy { font-size: 12px; }
 
-.noter-note-row {
+.nota-note-row {
   min-height: 58px;
   margin: 0 12px 4px 12px;
   background: transparent;
   border: 1px solid transparent;
   border-radius: 7px;
 }
-.noter-note-row:hover { background: rgba(253, 252, 249, 0.70); }
-.noter-note-row.selected {
+.nota-note-row:hover { background: rgba(253, 252, 249, 0.70); }
+.nota-note-row.selected {
   background: var(--selected);
   border-color: var(--signal-border);
   box-shadow: 0 0 0 1px alpha(var(--signal), 0.16);
 }
-button.noter-note-select {
+button.nota-note-select {
   min-height: 56px;
   padding: 7px 4px 7px 9px;
   border-radius: 7px 0 0 7px;
   color: var(--graphite);
 }
-button.noter-note-select:hover, button.noter-note-select:active { background: transparent; }
-.noter-note-title { color: var(--graphite); font-size: 14px; font-weight: 600; }
-.noter-note-date, .noter-note-preview { color: var(--muted); font-size: 11px; }
-.noter-note-preview { color: var(--preview-muted); }
-.noter-note-pin { color: var(--pin); font-size: 9px; }
-.noter-note-tags, button.noter-note-tags {
+button.nota-note-select:hover, button.nota-note-select:active { background: transparent; }
+.nota-note-title { color: var(--graphite); font-size: 14px; font-weight: 600; }
+.nota-note-date, .nota-note-preview { color: var(--muted); font-size: 11px; }
+.nota-note-preview { color: var(--preview-muted); }
+.nota-note-pin { color: var(--pin); font-size: 9px; }
+.nota-note-tags, button.nota-note-tags {
   min-height: 18px;
   min-width: 0;
   padding: 2px 8px;
@@ -166,11 +166,11 @@ button.noter-note-select:hover, button.noter-note-select:active { background: tr
   font-weight: 500;
   line-height: 1.2;
 }
-button.noter-note-tags:hover {
+button.nota-note-tags:hover {
   background: alpha(var(--signal), 0.32);
 }
-menubutton.noter-note-actions { margin: 4px 3px 0 0; }
-menubutton.noter-note-actions > button {
+menubutton.nota-note-actions { margin: 4px 3px 0 0; }
+menubutton.nota-note-actions > button {
   min-width: 28px;
   min-height: 28px;
   padding: 4px;
@@ -179,17 +179,17 @@ menubutton.noter-note-actions > button {
 }
 /* Frame A note action popup (ThemeState::NoteActionMenu parity).
  * Absolute colors: GTK popovers often do not inherit window custom properties.
- * Theme class `noter-dark` is set on the popover/menu when the app is dark.
+ * Theme class `nota-dark` is set on the popover/menu when the app is dark.
  * Light: paper surface + graphite ink. Dark: dim-desk sidebar + warm off-white.
  */
-popover.noter-note-actions-popover {
+popover.nota-note-actions-popover {
   background: transparent;
   border: 0;
   box-shadow: none;
   padding: 0;
 }
-popover.noter-note-actions-popover contents,
-popover.noter-note-actions-popover > contents {
+popover.nota-note-actions-popover contents,
+popover.nota-note-actions-popover > contents {
   padding: 0;
   background: #FDFCF9;
   background-color: #FDFCF9;
@@ -198,16 +198,16 @@ popover.noter-note-actions-popover > contents {
   border-radius: 8px;
   box-shadow: 0 10px 28px rgba(37, 34, 31, 0.28);
 }
-.noter-note-menu {
+.nota-note-menu {
   min-width: 160px;
   padding: 6px;
   background: #FDFCF9;
   background-color: #FDFCF9;
   color: #25221F;
 }
-.noter-note-menu button,
-button.noter-note-menu-item,
-popover.noter-note-actions-popover button {
+.nota-note-menu button,
+button.nota-note-menu-item,
+popover.nota-note-actions-popover button {
   min-height: 40px;
   min-width: 0;
   margin: 0;
@@ -224,94 +224,94 @@ popover.noter-note-actions-popover button {
   text-shadow: none;
   opacity: 1;
 }
-.noter-note-menu button:hover,
-button.noter-note-menu-item:hover,
-popover.noter-note-actions-popover button:hover {
+.nota-note-menu button:hover,
+button.nota-note-menu-item:hover,
+popover.nota-note-actions-popover button:hover {
   background: rgba(37, 34, 31, 0.08);
   background-color: rgba(37, 34, 31, 0.08);
   color: #25221F;
 }
-.noter-note-menu button.destructive-action,
-.noter-note-menu button.danger,
-button.noter-note-menu-item.destructive-action,
-button.noter-note-menu-item.danger,
-popover.noter-note-actions-popover button.destructive-action,
-popover.noter-note-actions-popover button.danger {
+.nota-note-menu button.destructive-action,
+.nota-note-menu button.danger,
+button.nota-note-menu-item.destructive-action,
+button.nota-note-menu-item.danger,
+popover.nota-note-actions-popover button.destructive-action,
+popover.nota-note-actions-popover button.danger {
   color: #B42318;
   font-weight: 700;
 }
-.noter-note-menu button.destructive-action:hover,
-.noter-note-menu button.danger:hover,
-button.noter-note-menu-item.destructive-action:hover,
-button.noter-note-menu-item.danger:hover,
-popover.noter-note-actions-popover button.destructive-action:hover,
-popover.noter-note-actions-popover button.danger:hover {
+.nota-note-menu button.destructive-action:hover,
+.nota-note-menu button.danger:hover,
+button.nota-note-menu-item.destructive-action:hover,
+button.nota-note-menu-item.danger:hover,
+popover.nota-note-actions-popover button.destructive-action:hover,
+popover.nota-note-actions-popover button.danger:hover {
   background: #F2DEDB;
   background-color: #F2DEDB;
   color: #861A12;
 }
 
 /* Dim Desk note-action popover — class set on the popover itself (not via root inheritance). */
-popover.noter-note-actions-popover.noter-dark contents,
-popover.noter-note-actions-popover.noter-dark > contents {
+popover.nota-note-actions-popover.nota-dark contents,
+popover.nota-note-actions-popover.nota-dark > contents {
   background: #211F1C;
   background-color: #211F1C;
   color: #F7F5F1;
   border: 1px solid #3A3733;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.48);
 }
-.noter-note-menu.noter-dark {
+.nota-note-menu.nota-dark {
   background: #211F1C;
   background-color: #211F1C;
   color: #F7F5F1;
 }
-.noter-note-menu.noter-dark button,
-button.noter-note-menu-item.noter-dark,
-popover.noter-note-actions-popover.noter-dark button {
+.nota-note-menu.nota-dark button,
+button.nota-note-menu-item.nota-dark,
+popover.nota-note-actions-popover.nota-dark button {
   color: #F7F5F1;
 }
-.noter-note-menu.noter-dark button:hover,
-button.noter-note-menu-item.noter-dark:hover,
-popover.noter-note-actions-popover.noter-dark button:hover {
+.nota-note-menu.nota-dark button:hover,
+button.nota-note-menu-item.nota-dark:hover,
+popover.nota-note-actions-popover.nota-dark button:hover {
   background: rgba(247, 245, 241, 0.10);
   background-color: rgba(247, 245, 241, 0.10);
   color: #F7F5F1;
 }
-.noter-note-menu.noter-dark button.destructive-action,
-.noter-note-menu.noter-dark button.danger,
-button.noter-note-menu-item.noter-dark.destructive-action,
-button.noter-note-menu-item.noter-dark.danger,
-popover.noter-note-actions-popover.noter-dark button.destructive-action,
-popover.noter-note-actions-popover.noter-dark button.danger {
+.nota-note-menu.nota-dark button.destructive-action,
+.nota-note-menu.nota-dark button.danger,
+button.nota-note-menu-item.nota-dark.destructive-action,
+button.nota-note-menu-item.nota-dark.danger,
+popover.nota-note-actions-popover.nota-dark button.destructive-action,
+popover.nota-note-actions-popover.nota-dark button.danger {
   color: #F97066;
   font-weight: 700;
 }
-.noter-note-menu.noter-dark button.destructive-action:hover,
-.noter-note-menu.noter-dark button.danger:hover,
-button.noter-note-menu-item.noter-dark.destructive-action:hover,
-button.noter-note-menu-item.noter-dark.danger:hover,
-popover.noter-note-actions-popover.noter-dark button.destructive-action:hover,
-popover.noter-note-actions-popover.noter-dark button.danger:hover {
+.nota-note-menu.nota-dark button.destructive-action:hover,
+.nota-note-menu.nota-dark button.danger:hover,
+button.nota-note-menu-item.nota-dark.destructive-action:hover,
+button.nota-note-menu-item.nota-dark.danger:hover,
+popover.nota-note-actions-popover.nota-dark button.destructive-action:hover,
+popover.nota-note-actions-popover.nota-dark button.danger:hover {
   background: rgba(249, 112, 102, 0.16);
   background-color: rgba(249, 112, 102, 0.16);
   color: #FCA5A5;
 }
 
-.noter-deleted-panel { margin: 8px 12px 12px 12px; border-top: 1px solid var(--border-strong); }
-.noter-deleted-header {
+.nota-deleted-panel { margin: 8px 12px 12px 12px; border-top: 1px solid var(--border-strong); }
+.nota-deleted-header {
   min-height: 32px;
   padding: 4px 2px;
   color: var(--muted);
   font-size: 11px;
   font-weight: 600;
 }
-.noter-deleted-row {
+.nota-deleted-row {
   min-height: 34px;
   padding: 3px 2px;
   color: var(--muted);
   font-size: 11px;
 }
-button.noter-small-button {
+button.nota-small-button {
   min-height: 26px;
   min-width: 0;
   padding: 2px 6px;
@@ -320,19 +320,19 @@ button.noter-small-button {
 }
 button.danger, button.destructive-action { color: #C0392B; font-weight: 600; }
 
-.noter-sidebar-footer, .noter-editor-footer {
+.nota-sidebar-footer, .nota-editor-footer {
   min-height: 45px;
   border-top: 1px solid var(--border-strong);
   color: var(--muted);
   font-size: 11px;
 }
-.noter-sidebar-footer { padding: 5px 10px 5px 12px; }
-.noter-footer-label { font-weight: 600; }
-.noter-backup-dot { color: var(--subtle); font-size: 7px; }
-.noter-backup-dot.missing { color: var(--subtle); }
-.noter-backup-dot.recent { color: #10B981; }
-.noter-backup-dot.stale { color: var(--signal); }
-button.noter-footer-button {
+.nota-sidebar-footer { padding: 5px 10px 5px 12px; }
+.nota-footer-label { font-weight: 600; }
+.nota-backup-dot { color: var(--subtle); font-size: 7px; }
+.nota-backup-dot.missing { color: var(--subtle); }
+.nota-backup-dot.recent { color: #10B981; }
+.nota-backup-dot.stale { color: var(--signal); }
+button.nota-footer-button {
   min-height: 26px;
   min-width: 0;
   padding: 2px 5px;
@@ -341,16 +341,16 @@ button.noter-footer-button {
 }
 separator { min-width: 0; background: var(--border-strong); }
 
-.noter-editor, .noter-writing, .noter-content-scroll,
-.noter-content-scroll > viewport { background: var(--surface); }
-.noter-editor-header { padding: 16px 32px 10px 32px; background: var(--surface); }
+.nota-editor, .nota-writing, .nota-content-scroll,
+.nota-content-scroll > viewport { background: var(--surface); }
+.nota-editor-header { padding: 16px 32px 10px 32px; background: var(--surface); }
 
 /* Left-aligned writing plane (title, tags, toolbar row, TextView, preview).
  * Max width is enforced in Rust (Pango ch × contract chars) — GTK CSS rejects max-width. */
-.noter-writing-plane {
+.nota-writing-plane {
 }
 
-entry.noter-title, entry.noter-tags {
+entry.nota-title, entry.nota-tags {
   /* min-height:0 clipped 23px title glyphs and made placeholders look truncated. */
   min-height: 28px;
   min-width: 0;
@@ -362,25 +362,25 @@ entry.noter-title, entry.noter-tags {
   color: var(--graphite);
 }
 /* Note Title ~22–24px semibold (web note_title_text: text-xl / md:text-2xl). */
-entry.noter-title {
+entry.nota-title {
   min-height: 32px;
   font-size: 23px;
   font-weight: 600;
 }
-entry.noter-tags {
+entry.nota-tags {
   min-height: 24px;
   color: var(--muted);
   font-size: 12px;
 }
-entry.noter-title:focus, entry.noter-tags:focus { box-shadow: none; }
-.noter-formatting-toolbar {
+entry.nota-title:focus, entry.nota-tags:focus { box-shadow: none; }
+.nota-formatting-toolbar {
   min-height: 35px;
   padding: 3px 32px;
   background: var(--surface);
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }
-button.noter-toolbar-button {
+button.nota-toolbar-button {
   min-width: 28px;
   min-height: 27px;
   padding: 2px 7px;
@@ -390,26 +390,26 @@ button.noter-toolbar-button {
   font-size: 12px;
   font-weight: 600;
 }
-.noter-writing-surface, .noter-writing-surface text {
+.nota-writing-surface, .nota-writing-surface text {
   background: var(--surface);
   color: #332F2A;
   caret-color: var(--pin);
   font-family: "Source Code Pro", "Monospace", monospace;
   font-size: 14px;
 }
-.noter-writing-surface selection, .noter-writing-surface text selection {
+.nota-writing-surface selection, .nota-writing-surface text selection {
   background: var(--selected);
   color: var(--graphite);
 }
-.noter-editor-footer {
+.nota-editor-footer {
   padding: 5px 12px 5px 16px;
   background: var(--surface);
   border-color: var(--border);
 }
-.noter-statistics, .noter-save-status { color: var(--preview-muted); font-size: 11px; }
-.noter-save-status { min-width: 64px; }
-.noter-mode-group { padding: 1px; background: var(--sidebar); border-radius: 6px; }
-button.noter-mode-button, button.noter-help-button {
+.nota-statistics, .nota-save-status { color: var(--preview-muted); font-size: 11px; }
+.nota-save-status { min-width: 64px; }
+.nota-mode-group { padding: 1px; background: var(--sidebar); border-radius: 6px; }
+button.nota-mode-button, button.nota-help-button {
   min-height: 25px;
   min-width: 0;
   padding: 2px 8px;
@@ -417,22 +417,22 @@ button.noter-mode-button, button.noter-help-button {
   font-size: 10px;
 }
 /* Amber active segment (ThemeState::SegmentedActive) — no white pill / drop shadow. */
-button.noter-mode-button.active, button.noter-mode-button:checked {
+button.nota-mode-button.active, button.nota-mode-button:checked {
   background: var(--selected);
   color: #92400E;
   border: 1px solid var(--signal-border);
   box-shadow: none;
 }
-button.noter-help-button { min-width: 25px; padding: 2px 6px; }
+button.nota-help-button { min-width: 25px; padding: 2px 6px; }
 
-.noter-recovery {
+.nota-recovery {
   background: #FFF3D6;
   border: 1px solid var(--signal-border);
   border-radius: 9px;
   padding: 14px;
   color: #453216;
 }
-.noter-notification {
+.nota-notification {
   padding: 8px 12px;
   background: var(--sidebar);
   border: 1px solid var(--border-strong);
@@ -441,11 +441,11 @@ button.noter-help-button { min-width: 25px; padding: 2px 6px; }
   color: var(--graphite);
   font-size: 12px;
 }
-.noter-notification-success { background: #DDEBE5; border-color: #A8CDBE; color: #245E4B; }
-.noter-notification-error { background: #F2DEDB; border-color: #D8A39E; color: #863C35; }
+.nota-notification-success { background: #DDEBE5; border-color: #A8CDBE; color: #245E4B; }
+.nota-notification-error { background: #F2DEDB; border-color: #D8A39E; color: #863C35; }
 
 /* The dim-desk theme is separately tuned, not inverted. */
-.noter-root.noter-dark {
+.nota-root.nota-dark {
   --frame: #151311;
   --surface: #25221F;
   --sidebar: #211F1C;
@@ -466,130 +466,130 @@ button.noter-help-button { min-width: 25px; padding: 2px 6px; }
   background: var(--frame);
   color: var(--graphite);
 }
-.noter-dark .noter-sidebar { background: var(--sidebar); border-color: var(--border-strong); }
-.noter-dark .noter-app-title, .noter-dark .noter-note-title,
-.noter-dark button.noter-note-select, .noter-dark entry.noter-title,
-.noter-dark .noter-writing-surface, .noter-dark .noter-writing-surface text { color: var(--graphite); }
-.noter-dark button.noter-command, .noter-dark button.noter-navigation-button,
-.noter-dark button.noter-toolbar-button, .noter-dark button.noter-mode-button,
-.noter-dark button.noter-help-button, .noter-dark button.noter-footer-button,
-.noter-dark button.noter-small-button, .noter-dark menubutton.noter-note-actions > button,
-.noter-dark .noter-section-header, .noter-dark .noter-note-date,
-.noter-dark .noter-note-preview, .noter-dark .noter-deleted-header,
-.noter-dark .noter-deleted-row, .noter-dark .noter-sidebar-footer,
-.noter-dark .noter-editor-footer, .noter-dark .noter-statistics,
-.noter-dark .noter-save-status, .noter-dark entry.noter-tags { color: var(--muted); }
-.noter-dark button.noter-command:hover, .noter-dark button.noter-navigation-button:hover,
-.noter-dark button.noter-toolbar-button:hover, .noter-dark button.noter-mode-button:hover,
-.noter-dark button.noter-help-button:hover, .noter-dark button.noter-footer-button:hover,
-.noter-dark button.noter-small-button:hover, .noter-dark menubutton.noter-note-actions > button:hover {
+.nota-dark .nota-sidebar { background: var(--sidebar); border-color: var(--border-strong); }
+.nota-dark .nota-app-title, .nota-dark .nota-note-title,
+.nota-dark button.nota-note-select, .nota-dark entry.nota-title,
+.nota-dark .nota-writing-surface, .nota-dark .nota-writing-surface text { color: var(--graphite); }
+.nota-dark button.nota-command, .nota-dark button.nota-navigation-button,
+.nota-dark button.nota-toolbar-button, .nota-dark button.nota-mode-button,
+.nota-dark button.nota-help-button, .nota-dark button.nota-footer-button,
+.nota-dark button.nota-small-button, .nota-dark menubutton.nota-note-actions > button,
+.nota-dark .nota-section-header, .nota-dark .nota-note-date,
+.nota-dark .nota-note-preview, .nota-dark .nota-deleted-header,
+.nota-dark .nota-deleted-row, .nota-dark .nota-sidebar-footer,
+.nota-dark .nota-editor-footer, .nota-dark .nota-statistics,
+.nota-dark .nota-save-status, .nota-dark entry.nota-tags { color: var(--muted); }
+.nota-dark button.nota-command:hover, .nota-dark button.nota-navigation-button:hover,
+.nota-dark button.nota-toolbar-button:hover, .nota-dark button.nota-mode-button:hover,
+.nota-dark button.nota-help-button:hover, .nota-dark button.nota-footer-button:hover,
+.nota-dark button.nota-small-button:hover, .nota-dark menubutton.nota-note-actions > button:hover {
   background: rgba(247, 245, 241, 0.08);
   color: var(--graphite);
 }
-.noter-dark button.noter-command-primary {
+.nota-dark button.nota-command-primary {
   background: var(--capture);
   color: #25221F;
 }
-.noter-dark button.noter-command-primary .noter-command-icon,
-.noter-dark button.noter-command-primary .noter-command-shortcut {
+.nota-dark button.nota-command-primary .nota-command-icon,
+.nota-dark button.nota-command-primary .nota-command-shortcut {
   color: #25221F;
   opacity: 0.72;
 }
-.noter-dark button.noter-command-primary:hover {
+.nota-dark button.nota-command-primary:hover {
   background: var(--signal);
   color: #25221F;
 }
-.noter-dark entry.noter-search {
+.nota-dark entry.nota-search {
   background: rgba(37, 34, 31, 0.72);
   border-color: var(--border-strong);
   color: var(--graphite);
 }
-.noter-dark .noter-note-row:hover { background: rgba(37, 34, 31, 0.78); }
-.noter-dark .noter-note-row.selected {
+.nota-dark .nota-note-row:hover { background: rgba(37, 34, 31, 0.78); }
+.nota-dark .nota-note-row.selected {
   background: var(--selected);
   border-color: var(--signal-border);
   box-shadow: 0 0 0 1px alpha(var(--signal), 0.10);
 }
-.noter-dark .noter-note-tags { background: alpha(var(--signal), 0.16); color: var(--signal); }
-.noter-dark .noter-deleted-panel, .noter-dark .noter-sidebar-footer,
-.noter-dark separator { border-color: var(--border-strong); background-color: var(--border-strong); }
-.noter-dark .noter-editor, .noter-dark .noter-writing,
-.noter-dark .noter-editor-header, .noter-dark .noter-formatting-toolbar,
-.noter-dark .noter-content-scroll, .noter-dark .noter-content-scroll > viewport,
-.noter-dark .noter-writing-surface, .noter-dark .noter-writing-surface text,
-.noter-dark .noter-editor-footer { background: var(--surface); }
-.noter-dark .noter-formatting-toolbar, .noter-dark .noter-editor-footer { border-color: var(--border); }
-.noter-dark .noter-mode-group { background: var(--sidebar); }
-.noter-dark button.noter-mode-button.active, .noter-dark button.noter-mode-button:checked {
+.nota-dark .nota-note-tags { background: alpha(var(--signal), 0.16); color: var(--signal); }
+.nota-dark .nota-deleted-panel, .nota-dark .nota-sidebar-footer,
+.nota-dark separator { border-color: var(--border-strong); background-color: var(--border-strong); }
+.nota-dark .nota-editor, .nota-dark .nota-writing,
+.nota-dark .nota-editor-header, .nota-dark .nota-formatting-toolbar,
+.nota-dark .nota-content-scroll, .nota-dark .nota-content-scroll > viewport,
+.nota-dark .nota-writing-surface, .nota-dark .nota-writing-surface text,
+.nota-dark .nota-editor-footer { background: var(--surface); }
+.nota-dark .nota-formatting-toolbar, .nota-dark .nota-editor-footer { border-color: var(--border); }
+.nota-dark .nota-mode-group { background: var(--sidebar); }
+.nota-dark button.nota-mode-button.active, .nota-dark button.nota-mode-button:checked {
   background: alpha(var(--signal), 0.20);
   color: var(--signal);
   border: 1px solid var(--signal);
   box-shadow: none;
 }
-.noter-dark .noter-empty-state { border-color: var(--border-strong); color: var(--muted); }
-.noter-dark .noter-empty-title { color: var(--ink-soft); }
+.nota-dark .nota-empty-state { border-color: var(--border-strong); color: var(--muted); }
+.nota-dark .nota-empty-title { color: var(--ink-soft); }
 
 /* Paper-neutral confirmation / About / Markdown help windows. */
-window.noter-dialog {
+window.nota-dialog {
   background: var(--surface);
   color: var(--graphite);
   border: 1px solid var(--border-strong);
   border-radius: 8px;
 }
-.noter-dialog-header {
+.nota-dialog-header {
   background: var(--surface);
   padding: 18px 16px 16px 24px;
   border-bottom: 1px solid var(--border);
 }
-.noter-dialog-panel {
+.nota-dialog-panel {
   background: var(--surface);
 }
-.noter-dialog-title {
+.nota-dialog-title {
   color: var(--graphite);
   font-size: 20px;
   font-weight: 600;
 }
-.noter-dialog-subtitle {
+.nota-dialog-subtitle {
   color: var(--muted);
   font-size: 14px;
   line-height: 1.45;
 }
-.noter-dialog-copy {
+.nota-dialog-copy {
   color: var(--ink-soft);
   font-size: 14px;
   line-height: 1.55;
 }
-.noter-dialog-body {
+.nota-dialog-body {
   padding: 20px 24px 12px 24px;
 }
-.noter-dialog-footer {
+.nota-dialog-footer {
   padding: 12px 20px 16px 20px;
   border-top: 1px solid var(--border);
 }
-.noter-dialog-field {
+.nota-dialog-field {
   padding: 12px 0;
   border-bottom: 1px solid var(--border);
 }
-.noter-dialog-field.last {
+.nota-dialog-field.last {
   padding-bottom: 0;
   border-bottom: 0;
 }
-.noter-dialog-key {
+.nota-dialog-key {
   color: var(--muted);
   font-size: 11px;
   font-weight: 500;
 }
-.noter-dialog-value {
+.nota-dialog-value {
   color: var(--graphite);
   font-size: 14px;
   line-height: 1.45;
 }
-.noter-cheatsheet-heading {
+.nota-cheatsheet-heading {
   color: var(--graphite);
   font-size: 12px;
   font-weight: 600;
 }
-.noter-cheatsheet-item {
+.nota-cheatsheet-item {
   background: var(--sidebar);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -598,7 +598,7 @@ window.noter-dialog {
   font-size: 12.5px;
   padding: 8px 12px;
 }
-button.noter-dialog-header-close {
+button.nota-dialog-header-close {
   min-width: 32px;
   min-height: 32px;
   padding: 0;
@@ -608,14 +608,14 @@ button.noter-dialog-header-close {
   background: transparent;
   color: var(--muted);
 }
-button.noter-dialog-header-close:hover {
+button.nota-dialog-header-close:hover {
   background: var(--sidebar);
   color: var(--graphite);
 }
-.noter-dialog-actions {
+.nota-dialog-actions {
   margin-top: 4px;
 }
-button.noter-dialog-cancel, button.noter-dialog-accept, button.noter-dialog-close {
+button.nota-dialog-cancel, button.nota-dialog-accept, button.nota-dialog-close {
   min-height: 36px;
   min-width: 72px;
   padding: 8px 16px;
@@ -625,60 +625,60 @@ button.noter-dialog-cancel, button.noter-dialog-accept, button.noter-dialog-clos
   font-size: 13px;
   font-weight: 600;
 }
-button.noter-dialog-cancel {
+button.nota-dialog-cancel {
   background: var(--sidebar);
   color: var(--graphite);
 }
-button.noter-dialog-cancel:hover {
+button.nota-dialog-cancel:hover {
   background: var(--border);
 }
-button.noter-dialog-close {
+button.nota-dialog-close {
   background: var(--capture);
   color: #25221F;
 }
-button.noter-dialog-close:hover {
+button.nota-dialog-close:hover {
   background: var(--signal);
   color: #25221F;
 }
-button.noter-dialog-accept.danger {
+button.nota-dialog-accept.danger {
   background: #C0392B;
   color: #FDFCF9;
 }
-button.noter-dialog-accept.danger:hover {
+button.nota-dialog-accept.danger:hover {
   background: #A93226;
   color: #FDFCF9;
 }
-.noter-dark button.noter-dialog-cancel {
+.nota-dark button.nota-dialog-cancel {
   background: var(--sidebar);
   color: var(--graphite);
 }
-.noter-dark button.noter-dialog-close {
+.nota-dark button.nota-dialog-close {
   background: var(--capture);
   color: #25221F;
 }
-.noter-dark button.noter-dialog-accept.danger {
+.nota-dark button.nota-dialog-accept.danger {
   background: #C0392B;
   color: #FDFCF9;
 }
-.noter-dark .noter-cheatsheet-item {
+.nota-dark .nota-cheatsheet-item {
   background: rgba(247, 245, 241, 0.06);
   border-color: var(--border);
   color: var(--graphite);
 }
-.noter-dark button.noter-dialog-header-close:hover {
+.nota-dark button.nota-dialog-header-close:hover {
   background: rgba(247, 245, 241, 0.08);
   color: var(--graphite);
 }
 
 /* Tag autocomplete panel under Edit tags (web tag suggestion list parity). */
-.noter-tag-suggestions {
+.nota-tag-suggestions {
   margin-top: 4px;
   border: 1px solid var(--border-strong);
   border-radius: 6px;
   background: var(--surface);
   box-shadow: 0 4px 12px rgba(37, 34, 31, 0.12);
 }
-button.noter-tag-suggestion {
+button.nota-tag-suggestion {
   min-height: 32px;
   padding: 6px 12px;
   border: 0;
@@ -688,20 +688,20 @@ button.noter-tag-suggestion {
   color: var(--graphite);
   font-size: 13px;
 }
-button.noter-tag-suggestion label {
+button.nota-tag-suggestion label {
   min-width: 0;
 }
-button.noter-tag-suggestion:hover {
+button.nota-tag-suggestion:hover {
   background: rgba(37, 34, 31, 0.08);
 }
-.noter-dark .noter-tag-suggestions {
+.nota-dark .nota-tag-suggestions {
   border-color: var(--border-strong);
   background: var(--sidebar);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
 }
-.noter-dark button.noter-tag-suggestion {
+.nota-dark button.nota-tag-suggestion {
   color: var(--graphite);
 }
-.noter-dark button.noter-tag-suggestion:hover {
+.nota-dark button.nota-tag-suggestion:hover {
   background: rgba(247, 245, 241, 0.08);
 }

@@ -7,26 +7,26 @@ use relm4::gtk::prelude::*;
 use relm4::{ComponentParts, ComponentSender, RelmApp, RelmWidgetExt, SimpleComponent};
 use uuid::Uuid;
 
-use noter_core::backup::{
+use nota_core::backup::{
     BackupHealth, assess_backup_health, backup_file_name, export_flat_collection_backup,
 };
-use noter_core::editor_view::EditorViewMode;
-use noter_core::markdown_editing::{MARKDOWN_CHEATSHEET_SECTIONS, MarkdownCommand};
-use noter_core::note_discovery::HighlightSegment;
-use noter_core::note_list_interaction::{NoteListDisplayState, SEARCH_DEBOUNCE_MS};
-use noter_core::note_workspace::FocusIntent;
-use noter_core::responsive_navigation::WIDE_VIEWPORT_MIN_WIDTH;
-use noter_core::transition::{desktop_transition_file_name, export_desktop_transition};
-use noter_desktop::APPLICATION_ID;
-use noter_desktop::app::{AppModel, AppMsg, NotificationTone, SaveStatus};
-use noter_desktop::persistence::PersistenceWorker;
-use noter_desktop::selection::gtk_character_range_to_byte_selection;
-use noter_desktop::storage::{
+use nota_core::editor_view::EditorViewMode;
+use nota_core::markdown_editing::{MARKDOWN_CHEATSHEET_SECTIONS, MarkdownCommand};
+use nota_core::note_discovery::HighlightSegment;
+use nota_core::note_list_interaction::{NoteListDisplayState, SEARCH_DEBOUNCE_MS};
+use nota_core::note_workspace::FocusIntent;
+use nota_core::responsive_navigation::WIDE_VIEWPORT_MIN_WIDTH;
+use nota_core::transition::{desktop_transition_file_name, export_desktop_transition};
+use nota_desktop::APPLICATION_ID;
+use nota_desktop::app::{AppModel, AppMsg, NotificationTone, SaveStatus};
+use nota_desktop::persistence::PersistenceWorker;
+use nota_desktop::selection::gtk_character_range_to_byte_selection;
+use nota_desktop::storage::{
     CollectionEnvelope, LoadOutcome, NativeRecovery, NativeStore, Preferences,
 };
-use noter_desktop::visual_contract::{NATIVE_VISUAL_CONTRACT, writing_plane_max_width_px};
+use nota_desktop::visual_contract::{NATIVE_VISUAL_CONTRACT, writing_plane_max_width_px};
 #[cfg(feature = "preview-webkit")]
-use noter_desktop::webkit_preview::SecurePreview;
+use nota_desktop::webkit_preview::SecurePreview;
 
 mod writing_plane;
 use writing_plane::WritingPlane;
@@ -120,14 +120,14 @@ impl FactoryComponent for NoteRow {
         gtk::Box {
             set_orientation: gtk::Orientation::Horizontal,
             set_spacing: 0,
-            set_css_classes: &["noter-note-row"],
+            set_css_classes: &["nota-note-row"],
             #[watch]
             set_class_active: ("selected", self.selected),
 
             gtk::Button {
                 set_hexpand: true,
                 set_halign: gtk::Align::Fill,
-                set_css_classes: &["noter-note-select"],
+                set_css_classes: &["nota-note-select"],
                 connect_clicked[sender, id = self.id] => move |_| {
                     let _send_result = sender.output(NoteRowOutput::Select(id));
                 },
@@ -145,13 +145,13 @@ impl FactoryComponent for NoteRow {
                             set_halign: gtk::Align::Start,
                             set_xalign: 0.0,
                             set_ellipsize: gtk::pango::EllipsizeMode::End,
-                            set_css_classes: &["noter-note-title"],
+                            set_css_classes: &["nota-note-title"],
                             set_use_markup: true,
                             #[watch]
                             set_label: &self.title_markup,
                         },
                         gtk::Label {
-                            set_css_classes: &["noter-note-pin"],
+                            set_css_classes: &["nota-note-pin"],
                             #[watch]
                             set_label: if self.pinned { "◆" } else { "" },
                         },
@@ -161,7 +161,7 @@ impl FactoryComponent for NoteRow {
                         set_spacing: 7,
 
                         gtk::Label {
-                            set_css_classes: &["noter-note-date"],
+                            set_css_classes: &["nota-note-date"],
                             #[watch]
                             set_label: &self.date,
                         },
@@ -170,7 +170,7 @@ impl FactoryComponent for NoteRow {
                             set_halign: gtk::Align::Start,
                             set_xalign: 0.0,
                             set_ellipsize: gtk::pango::EllipsizeMode::End,
-                            set_css_classes: &["noter-note-preview"],
+                            set_css_classes: &["nota-note-preview"],
                             set_use_markup: true,
                             #[watch]
                             set_label: &self.preview_markup,
@@ -183,7 +183,7 @@ impl FactoryComponent for NoteRow {
                         set_visible: !self.tags.is_empty(),
 
                         gtk::Button {
-                            set_css_classes: &["noter-note-tags"],
+                            set_css_classes: &["nota-note-tags"],
                             #[watch]
                             set_visible: !self.tags.is_empty(),
                             #[watch]
@@ -199,7 +199,7 @@ impl FactoryComponent for NoteRow {
                             },
                         },
                         gtk::Button {
-                            set_css_classes: &["noter-note-tags"],
+                            set_css_classes: &["nota-note-tags"],
                             #[watch]
                             set_visible: self.tags.get(1).is_some(),
                             #[watch]
@@ -215,7 +215,7 @@ impl FactoryComponent for NoteRow {
                             },
                         },
                         gtk::Button {
-                            set_css_classes: &["noter-note-tags"],
+                            set_css_classes: &["nota-note-tags"],
                             #[watch]
                             set_visible: self.tags.get(2).is_some(),
                             #[watch]
@@ -237,16 +237,16 @@ impl FactoryComponent for NoteRow {
             gtk::MenuButton {
                 set_icon_name: "view-more-symbolic",
                 set_tooltip_text: Some("Note actions"),
-                set_css_classes: &["noter-note-actions"],
+                set_css_classes: &["nota-note-actions"],
 
                 #[wrap(Some)]
                 set_popover: popover = &gtk::Popover {
                     set_position: gtk::PositionType::Bottom,
                     #[watch]
                     set_css_classes: if self.dark {
-                        &["noter-note-actions-popover", "noter-dark"]
+                        &["nota-note-actions-popover", "nota-dark"]
                     } else {
-                        &["noter-note-actions-popover"]
+                        &["nota-note-actions-popover"]
                     },
 
                     gtk::Box {
@@ -254,18 +254,18 @@ impl FactoryComponent for NoteRow {
                         set_spacing: 2,
                         #[watch]
                         set_css_classes: if self.dark {
-                            &["noter-note-menu", "noter-dark"]
+                            &["nota-note-menu", "nota-dark"]
                         } else {
-                            &["noter-note-menu"]
+                            &["nota-note-menu"]
                         },
 
                         gtk::Button {
                             set_halign: gtk::Align::Fill,
                             #[watch]
                             set_css_classes: if self.dark {
-                                &["noter-note-menu-item", "noter-dark"]
+                                &["nota-note-menu-item", "nota-dark"]
                             } else {
-                                &["noter-note-menu-item"]
+                                &["nota-note-menu-item"]
                             },
                             #[watch]
                             set_label: if self.pinned { "Unpin" } else { "Pin" },
@@ -278,9 +278,9 @@ impl FactoryComponent for NoteRow {
                             set_label: "Delete",
                             #[watch]
                             set_css_classes: if self.dark {
-                                &["noter-note-menu-item", "destructive-action", "noter-dark"]
+                                &["nota-note-menu-item", "destructive-action", "nota-dark"]
                             } else {
-                                &["noter-note-menu-item", "destructive-action"]
+                                &["nota-note-menu-item", "destructive-action"]
                             },
                             connect_clicked[sender, id = self.id] => move |_| {
                                 let _send_result = sender.output(NoteRowOutput::Delete(id));
@@ -322,7 +322,7 @@ impl FactoryComponent for DeletedRow {
         gtk::Box {
             set_orientation: gtk::Orientation::Horizontal,
             set_spacing: 8,
-            set_css_classes: &["noter-deleted-row"],
+            set_css_classes: &["nota-deleted-row"],
 
             gtk::Label {
                 set_hexpand: true,
@@ -333,14 +333,14 @@ impl FactoryComponent for DeletedRow {
             },
             gtk::Button {
                 set_label: "Restore",
-                set_css_classes: &["noter-small-button"],
+                set_css_classes: &["nota-small-button"],
                 connect_clicked[sender, id = self.id] => move |_| {
                     let _send_result = sender.output(DeletedRowOutput::Restore(id));
                 },
             },
             gtk::Button {
                 set_label: "Delete",
-                set_css_classes: &["noter-small-button", "danger"],
+                set_css_classes: &["nota-small-button", "danger"],
                 connect_clicked[sender, id = self.id] => move |_| {
                     let _send_result = sender.output(DeletedRowOutput::Clear(id));
                 },
@@ -379,7 +379,7 @@ impl DesktopComponent {
         {
             let dark = matches!(
                 self.app.theme,
-                noter_core::transition::ThemePreference::Dark
+                nota_core::transition::ThemePreference::Dark
             );
             let next: Vec<NoteRow> = self
                 .app
@@ -478,7 +478,7 @@ impl SimpleComponent for DesktopComponent {
         install_workspace_fonts(&window);
         let writing_plane_max_px = writing_plane_max_width_px(measure_ch_width_px(&window));
         let note_rows_container = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        note_rows_container.set_css_classes(&["noter-note-list"]);
+        note_rows_container.set_css_classes(&["nota-note-list"]);
         let note_rows = FactoryVecDeque::builder()
             .launch(note_rows_container)
             .forward(sender.input_sender(), |output| match output {
@@ -495,30 +495,30 @@ impl SimpleComponent for DesktopComponent {
                 DeletedRowOutput::Clear(id) => AppMsg::PermanentlyDelete(id),
             });
         let root = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-        root.set_css_classes(&["noter-root"]);
+        root.set_css_classes(&["nota-root"]);
 
         let sidebar = gtk::Box::new(gtk::Orientation::Vertical, 0);
         sidebar.set_width_request(NATIVE_VISUAL_CONTRACT.sidebar_width);
-        sidebar.set_css_classes(&["noter-sidebar"]);
+        sidebar.set_css_classes(&["nota-sidebar"]);
 
         let sidebar_header = gtk::Box::new(gtk::Orientation::Vertical, 12);
-        sidebar_header.set_css_classes(&["noter-sidebar-header"]);
+        sidebar_header.set_css_classes(&["nota-sidebar-header"]);
         let identity = gtk::Box::new(gtk::Orientation::Horizontal, 8);
         let app_title = gtk::Label::new(Some("Nota"));
         app_title.set_hexpand(true);
         app_title.set_halign(gtk::Align::Start);
-        app_title.set_css_classes(&["noter-app-title"]);
+        app_title.set_css_classes(&["nota-app-title"]);
         let sidebar_navigation = gtk::Button::with_label("Writing");
         sidebar_navigation.set_tooltip_text(Some("Close the Note List"));
-        sidebar_navigation.set_css_classes(&["noter-navigation-button"]);
+        sidebar_navigation.set_css_classes(&["nota-navigation-button"]);
         identity.append(&app_title);
         identity.append(&sidebar_navigation);
         sidebar_header.append(&identity);
 
         let commands = gtk::Box::new(gtk::Orientation::Vertical, 2);
-        commands.set_css_classes(&["noter-command-list"]);
+        commands.set_css_classes(&["nota-command-list"]);
         let create = command_button("＋", "New Note", "Ctrl N");
-        create.add_css_class("noter-command-primary");
+        create.add_css_class("nota-command-primary");
         create.set_accessible_role(gtk::AccessibleRole::Button);
         let (theme, theme_label) = command_button_parts("◐", "Dark Theme", "");
         theme.set_tooltip_text(Some("Toggle Light and Dark Theme"));
@@ -535,7 +535,7 @@ impl SimpleComponent for DesktopComponent {
             .placeholder_text("Search Notes, #tags, title:…")
             .accessible_role(gtk::AccessibleRole::SearchBox)
             .build();
-        search.set_css_classes(&["noter-search"]);
+        search.set_css_classes(&["nota-search"]);
         let search_hint = gtk::Popover::new();
         search_hint.set_parent(&search);
         search_hint.set_autohide(false);
@@ -548,7 +548,7 @@ impl SimpleComponent for DesktopComponent {
         hint_box.set_margin_bottom(6);
         let hint_title = gtk::Label::new(Some("Syntax"));
         hint_title.set_halign(gtk::Align::Start);
-        hint_title.set_css_classes(&["noter-footer-label"]);
+        hint_title.set_css_classes(&["nota-footer-label"]);
         let hint_copy = gtk::Label::new(Some("\"phrase\"   title:plan   tag:work   is:pinned"));
         hint_copy.set_halign(gtk::Align::Start);
         hint_copy.set_wrap(true);
@@ -556,12 +556,12 @@ impl SimpleComponent for DesktopComponent {
         hint_box.append(&hint_copy);
         search_hint.set_child(Some(&hint_box));
         let filter_row = gtk::Box::new(gtk::Orientation::Horizontal, 6);
-        filter_row.set_css_classes(&["noter-filter-row"]);
+        filter_row.set_css_classes(&["nota-filter-row"]);
         let filter_prefix = gtk::Label::new(Some("Filtered by"));
-        filter_prefix.set_css_classes(&["noter-footer-label"]);
+        filter_prefix.set_css_classes(&["nota-footer-label"]);
         let filter_chip = gtk::Button::with_label("#tag");
         filter_chip.set_tooltip_text(Some("Clear tag filter"));
-        filter_chip.set_css_classes(&["noter-footer-button"]);
+        filter_chip.set_css_classes(&["nota-footer-button"]);
         filter_row.append(&filter_prefix);
         filter_row.append(&filter_chip);
         filter_row.set_visible(false);
@@ -575,36 +575,36 @@ impl SimpleComponent for DesktopComponent {
             .hexpand(true)
             .vexpand(true)
             .build();
-        sidebar_scroll.set_css_classes(&["noter-sidebar-scroll"]);
+        sidebar_scroll.set_css_classes(&["nota-sidebar-scroll"]);
         let sidebar_content = gtk::Box::new(gtk::Orientation::Vertical, 0);
         let notes_header = gtk::Box::new(gtk::Orientation::Horizontal, 6);
-        notes_header.set_css_classes(&["noter-section-header"]);
+        notes_header.set_css_classes(&["nota-section-header"]);
         let notes_label = gtk::Label::new(Some("Notes"));
         notes_label.set_hexpand(true);
         notes_label.set_halign(gtk::Align::Start);
         let notes_count = gtk::Label::new(None);
-        notes_count.set_css_classes(&["noter-section-count"]);
+        notes_count.set_css_classes(&["nota-section-count"]);
         notes_header.append(&notes_label);
         notes_header.append(&notes_count);
         sidebar_content.append(&notes_header);
         let result_status = gtk::Label::new(None);
         result_status.set_halign(gtk::Align::Start);
         result_status.set_wrap(true);
-        result_status.set_css_classes(&["noter-result-status"]);
+        result_status.set_css_classes(&["nota-result-status"]);
         result_status.set_visible(false);
         sidebar_content.append(&result_status);
         let empty_state = gtk::Box::new(gtk::Orientation::Vertical, 4);
-        empty_state.set_css_classes(&["noter-empty-state"]);
+        empty_state.set_css_classes(&["nota-empty-state"]);
         let empty_title = gtk::Label::new(Some("A quiet place for your notes"));
         empty_title.set_wrap(true);
-        empty_title.set_css_classes(&["noter-empty-title"]);
+        empty_title.set_css_classes(&["nota-empty-title"]);
         let empty_copy = gtk::Label::new(Some("Create a Note to start writing."));
         empty_copy.set_wrap(true);
-        empty_copy.set_css_classes(&["noter-empty-copy"]);
+        empty_copy.set_css_classes(&["nota-empty-copy"]);
         empty_state.append(&empty_title);
         empty_state.append(&empty_copy);
         let empty_create = gtk::Button::with_label("Create a Note");
-        empty_create.set_css_classes(&["noter-footer-button"]);
+        empty_create.set_css_classes(&["nota-footer-button"]);
         empty_state.append(&empty_create);
         sidebar_content.append(&empty_state);
         sidebar_content.append(note_rows.widget());
@@ -621,7 +621,7 @@ impl SimpleComponent for DesktopComponent {
             "Restore a desktop transition into an Empty Collection",
         ));
         for button in [&export_backup, &import_backup, &import_transition] {
-            button.set_css_classes(&["noter-footer-button"]);
+            button.set_css_classes(&["nota-footer-button"]);
         }
         data_actions.append(&export_backup);
         data_actions.append(&import_backup);
@@ -631,14 +631,14 @@ impl SimpleComponent for DesktopComponent {
         deleted_label.set_halign(gtk::Align::Start);
         deleted_label.set_hexpand(true);
         let deleted_header = gtk::Box::new(gtk::Orientation::Horizontal, 4);
-        deleted_header.set_css_classes(&["noter-deleted-header"]);
+        deleted_header.set_css_classes(&["nota-deleted-header"]);
         deleted_header.append(&deleted_label);
         let clear_all = gtk::Button::with_label("Clear All");
         clear_all.set_halign(gtk::Align::End);
-        clear_all.set_css_classes(&["noter-small-button", "danger"]);
+        clear_all.set_css_classes(&["nota-small-button", "danger"]);
         deleted_header.append(&clear_all);
         let deleted_panel = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        deleted_panel.set_css_classes(&["noter-deleted-panel"]);
+        deleted_panel.set_css_classes(&["nota-deleted-panel"]);
         deleted_panel.append(&deleted_header);
         deleted_panel.append(deleted_rows.widget());
         sidebar_content.append(&deleted_panel);
@@ -647,12 +647,12 @@ impl SimpleComponent for DesktopComponent {
 
         let sidebar_footer = gtk::Box::new(gtk::Orientation::Horizontal, 6);
         sidebar_footer.set_height_request(NATIVE_VISUAL_CONTRACT.footer_height);
-        sidebar_footer.set_css_classes(&["noter-sidebar-footer"]);
+        sidebar_footer.set_css_classes(&["nota-sidebar-footer"]);
         let backup_status = gtk::Box::new(gtk::Orientation::Horizontal, 5);
         let backup_dot = gtk::Label::new(Some("●"));
-        backup_dot.set_css_classes(&["noter-backup-dot"]);
+        backup_dot.set_css_classes(&["nota-backup-dot"]);
         let backup_label = gtk::Label::new(Some("Backup"));
-        backup_label.set_css_classes(&["noter-footer-label"]);
+        backup_label.set_css_classes(&["nota-footer-label"]);
         backup_status.append(&backup_dot);
         backup_status.append(&backup_label);
         sidebar_footer.append(&backup_status);
@@ -661,22 +661,22 @@ impl SimpleComponent for DesktopComponent {
 
         let editor = gtk::Box::new(gtk::Orientation::Vertical, 0);
         editor.set_hexpand(true);
-        editor.set_css_classes(&["noter-editor"]);
+        editor.set_css_classes(&["nota-editor"]);
 
         let editor_navigation = gtk::Button::with_label("Notes");
         editor_navigation.set_halign(gtk::Align::Start);
         editor_navigation.set_tooltip_text(Some("Open the Note List"));
-        editor_navigation.set_css_classes(&["noter-navigation-button"]);
+        editor_navigation.set_css_classes(&["nota-navigation-button"]);
 
         let editor_header = gtk::Box::new(gtk::Orientation::Vertical, 4);
-        editor_header.set_css_classes(&["noter-editor-header"]);
+        editor_header.set_css_classes(&["nota-editor-header"]);
         editor_header.append(&editor_navigation);
 
         let title = gtk::Entry::builder()
             .placeholder_text("Note Title")
             .accessible_role(gtk::AccessibleRole::TextBox)
             .build();
-        title.set_css_classes(&["noter-title"]);
+        title.set_css_classes(&["nota-title"]);
         title.set_hexpand(true);
         title.set_halign(gtk::Align::Fill);
         // Single-line title: grow horizontally within the plane (no wrap/ellipsis).
@@ -685,7 +685,7 @@ impl SimpleComponent for DesktopComponent {
             .placeholder_text("Add tags, separated by commas")
             .accessible_role(gtk::AccessibleRole::TextBox)
             .build();
-        tags.set_css_classes(&["noter-tags"]);
+        tags.set_css_classes(&["nota-tags"]);
         tags.set_hexpand(true);
         tags.set_halign(gtk::Align::Fill);
         // Left-aligned 72ch writing plane for title + tags (web note_measure parity).
@@ -694,14 +694,14 @@ impl SimpleComponent for DesktopComponent {
         header_inner.set_halign(gtk::Align::Fill);
         header_inner.append(&title);
         let tags_pills = gtk::Box::new(gtk::Orientation::Horizontal, 4);
-        tags_pills.set_css_classes(&["noter-tag-pills"]);
+        tags_pills.set_css_classes(&["nota-tag-pills"]);
         let edit_tags = gtk::Button::with_label("Edit tags");
-        edit_tags.set_css_classes(&["noter-footer-button"]);
+        edit_tags.set_css_classes(&["nota-footer-button"]);
         header_inner.append(&tags_pills);
         header_inner.append(&edit_tags);
         header_inner.append(&tags);
         let tag_suggestions = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        tag_suggestions.set_css_classes(&["noter-tag-suggestions"]);
+        tag_suggestions.set_css_classes(&["nota-tag-suggestions"]);
         tag_suggestions.set_halign(gtk::Align::Fill);
         tag_suggestions.set_valign(gtk::Align::Start);
         tag_suggestions.set_hexpand(true);
@@ -719,14 +719,14 @@ impl SimpleComponent for DesktopComponent {
             .vexpand(true)
             .accessible_role(gtk::AccessibleRole::TextBox)
             .build();
-        content.set_css_classes(&["noter-writing-surface"]);
+        content.set_css_classes(&["nota-writing-surface"]);
         content.set_left_margin(0);
         content.set_right_margin(0);
         content.set_top_margin(20);
         content.set_bottom_margin(32);
 
         let formatting = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-        formatting.set_css_classes(&["noter-formatting-toolbar"]);
+        formatting.set_css_classes(&["nota-formatting-toolbar"]);
         let formatting_inner = gtk::Box::new(gtk::Orientation::Horizontal, 2);
         let bold = formatting_button("B", "Bold");
         let italic = formatting_button("I", "Italic");
@@ -744,11 +744,11 @@ impl SimpleComponent for DesktopComponent {
 
         let status = gtk::Label::new(Some("Saved"));
         status.set_halign(gtk::Align::End);
-        status.set_css_classes(&["noter-save-status"]);
+        status.set_css_classes(&["nota-save-status"]);
         let statistics = gtk::Label::new(Some("0 lines · 0 words · 0 chars"));
         statistics.set_hexpand(true);
         statistics.set_halign(gtk::Align::Start);
-        statistics.set_css_classes(&["noter-statistics"]);
+        statistics.set_css_classes(&["nota-statistics"]);
         let notification = gtk::Label::new(None);
         notification.set_halign(gtk::Align::End);
         notification.set_valign(gtk::Align::Start);
@@ -756,10 +756,10 @@ impl SimpleComponent for DesktopComponent {
         notification.set_margin_end(16);
         notification.set_wrap(true);
         notification.set_accessible_role(gtk::AccessibleRole::Status);
-        notification.set_css_classes(&["noter-notification"]);
+        notification.set_css_classes(&["nota-notification"]);
 
         let recovery_panel = gtk::Box::new(gtk::Orientation::Vertical, 10);
-        recovery_panel.set_css_classes(&["noter-recovery"]);
+        recovery_panel.set_css_classes(&["nota-recovery"]);
         recovery_panel.set_margin_top(20);
         recovery_panel.set_margin_start(32);
         recovery_panel.set_margin_end(32);
@@ -790,7 +790,7 @@ impl SimpleComponent for DesktopComponent {
         let writing = gtk::Box::new(gtk::Orientation::Vertical, 0);
         writing.set_hexpand(true);
         writing.set_vexpand(true);
-        writing.set_css_classes(&["noter-writing"]);
+        writing.set_css_classes(&["nota-writing"]);
         writing.append(&editor_header);
         writing.append(&formatting);
         // Left-aligned 72ch body plane inside the scroll viewport.
@@ -806,14 +806,14 @@ impl SimpleComponent for DesktopComponent {
             .vexpand(true)
             .child(&body_plane)
             .build();
-        content_scroll.set_css_classes(&["noter-content-scroll"]);
+        content_scroll.set_css_classes(&["nota-content-scroll"]);
         writing.append(&content_scroll);
 
         let surface_row = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         surface_row.set_hexpand(true);
         surface_row.set_vexpand(true);
         surface_row.set_homogeneous(false);
-        surface_row.set_css_classes(&["noter-surface-row"]);
+        surface_row.set_css_classes(&["nota-surface-row"]);
         editor.append(&recovery_panel);
         editor.append(&surface_row);
         surface_row.append(&writing);
@@ -846,12 +846,12 @@ impl SimpleComponent for DesktopComponent {
             preview_fallback.set_margin_start(32);
             preview_fallback.set_margin_end(32);
             preview_fallback.set_margin_top(24);
-            preview_fallback.set_css_classes(&["noter-preview-fallback"]);
+            preview_fallback.set_css_classes(&["nota-preview-fallback"]);
             preview_fallback.set_visible(false);
             let heading = gtk::Label::new(Some("Preview is unavailable in this build"));
             heading.set_halign(gtk::Align::Start);
             heading.set_wrap(true);
-            heading.set_css_classes(&["noter-empty-title"]);
+            heading.set_css_classes(&["nota-empty-title"]);
             let copy = gtk::Label::new(Some(
                 "Write mode still works. Rebuild with the preview-webkit feature (WebKitGTK 6) for rendered Markdown Preview and Split.",
             ));
@@ -865,10 +865,10 @@ impl SimpleComponent for DesktopComponent {
 
         let editor_footer = gtk::Box::new(gtk::Orientation::Horizontal, 8);
         editor_footer.set_height_request(NATIVE_VISUAL_CONTRACT.footer_height);
-        editor_footer.set_css_classes(&["noter-editor-footer"]);
+        editor_footer.set_css_classes(&["nota-editor-footer"]);
         editor_footer.append(&statistics);
         let modes = gtk::Box::new(gtk::Orientation::Horizontal, 1);
-        modes.set_css_classes(&["noter-mode-group"]);
+        modes.set_css_classes(&["nota-mode-group"]);
         let mut mode_buttons = Vec::new();
         for (label, mode) in [
             ("Write", EditorViewMode::Write),
@@ -877,9 +877,9 @@ impl SimpleComponent for DesktopComponent {
         ] {
             let button = gtk::Button::with_label(label);
             if mode == EditorViewMode::Write {
-                button.set_css_classes(&["noter-mode-button", "active"]);
+                button.set_css_classes(&["nota-mode-button", "active"]);
             } else {
-                button.set_css_classes(&["noter-mode-button"]);
+                button.set_css_classes(&["nota-mode-button"]);
             }
             button.set_sensitive(true);
             let mode_sender = sender.input_sender().clone();
@@ -890,7 +890,7 @@ impl SimpleComponent for DesktopComponent {
             mode_buttons.push((mode, button));
         }
         let help = gtk::Button::with_label("?");
-        help.set_css_classes(&["noter-help-button"]);
+        help.set_css_classes(&["nota-help-button"]);
         help.set_tooltip_text(Some("Markdown help"));
         modes.append(&help);
         editor_footer.append(&modes);
@@ -1380,20 +1380,20 @@ impl SimpleComponent for DesktopComponent {
     fn update_view(&self, widgets: &mut Self::Widgets, sender: ComponentSender<Self>) {
         let dark = matches!(
             self.app.theme,
-            noter_core::transition::ThemePreference::Dark
+            nota_core::transition::ThemePreference::Dark
         );
         if dark {
-            widgets.root.add_css_class("noter-dark");
-            self.window.add_css_class("noter-dark");
+            widgets.root.add_css_class("nota-dark");
+            self.window.add_css_class("nota-dark");
         } else {
-            widgets.root.remove_css_class("noter-dark");
-            self.window.remove_css_class("noter-dark");
+            widgets.root.remove_css_class("nota-dark");
+            self.window.remove_css_class("nota-dark");
         }
         widgets
             .theme_label
             .set_label(if dark { "Light Theme" } else { "Dark Theme" });
         let compact =
-            self.app.viewport == noter_core::responsive_navigation::ViewportClass::Compact;
+            self.app.viewport == nota_core::responsive_navigation::ViewportClass::Compact;
         widgets.sidebar_navigation.set_visible(compact);
         widgets.editor_navigation.set_visible(compact);
         widgets.divider.set_visible(!compact);
@@ -1412,7 +1412,7 @@ impl SimpleComponent for DesktopComponent {
         };
         widgets
             .backup_dot
-            .set_css_classes(&["noter-backup-dot", backup_dot_class]);
+            .set_css_classes(&["nota-backup-dot", backup_dot_class]);
         widgets
             .backup_label
             .set_label(self.app.backup_health_label(chrono::Utc::now()));
@@ -1487,7 +1487,7 @@ impl SimpleComponent for DesktopComponent {
             }
             for tag in &note.tags {
                 let pill = gtk::Label::new(Some(&format!("#{tag}")));
-                pill.set_css_classes(&["noter-note-tags"]);
+                pill.set_css_classes(&["nota-note-tags"]);
                 widgets.tags_pills.append(&pill);
             }
             widgets.edit_tags.set_sensitive(true);
@@ -1536,7 +1536,7 @@ impl SimpleComponent for DesktopComponent {
                 button.set_halign(gtk::Align::Fill);
                 button.set_valign(gtk::Align::Start);
                 button.set_focus_on_click(false);
-                button.set_css_classes(&["noter-tag-suggestion"]);
+                button.set_css_classes(&["nota-tag-suggestion"]);
                 let tags_entry = widgets.tags.clone();
                 let suggestion_sender = sender.input_sender().clone();
                 button.connect_clicked(move |_| {
@@ -1561,11 +1561,11 @@ impl SimpleComponent for DesktopComponent {
         if let Some(notification) = &self.app.notification {
             widgets.notification.set_text(&notification.message);
             widgets.notification.set_css_classes(&[
-                "noter-notification",
+                "nota-notification",
                 match notification.tone {
-                    NotificationTone::Progress => "noter-notification-progress",
-                    NotificationTone::Success => "noter-notification-success",
-                    NotificationTone::Error => "noter-notification-error",
+                    NotificationTone::Progress => "nota-notification-progress",
+                    NotificationTone::Success => "nota-notification-success",
+                    NotificationTone::Error => "nota-notification-error",
                 },
             ]);
             widgets.notification.set_visible(true);
@@ -1579,9 +1579,9 @@ impl SimpleComponent for DesktopComponent {
         widgets.writing.set_visible(surfaces.writing);
         for (mode, button) in &widgets.mode_buttons {
             if *mode == self.app.view_mode {
-                button.set_css_classes(&["noter-mode-button", "active"]);
+                button.set_css_classes(&["nota-mode-button", "active"]);
             } else {
-                button.set_css_classes(&["noter-mode-button"]);
+                button.set_css_classes(&["nota-mode-button"]);
             }
             if *mode == EditorViewMode::Split {
                 button.set_sensitive(!compact);
@@ -1601,7 +1601,7 @@ impl SimpleComponent for DesktopComponent {
                     &note.content,
                     matches!(
                         self.app.theme,
-                        noter_core::transition::ThemePreference::Dark
+                        nota_core::transition::ThemePreference::Dark
                     ),
                 );
             }
@@ -1745,16 +1745,16 @@ fn command_button(icon: &str, label: &str, shortcut: &str) -> gtk::Button {
 
 fn command_button_parts(icon: &str, label: &str, shortcut: &str) -> (gtk::Button, gtk::Label) {
     let button = gtk::Button::new();
-    button.set_css_classes(&["noter-command"]);
+    button.set_css_classes(&["nota-command"]);
     let row = gtk::Box::new(gtk::Orientation::Horizontal, 9);
     let icon = gtk::Label::new(Some(icon));
-    icon.set_css_classes(&["noter-command-icon"]);
+    icon.set_css_classes(&["nota-command-icon"]);
     let label = gtk::Label::new(Some(label));
     label.set_hexpand(true);
     label.set_halign(gtk::Align::Start);
     label.set_xalign(0.0);
     let shortcut = gtk::Label::new(Some(shortcut));
-    shortcut.set_css_classes(&["noter-command-shortcut"]);
+    shortcut.set_css_classes(&["nota-command-shortcut"]);
     row.append(&icon);
     row.append(&label);
     row.append(&shortcut);
@@ -1774,7 +1774,7 @@ fn note_list_can_update_in_place(current_ids: &[Uuid], next_ids: &[Uuid]) -> boo
 
 fn formatting_button(label: &str, tooltip: &str) -> gtk::Button {
     let button = gtk::Button::with_label(label);
-    button.set_css_classes(&["noter-toolbar-button"]);
+    button.set_css_classes(&["nota-toolbar-button"]);
     button.set_tooltip_text(Some(tooltip));
     button
 }
@@ -1813,7 +1813,7 @@ fn install_workspace_fonts(window: &gtk::ApplicationWindow) {
     let Some(font_map) = window.pango_context().font_map() else {
         return;
     };
-    for path in noter_desktop::fonts::bundled_font_paths() {
+    for path in nota_desktop::fonts::bundled_font_paths() {
         if let Err(error) = font_map.add_font_file(&path) {
             eprintln!("Nota could not register {}: {error}", path.display());
         }
@@ -1822,7 +1822,7 @@ fn install_workspace_fonts(window: &gtk::ApplicationWindow) {
 
 fn install_css() {
     let provider = gtk::CssProvider::new();
-    provider.load_from_resource("/net/astrazds/Nota/noter.css");
+    provider.load_from_resource("/net/astrazds/Nota/nota.css");
     if let Some(display) = gtk::gdk::Display::default() {
         gtk::style_context_add_provider_for_display(
             &display,
@@ -1874,9 +1874,9 @@ fn paper_dialog(
         dialog = dialog.default_height(height);
     }
     let dialog = dialog.build();
-    let mut classes = vec!["noter-root", "noter-dialog"];
-    if parent.has_css_class("noter-dark") {
-        classes.push("noter-dark");
+    let mut classes = vec!["nota-root", "nota-dialog"];
+    if parent.has_css_class("nota-dark") {
+        classes.push("nota-dark");
     }
     dialog.set_css_classes(&classes);
     dialog.set_accessible_role(gtk::AccessibleRole::Dialog);
@@ -1887,7 +1887,7 @@ fn paper_dialog(
     heading.set_hexpand(true);
     heading.set_xalign(0.0);
     heading.set_wrap(true);
-    heading.set_css_classes(&["noter-dialog-title"]);
+    heading.set_css_classes(&["nota-dialog-title"]);
     let titles = gtk::Box::new(gtk::Orientation::Vertical, 4);
     titles.set_hexpand(true);
     titles.set_halign(gtk::Align::Start);
@@ -1897,7 +1897,7 @@ fn paper_dialog(
         sub.set_halign(gtk::Align::Start);
         sub.set_xalign(0.0);
         sub.set_wrap(true);
-        sub.set_css_classes(&["noter-dialog-subtitle"]);
+        sub.set_css_classes(&["nota-dialog-subtitle"]);
         titles.append(&sub);
     }
 
@@ -1905,13 +1905,13 @@ fn paper_dialog(
     close.set_valign(gtk::Align::Start);
     close.set_tooltip_text(Some("Close"));
     close.set_has_frame(false);
-    close.set_css_classes(&["noter-dialog-header-close"]);
+    close.set_css_classes(&["nota-dialog-header-close"]);
     close.update_property(&[gtk::accessible::Property::Label("Close")]);
     let dialog_close = dialog.clone();
     close.connect_clicked(move |_| dialog_close.close());
 
     let header = gtk::Box::new(gtk::Orientation::Horizontal, 12);
-    header.set_css_classes(&["noter-dialog-header"]);
+    header.set_css_classes(&["nota-dialog-header"]);
     header.append(&titles);
     header.append(&close);
     let handle = gtk::WindowHandle::new();
@@ -1923,7 +1923,7 @@ fn paper_dialog(
 fn dialog_close_button(dialog: &gtk::Window) -> gtk::Button {
     let close = gtk::Button::with_label("Close");
     close.set_halign(gtk::Align::End);
-    close.set_css_classes(&["noter-dialog-close"]);
+    close.set_css_classes(&["nota-dialog-close"]);
     let dialog_close = dialog.clone();
     close.connect_clicked(move |_| dialog_close.close());
     close
@@ -1932,7 +1932,7 @@ fn dialog_close_button(dialog: &gtk::Window) -> gtk::Button {
 fn dialog_footer(dialog: &gtk::Window) -> (gtk::Box, gtk::Button) {
     let footer = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     footer.set_halign(gtk::Align::Fill);
-    footer.set_css_classes(&["noter-dialog-footer"]);
+    footer.set_css_classes(&["nota-dialog-footer"]);
     let close = dialog_close_button(dialog);
     let spacer = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     spacer.set_hexpand(true);
@@ -1944,14 +1944,14 @@ fn dialog_footer(dialog: &gtk::Window) -> (gtk::Box, gtk::Button) {
 fn meta_field(key: &str, value: &str, last: bool) -> gtk::Box {
     let field = gtk::Box::new(gtk::Orientation::Vertical, 4);
     field.set_css_classes(if last {
-        &["noter-dialog-field", "last"]
+        &["nota-dialog-field", "last"]
     } else {
-        &["noter-dialog-field"]
+        &["nota-dialog-field"]
     });
     let key_label = gtk::Label::new(Some(key));
     key_label.set_halign(gtk::Align::Start);
     key_label.set_xalign(0.0);
-    key_label.set_css_classes(&["noter-dialog-key"]);
+    key_label.set_css_classes(&["nota-dialog-key"]);
     let value_label = gtk::Label::new(Some(value));
     value_label.set_halign(gtk::Align::Start);
     value_label.set_hexpand(true);
@@ -1960,7 +1960,7 @@ fn meta_field(key: &str, value: &str, last: bool) -> gtk::Box {
     value_label.set_ellipsize(gtk::pango::EllipsizeMode::Middle);
     value_label.set_selectable(true);
     value_label.set_tooltip_text(Some(value));
-    value_label.set_css_classes(&["noter-dialog-value"]);
+    value_label.set_css_classes(&["nota-dialog-value"]);
     field.append(&key_label);
     field.append(&value_label);
     field
@@ -1973,7 +1973,7 @@ fn cheatsheet_section(title: &str, items: &[&str]) -> gtk::Box {
     let heading = gtk::Label::new(Some(title));
     heading.set_halign(gtk::Align::Start);
     heading.set_xalign(0.0);
-    heading.set_css_classes(&["noter-cheatsheet-heading"]);
+    heading.set_css_classes(&["nota-cheatsheet-heading"]);
     section.append(&heading);
     for item in items {
         let code = gtk::Label::new(Some(*item));
@@ -1981,7 +1981,7 @@ fn cheatsheet_section(title: &str, items: &[&str]) -> gtk::Box {
         code.set_xalign(0.0);
         code.set_wrap(true);
         code.set_selectable(true);
-        code.set_css_classes(&["noter-cheatsheet-item"]);
+        code.set_css_classes(&["nota-cheatsheet-item"]);
         section.append(&code);
     }
     section
@@ -2003,9 +2003,9 @@ fn show_about_dialog(
     );
     dialog.set_resizable(false);
     let root = gtk::Box::new(gtk::Orientation::Vertical, 0);
-    root.set_css_classes(&["noter-dialog-panel"]);
+    root.set_css_classes(&["nota-dialog-panel"]);
     let body = gtk::Box::new(gtk::Orientation::Vertical, 0);
-    body.set_css_classes(&["noter-dialog-body"]);
+    body.set_css_classes(&["nota-dialog-body"]);
     body.append(&meta_field("Storage", storage, false));
     body.append(&meta_field("Backup Health", backup, false));
     body.append(&meta_field("Recovery", recovery, true));
@@ -2029,11 +2029,11 @@ fn show_markdown_help(parent: &gtk::ApplicationWindow) {
     let root = gtk::Box::new(gtk::Orientation::Vertical, 0);
     root.set_hexpand(true);
     root.set_vexpand(true);
-    root.set_css_classes(&["noter-dialog-panel"]);
+    root.set_css_classes(&["nota-dialog-panel"]);
     let body = gtk::Box::new(gtk::Orientation::Vertical, 0);
     body.set_hexpand(true);
     body.set_vexpand(true);
-    body.set_css_classes(&["noter-dialog-body"]);
+    body.set_css_classes(&["nota-dialog-body"]);
 
     let columns = gtk::Box::new(gtk::Orientation::Horizontal, 28);
     columns.set_hexpand(true);
@@ -2093,27 +2093,27 @@ fn show_confirmation(
     let dialog = paper_dialog(window, message, None, 440, 0);
     dialog.set_resizable(false);
     let root = gtk::Box::new(gtk::Orientation::Vertical, 0);
-    root.set_css_classes(&["noter-dialog-panel"]);
+    root.set_css_classes(&["nota-dialog-panel"]);
     let body = gtk::Box::new(gtk::Orientation::Vertical, 12);
-    body.set_css_classes(&["noter-dialog-body"]);
+    body.set_css_classes(&["nota-dialog-body"]);
     let copy = gtk::Label::new(Some(&detail));
     copy.set_halign(gtk::Align::Start);
     copy.set_wrap(true);
     copy.set_xalign(0.0);
-    copy.set_css_classes(&["noter-dialog-copy"]);
+    copy.set_css_classes(&["nota-dialog-copy"]);
     body.append(&copy);
     let footer = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     footer.set_halign(gtk::Align::Fill);
-    footer.set_css_classes(&["noter-dialog-footer"]);
+    footer.set_css_classes(&["nota-dialog-footer"]);
     let spacer = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     spacer.set_hexpand(true);
     let cancel = gtk::Button::with_label("Cancel");
-    cancel.set_css_classes(&["noter-dialog-cancel"]);
+    cancel.set_css_classes(&["nota-dialog-cancel"]);
     let accept = gtk::Button::with_label(accept_label);
     if destructive {
-        accept.set_css_classes(&["noter-dialog-accept", "danger"]);
+        accept.set_css_classes(&["nota-dialog-accept", "danger"]);
     } else {
-        accept.set_css_classes(&["noter-dialog-accept", "noter-dialog-close"]);
+        accept.set_css_classes(&["nota-dialog-accept", "nota-dialog-close"]);
     }
     footer.append(&spacer);
     footer.append(&cancel);
@@ -2152,7 +2152,7 @@ fn show_confirmation(
 }
 
 fn main() {
-    gtk::gio::resources_register_include!("noter.gresource")
+    gtk::gio::resources_register_include!("nota.gresource")
         .expect("bundled Nota resources must register");
     let store = match NativeStore::discover() {
         Ok(store) => store,

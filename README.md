@@ -6,9 +6,9 @@ This is not a 2.0.0 release. ADR-0009 and ADR-0010 withhold a 2.0.0 tag until a 
 
 ## Native migration
 
-- `noter-core` owns toolkit-independent Notes, Flat Collection behavior, Search, Tags, Backup v1, Storage Recovery rules, Markdown Preview generation, UTF-8 byte-range formatting, and the Markdown syntax cheatsheet.
-- `noter-web` remains the final browser migration Adapter and exposes **Export for desktop** (`noter.desktop_transition` v1).
-- `noter-desktop` is the Relm4 root `AppModel`/`AppMsg` Component: GTK Writing Surface, Note List factories that update in place on selection, Backup Import Preview then Merge Import, desktop-transition Restore into an Empty Collection, Storage Recovery, Search Hint and Discovery Depth UI, compact Tag pills with an Edit tags flow and collection Tag autocomplete, paper-neutral About / Markdown help / Delete Confirmation / Clear All / Backup Import Preview windows, Light/Dark Theme, XDG collection storage under `net.astrazds.Nota`, atomic Previous Snapshot replacement, Corrupt Payload Quarantine, Diagnostics, and close-time persistence flush.
+- `nota-core` owns toolkit-independent Notes, Flat Collection behavior, Search, Tags, Backup v1, Storage Recovery rules, Markdown Preview generation, UTF-8 byte-range formatting, and the Markdown syntax cheatsheet.
+- `nota-web` remains the final browser migration Adapter and exposes **Export for desktop** (`nota.desktop_transition` v1; import still accepts `noter.desktop_transition`).
+- `nota-desktop` is the Relm4 root `AppModel`/`AppMsg` Component: GTK Writing Surface, Note List factories that update in place on selection, Backup Import Preview then Merge Import, desktop-transition Restore into an Empty Collection, Storage Recovery, Search Hint and Discovery Depth UI, compact Tag pills with an Edit tags flow and collection Tag autocomplete, paper-neutral About / Markdown help / Delete Confirmation / Clear All / Backup Import Preview windows, Light/Dark Theme, XDG collection storage under `net.astrazds.Nota`, atomic Previous Snapshot replacement, Corrupt Payload Quarantine, Diagnostics, and close-time persistence flush.
 
 Production desktop, icon, and binary use application ID `net.astrazds.Nota`. Collection data lives at `$XDG_DATA_HOME/net.astrazds.Nota` (typically `~/.local/share/net.astrazds.Nota`). A first launch migrates `$XDG_DATA_HOME/net.astrazds.Noter` or a legacy `$XDG_DATA_HOME/noter` directory when the canonical path is absent. Devel Flatpak uses `net.astrazds.Nota.Devel` and stays in tree for later. Source Sans 3 and Source Code Pro ship in `assets/fonts` and install with the app; installed runs do not read `node_modules`.
 
@@ -74,7 +74,7 @@ Native (post-1.0 product):
 
 Shared:
 
-- **Domain**: `noter-core` (Notes, Search, Tags, Backup v1, Storage Recovery, View Mode, Markdown)
+- **Domain**: `nota-core` (Notes, Search, Tags, Backup v1, Storage Recovery, View Mode, Markdown)
 - **Parsing**: [pulldown-cmark](https://github.com/raphlinus/pulldown-cmark)
 
 Browser Adapter (1.0.2 migration source):
@@ -87,11 +87,11 @@ Browser Adapter (1.0.2 migration source):
 
 ### Native (Linux)
 
-Prerequisites: [Rust](https://www.rust-lang.org/tools/install) 1.95 or newer, GTK 4.22 or newer. Preview/Split also need the `webkitgtk-6.0` development package. Default `cargo run -p noter-desktop` does not enable Preview; Meson and AppImage builds do.
+Prerequisites: [Rust](https://www.rust-lang.org/tools/install) 1.95 or newer, GTK 4.22 or newer. Preview/Split also need the `webkitgtk-6.0` development package. Default `cargo run -p nota-desktop` does not enable Preview; Meson and AppImage builds do.
 
 ```bash
-cargo run -p noter-desktop
-cargo run -p noter-desktop --features preview-webkit
+cargo run -p nota-desktop
+cargo run -p nota-desktop --features preview-webkit
 ```
 
 ### Browser Adapter
@@ -104,14 +104,14 @@ npx playwright install chromium
 npm run dev
 ```
 
-The Adapter is at `http://localhost:8080`. In debug builds, a browser with no saved `noter-notes` LocalStorage entry starts with three representative testing notes.
+The Adapter is at `http://localhost:8080`. In debug builds, a browser with no saved `nota-notes` LocalStorage entry starts with three representative testing notes.
 
 ## Testing
 
 Run the Rust unit tests:
 ```bash
 cargo test
-cargo test -p noter-desktop --all-targets
+cargo test -p nota-desktop --all-targets
 python3 build-aux/test_package_appimage.py
 ```
 
@@ -142,8 +142,8 @@ Tests cover core domain logic including:
 - **Filtering & Sorting**: Real-time search, scoped query parsing, quoted phrase matching, title/Tag highlighting, compact body Match Snippets, render-ready note list projection, active Search/Tag result status, filtered-empty explanations, active tag filtering, and note pinning logic.
 - **Browser Visual Regressions**: Playwright coverage verifies Light/Dark Theme readability, Search Hint contrast and placement, selected Note state, emitted Tailwind/style contracts, local Source font loading, app icon/manifest assets, Frame A material surfaces, editor/sidebar footer height parity, compact footer controls, compact desktop Tag chips, labelled desktop actions, 44px mobile touch targets, popup panel dialog semantics, startup notification quietness, Preview/Split Note Title consistency, Note Metadata ordering, dark Preview/Split prose, Write/Preview/Split pane alignment, Backup Controls placement, and floating Global Notification layering.
 - **Browser Workflow Regressions**: Playwright coverage exercises Quick Capture, Note Title editing, Note creation/edit/save, scoped Search, pinning, Tags, Formatting Tools, Preview safety, Backup export/import, Responsive Navigation, Markdown syntax help, recoverable delete/restore, and Clear All.
-- **Native Workflow Smoke**: `noter-desktop` tests cover Backup Import Preview then Merge Import, Storage Recovery including Import Backup, Search filtered-empty vs Empty Collection, Quick Capture Note Title focus, Preview/Split View Mode surfaces, bundled fonts without `node_modules`, XDG `net.astrazds.Nota` discovery with `net.astrazds.Noter` and legacy `noter` migration, Tag suggestions, Note List in-place selection, paper-dialog visual contracts, and a clean-profile web-to-desktop transition restore that rejects a second exact restore and then uses Merge Import.
-- **AppImage AppDir contract**: `build-aux/test_package_appimage.py` (also `meson test`) checks the installed layout, bundled WebKitGTK 6 helpers, font files, desktop file `Exec=noter-desktop`, and the runtime hook that sets `NOTA_FONT_DIR` and overlays WebKit helpers.
+- **Native Workflow Smoke**: `nota-desktop` tests cover Backup Import Preview then Merge Import, Storage Recovery including Import Backup, Search filtered-empty vs Empty Collection, Quick Capture Note Title focus, Preview/Split View Mode surfaces, bundled fonts without `node_modules`, XDG `net.astrazds.Nota` discovery with `net.astrazds.Noter` and legacy `noter` migration, Tag suggestions, Note List in-place selection, paper-dialog visual contracts, and a clean-profile web-to-desktop transition restore that rejects a second exact restore and then uses Merge Import.
+- **AppImage AppDir contract**: `build-aux/test_package_appimage.py` (also `meson test`) checks the installed layout, bundled WebKitGTK 6 helpers, font files, desktop file `Exec=nota-desktop`, and the runtime hook that sets `NOTA_FONT_DIR` and overlays WebKit helpers.
 - **Formatting**: Named Markdown commands and UTF-16/UTF-8-safe selection handling.
 - **Note Logic**: Workspace behaviours for quick capture, note creation, selected note editing, recoverable delete/restore/individual clear/count-confirmed Clear All, delete confirmation, title extraction, date formatting, preview truncation, and deserialisation.
 - **Tags**: Parsing, display formatting, autocomplete suggestions, normalization, individual removal, cleanup planning, case-insensitive matching, collection, and sorting.
@@ -156,14 +156,14 @@ Coverage sweeps should follow the repo's TDD convention: add or tighten one beha
 
 ## Architecture Notes
 
-Toolkit-independent behaviour lives in `noter-core` (some Modules are still `#[path]`-included from `src/` until the browser Adapter is retired):
+Toolkit-independent behaviour lives in `nota-core` (some Modules are still `#[path]`-included from `src/` until the browser Adapter is retired):
 
-- `src/notes/` / `noter-core`: Note identity, Flat Collection, scoped Search, Note List projection, Tags, Quick Capture, recoverable delete, Clear All.
-- `src/backup/` / `noter-core`: Backup v1 export/import, import preview, Merge Import, Backup Health.
-- `src/storage/` / `noter-core`: Storage Recovery rules, Previous Snapshot, Corrupt Payload Quarantine.
-- `src/ui/` / `noter-core`: View Mode, Markdown commands, Markdown Preview generation, Responsive Navigation.
+- `src/notes/` / `nota-core`: Note identity, Flat Collection, scoped Search, Note List projection, Tags, Quick Capture, recoverable delete, Clear All.
+- `src/backup/` / `nota-core`: Backup v1 export/import, import preview, Merge Import, Backup Health.
+- `src/storage/` / `nota-core`: Storage Recovery rules, Previous Snapshot, Corrupt Payload Quarantine.
+- `src/ui/` / `nota-core`: View Mode, Markdown commands, Markdown Preview generation, Responsive Navigation.
 
-The Relm4 desktop app lives in `crates/noter-desktop/`: `AppModel`/`AppMsg`, XDG `NativeStore` under `net.astrazds.Nota`, bundled font lookup, WebKit Preview when enabled, paper-neutral GTK dialogs, and the GTK shell. Selecting a Note updates existing Note List row widgets in place so the sidebar does not jump to the top. Meson installs the binary, desktop file, icon, metainfo, and Source fonts. `build-aux/package_appimage.py` wraps that prefix into an AppImage and bundles WebKitGTK 6 helpers.
+The Relm4 desktop app lives in `crates/nota-desktop/`: `AppModel`/`AppMsg`, XDG `NativeStore` under `net.astrazds.Nota`, bundled font lookup, WebKit Preview when enabled, paper-neutral GTK dialogs, and the GTK shell. Selecting a Note updates existing Note List row widgets in place so the sidebar does not jump to the top. Meson installs the binary, desktop file, icon, metainfo, and Source fonts. `build-aux/package_appimage.py` wraps that prefix into an AppImage and bundles WebKitGTK 6 helpers.
 
 The browser Adapter lives under `src/app/`, `src/components/`, and the remaining `src/storage/` / `src/backup/` Adapters (LocalStorage, download/FileReader, Trunk/Tailwind). Crate-level aliases preserve Module names (`note_workspace`, `note_discovery`, `ui_recipes`, `storage_recovery`) so tests keep the product vocabulary.
 

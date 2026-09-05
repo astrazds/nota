@@ -14,17 +14,17 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::Closure;
 use web_sys::console;
 
-const STORAGE_KEY: &str = "noter-notes";
-const RECENTLY_DELETED_STORAGE_KEY: &str = "noter-recently-deleted-notes";
-const PREVIOUS_STORAGE_KEY: &str = "noter-notes-previous";
-const PREVIOUS_RECENTLY_DELETED_STORAGE_KEY: &str = "noter-recently-deleted-notes-previous";
+const STORAGE_KEY: &str = "nota-notes";
+const RECENTLY_DELETED_STORAGE_KEY: &str = "nota-recently-deleted-notes";
+const PREVIOUS_STORAGE_KEY: &str = "nota-notes-previous";
+const PREVIOUS_RECENTLY_DELETED_STORAGE_KEY: &str = "nota-recently-deleted-notes-previous";
 #[cfg(target_arch = "wasm32")]
-const CORRUPT_STORAGE_KEY: &str = "noter-notes-corrupt-last";
+const CORRUPT_STORAGE_KEY: &str = "nota-notes-corrupt-last";
 #[cfg(target_arch = "wasm32")]
-const CORRUPT_RECENTLY_DELETED_STORAGE_KEY: &str = "noter-recently-deleted-notes-corrupt-last";
-const BACKUP_HEALTH_KEY: &str = "noter-backup-health";
-const DARK_MODE_KEY: &str = "noter-dark-mode";
-const SIDEBAR_OPEN_KEY: &str = "noter-sidebar-open";
+const CORRUPT_RECENTLY_DELETED_STORAGE_KEY: &str = "nota-recently-deleted-notes-corrupt-last";
+const BACKUP_HEALTH_KEY: &str = "nota-backup-health";
+const DARK_MODE_KEY: &str = "nota-dark-mode";
+const SIDEBAR_OPEN_KEY: &str = "nota-sidebar-open";
 const DOCUMENT_PAGE_FLUSH_EVENTS: &[&str] = &["visibilitychange"];
 const WINDOW_PAGE_FLUSH_EVENTS: &[&str] = &["pagehide", "beforeunload"];
 const NOTES_SAVE_DEBOUNCE_MS: i32 = 300;
@@ -230,6 +230,12 @@ impl BrowserNotesStorage {
     }
 
     fn load_json(&self, key: &str) -> Option<String> {
+        self.read_item(key).or_else(|| {
+            legacy_browser_storage_key(key).and_then(|legacy| self.read_item(legacy))
+        })
+    }
+
+    fn read_item(&self, key: &str) -> Option<String> {
         web_sys::window()
             .and_then(|window| window.local_storage().ok().flatten())
             .and_then(|storage| match storage.get_item(key) {
@@ -287,15 +293,7 @@ impl BrowserNotesStorage {
     }
 
     fn load_backup_health_json(&self) -> Option<String> {
-        web_sys::window()
-            .and_then(|window| window.local_storage().ok().flatten())
-            .and_then(|storage| match storage.get_item(BACKUP_HEALTH_KEY) {
-                Ok(value) => value,
-                Err(error) => {
-                    log_browser_storage_error("load", BACKUP_HEALTH_KEY, &error);
-                    None
-                }
-            })
+        self.load_json(BACKUP_HEALTH_KEY)
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -482,7 +480,28 @@ fn load_optional_preference<T>(key: &str) -> Result<Option<T>, StorageError>
 where
     T: DeserializeOwned,
 {
-    optional_preference_value(LocalStorage::get(key))
+    if let Some(value) = optional_preference_value(LocalStorage::get(key))? {
+        return Ok(Some(value));
+    }
+    match legacy_browser_storage_key(key) {
+        Some(legacy) => optional_preference_value(LocalStorage::get(legacy)),
+        None => Ok(None),
+    }
+}
+
+fn legacy_browser_storage_key(key: &str) -> Option<&'static str> {
+    Some(match key {
+        "nota-notes" => "noter-notes",
+        "nota-recently-deleted-notes" => "noter-recently-deleted-notes",
+        "nota-notes-previous" => "noter-notes-previous",
+        "nota-recently-deleted-notes-previous" => "noter-recently-deleted-notes-previous",
+        "nota-notes-corrupt-last" => "noter-notes-corrupt-last",
+        "nota-recently-deleted-notes-corrupt-last" => "noter-recently-deleted-notes-corrupt-last",
+        "nota-backup-health" => "noter-backup-health",
+        "nota-dark-mode" => "noter-dark-mode",
+        "nota-sidebar-open" => "noter-sidebar-open",
+        _ => return None,
+    })
 }
 
 fn optional_preference_value<T>(
@@ -533,6 +552,16 @@ mod tests {
             Some(record)
         );
         assert_eq!(decide_backup_health_startup(Some("{not valid json")), None);
+    }
+
+    #[test]
+    fn prefers_canonical_local_storage_values_over_legacy_noter_keys() {
+        assert_eq!(legacy_browser_storage_key(STORAGE_KEY), Some("noter-notes"));
+        assert_eq!(
+            legacy_browser_storage_key(DARK_MODE_KEY),
+            Some("noter-dark-mode")
+        );
+        assert_eq!(legacy_browser_storage_key("unknown-key"), None);
     }
 
     #[test]

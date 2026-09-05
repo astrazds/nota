@@ -13,11 +13,11 @@ const baseNote = {
 async function seedCollection(page, { notes = [baseNote], recentlyDeleted = [] } = {}) {
   await page.addInitScript(
     ({ notes, recentlyDeleted }) => {
-      window.localStorage.setItem("noter-notes", JSON.stringify(notes));
-      window.localStorage.setItem("noter-recently-deleted-notes", JSON.stringify(recentlyDeleted));
-      window.localStorage.setItem("noter-dark-mode", "false");
-      window.localStorage.setItem("noter-sidebar-open", "true");
-      window.localStorage.removeItem("noter-backup-health");
+      window.localStorage.setItem("nota-notes", JSON.stringify(notes));
+      window.localStorage.setItem("nota-recently-deleted-notes", JSON.stringify(recentlyDeleted));
+      window.localStorage.setItem("nota-dark-mode", "false");
+      window.localStorage.setItem("nota-sidebar-open", "true");
+      window.localStorage.removeItem("nota-backup-health");
     },
     { notes, recentlyDeleted },
   );
@@ -61,7 +61,7 @@ test("user can create, edit, search, and save a Note", async ({ page }) => {
   await page.getByPlaceholder("Search").fill("tag:qa backup");
   await expect(navigation.getByText("Launch checklist", { exact: true })).toBeVisible();
 
-  const savedNotes = await page.evaluate(() => JSON.parse(window.localStorage.getItem("noter-notes")));
+  const savedNotes = await page.evaluate(() => JSON.parse(window.localStorage.getItem("nota-notes")));
   expect(savedNotes).toHaveLength(1);
   expect(savedNotes[0]).toMatchObject({
     title: "Launch checklist",

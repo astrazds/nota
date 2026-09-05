@@ -21,8 +21,8 @@ This is a single-context repo:
 ├── DESIGN.md
 ├── docs/brand-toolkit.md
 ├── docs/adr/          ← including ADR-0009 native replacement, ADR-0010 AppImage, ADR-0011 Nota name
-├── crates/noter-core/
-├── crates/noter-desktop/  ← Relm4/GTK4 product; XDG data under net.astrazds.Nota
+├── crates/nota-core/
+├── crates/nota-desktop/  ← Relm4/GTK4 product; XDG data under net.astrazds.Nota
 └── src/               ← browser Adapter until native cutover
 ```
 

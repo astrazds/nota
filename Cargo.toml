@@ -1,5 +1,5 @@
 [package]
-name = "noter-web"
+name = "nota-web"
 version = "1.0.2"
 edition = "2024"
 rust-version = "1.95"
@@ -13,7 +13,7 @@ categories = ["wasm", "web-programming"]
 
 [workspace]
 resolver = "3"
-members = ["crates/noter-core", "crates/noter-desktop"]
+members = ["crates/nota-core", "crates/nota-desktop"]
 
 [workspace.package]
 edition = "2024"
@@ -26,7 +26,7 @@ repository = "https://repos.astrazds.net/astrazds/nota"
 unsafe_code = "forbid"
 
 [dependencies]
-noter-core = { path = "crates/noter-core" }
+nota-core = { path = "crates/nota-core" }
 leptos = { version = "0.8.19", features = ["csr"] }
 wasm-bindgen = "0.2.120"
 serde = { version = "1.0.228", features = ["derive"] }

@@ -16,7 +16,7 @@ def main() -> int:
             "--release",
             "--locked",
             "-p",
-            "noter-desktop",
+            "nota-desktop",
             "--features",
             "preview-webkit",
             "--target-dir",
@@ -25,7 +25,7 @@ def main() -> int:
         cwd=source_root,
         check=True,
     )
-    shutil.copy2(target_dir / "release" / "noter-desktop", output)
+    shutil.copy2(target_dir / "release" / "nota-desktop", output)
     return 0
 
 

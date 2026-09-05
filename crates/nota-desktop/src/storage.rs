@@ -6,9 +6,9 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use chrono::{DateTime, Utc};
-use noter_core::Note;
-use noter_core::backup::BackupHealthRecord;
-use noter_core::transition::ThemePreference;
+use nota_core::Note;
+use nota_core::backup::BackupHealthRecord;
+use nota_core::transition::ThemePreference;
 use serde::{Deserialize, Serialize};
 
 const COLLECTION_VERSION: u32 = 1;

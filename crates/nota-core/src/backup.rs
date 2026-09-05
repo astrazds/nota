@@ -9,7 +9,8 @@ use uuid::Uuid;
 use crate::Note;
 
 const BACKUP_VERSION: u32 = 1;
-const BACKUP_KIND: &str = "noter.flat_collection";
+const BACKUP_KIND: &str = "nota.flat_collection";
+const LEGACY_BACKUP_KIND: &str = "noter.flat_collection";
 const BACKUP_HEALTH_STALE_AFTER_DAYS: i64 = 14;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -183,7 +184,7 @@ fn validate_backup(backup: &FlatCollectionBackup) -> Result<(), BackupError> {
     if backup.version != BACKUP_VERSION {
         return Err(BackupError::UnsupportedVersion(backup.version));
     }
-    if backup.kind != BACKUP_KIND {
+    if backup.kind != BACKUP_KIND && backup.kind != LEGACY_BACKUP_KIND {
         return Err(BackupError::UnsupportedKind(backup.kind.clone()));
     }
     let mut seen_ids = HashSet::new();
@@ -208,5 +209,20 @@ mod tests {
         import_flat_collection_backup(&mut restored, &json).unwrap();
 
         assert_eq!(restored, vec![note]);
+        assert!(json.contains("\"kind\": \"nota.flat_collection\""));
+    }
+
+    #[test]
+    fn imports_a_legacy_noter_flat_collection_backup_kind() {
+        let json = r#"{
+            "version": 1,
+            "kind": "noter.flat_collection",
+            "notes": []
+        }"#;
+        let mut restored = Vec::new();
+
+        import_flat_collection_backup(&mut restored, json).unwrap();
+
+        assert!(restored.is_empty());
     }
 }

@@ -6,7 +6,7 @@
   "sdk-extensions": [
     "org.freedesktop.Sdk.Extension.rust-stable"
   ],
-  "command": "noter-desktop",
+  "command": "nota-desktop",
   "finish-args": [
     "--share=ipc",
     "--socket=fallback-x11",
@@ -21,7 +21,7 @@
   },
   "modules": [
     {
-      "name": "noter",
+      "name": "nota",
       "buildsystem": "meson",
       "config-opts": [
         "--buildtype=release"

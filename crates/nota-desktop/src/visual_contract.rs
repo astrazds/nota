@@ -9,7 +9,7 @@
 //! GTK Stylesheet rejects CSS `max-width`, so the native shell enforces the writing
 //! measure in layout: Pango `ch` width × [`NativeVisualContract::editor_measure_chars`].
 //! Paper dialogs, compact Tag pills, and Split 50/50 allocation are part of the
-//! same native visual contract (`noter.css`).
+//! same native visual contract (`nota.css`).
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct NativePalette {
@@ -52,7 +52,7 @@ pub const NATIVE_VISUAL_CONTRACT: NativeVisualContract = NativeVisualContract {
     signal: "#E7A858",
 };
 
-pub const NATIVE_STYLESHEET: &str = include_str!("../resources/noter.css");
+pub const NATIVE_STYLESHEET: &str = include_str!("../resources/nota.css");
 
 /// Contract writing-plane measure in CSS `ch` units (web `note_measure` parity).
 pub fn writing_plane_measure_chars() -> u8 {

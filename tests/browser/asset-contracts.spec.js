@@ -18,7 +18,7 @@ test("Tailwind build emits the critical utility classes used by visual recipes",
   expect(css).toContain("Source Code Pro Variable");
   expect(css).toContain("fonts/source-sans-3/source-sans-3-latin-wght-normal.woff2");
   expect(css).toContain("fonts/source-code-pro/source-code-pro-latin-wght-normal.woff2");
-  expect(css).not.toContain(".noter-footer-height");
+  expect(css).not.toContain(".nota-footer-height");
   expect(css).not.toContain(".min-w-9");
   expect(css).not.toContain(".transition-all");
   expect(css).not.toContain(".bg-apple-gray-100");
@@ -42,7 +42,7 @@ test("app exposes brand icon assets for browser tabs and install surfaces", asyn
 
   expect(headAssets).toEqual({
     manifest: "assets/site.webmanifest",
-    svgIcon: "assets/icons/noter-favicon.svg",
+    svgIcon: "assets/icons/nota-favicon.svg",
     icoIcon: "assets/icons/favicon.ico",
     appleIcon: "assets/icons/apple-touch-icon.png",
     themeColors: [
@@ -63,15 +63,15 @@ test("app exposes brand icon assets for browser tabs and install surfaces", asyn
   });
   expect(manifest.icons).toEqual(
     expect.arrayContaining([
-      expect.objectContaining({ src: "icons/noter-192.png", sizes: "192x192", purpose: "any" }),
-      expect.objectContaining({ src: "icons/noter-512.png", sizes: "512x512", purpose: "any" }),
+      expect.objectContaining({ src: "icons/nota-192.png", sizes: "192x192", purpose: "any" }),
+      expect.objectContaining({ src: "icons/nota-512.png", sizes: "512x512", purpose: "any" }),
       expect.objectContaining({
-        src: "icons/noter-maskable-192.png",
+        src: "icons/nota-maskable-192.png",
         sizes: "192x192",
         purpose: "maskable",
       }),
       expect.objectContaining({
-        src: "icons/noter-maskable-512.png",
+        src: "icons/nota-maskable-512.png",
         sizes: "512x512",
         purpose: "maskable",
       }),
@@ -79,15 +79,15 @@ test("app exposes brand icon assets for browser tabs and install surfaces", asyn
   );
 
   const assetPaths = [
-    "/assets/icons/noter-favicon.svg",
+    "/assets/icons/nota-favicon.svg",
     "/assets/icons/favicon.ico",
-    "/assets/icons/noter-16.png",
-    "/assets/icons/noter-32.png",
+    "/assets/icons/nota-16.png",
+    "/assets/icons/nota-32.png",
     "/assets/icons/apple-touch-icon.png",
-    "/assets/icons/noter-192.png",
-    "/assets/icons/noter-512.png",
-    "/assets/icons/noter-maskable-192.png",
-    "/assets/icons/noter-maskable-512.png",
+    "/assets/icons/nota-192.png",
+    "/assets/icons/nota-512.png",
+    "/assets/icons/nota-maskable-192.png",
+    "/assets/icons/nota-maskable-512.png",
   ];
 
   for (const path of assetPaths) {
@@ -96,19 +96,19 @@ test("app exposes brand icon assets for browser tabs and install surfaces", asyn
     expect((await response.body()).length).toBeGreaterThan(100);
   }
 
-  const faviconSvg = await (await request.get("/assets/icons/noter-favicon.svg")).text();
+  const faviconSvg = await (await request.get("/assets/icons/nota-favicon.svg")).text();
   expect(faviconSvg).toContain("Canvas-filling folded note mark");
   expect(faviconSvg).not.toContain('<rect width="64" height="64"');
 
   const pngSizes = await page.evaluate(async () => {
     const sources = [
-      "/assets/icons/noter-16.png",
-      "/assets/icons/noter-32.png",
+      "/assets/icons/nota-16.png",
+      "/assets/icons/nota-32.png",
       "/assets/icons/apple-touch-icon.png",
-      "/assets/icons/noter-192.png",
-      "/assets/icons/noter-512.png",
-      "/assets/icons/noter-maskable-192.png",
-      "/assets/icons/noter-maskable-512.png",
+      "/assets/icons/nota-192.png",
+      "/assets/icons/nota-512.png",
+      "/assets/icons/nota-maskable-192.png",
+      "/assets/icons/nota-maskable-512.png",
     ];
 
     return Object.fromEntries(
@@ -126,13 +126,13 @@ test("app exposes brand icon assets for browser tabs and install surfaces", asyn
     );
   });
   expect(pngSizes).toEqual({
-    "/assets/icons/noter-16.png": { width: 16, height: 16 },
-    "/assets/icons/noter-32.png": { width: 32, height: 32 },
+    "/assets/icons/nota-16.png": { width: 16, height: 16 },
+    "/assets/icons/nota-32.png": { width: 32, height: 32 },
     "/assets/icons/apple-touch-icon.png": { width: 180, height: 180 },
-    "/assets/icons/noter-192.png": { width: 192, height: 192 },
-    "/assets/icons/noter-512.png": { width: 512, height: 512 },
-    "/assets/icons/noter-maskable-192.png": { width: 192, height: 192 },
-    "/assets/icons/noter-maskable-512.png": { width: 512, height: 512 },
+    "/assets/icons/nota-192.png": { width: 192, height: 192 },
+    "/assets/icons/nota-512.png": { width: 512, height: 512 },
+    "/assets/icons/nota-maskable-192.png": { width: 192, height: 192 },
+    "/assets/icons/nota-maskable-512.png": { width: 512, height: 512 },
   });
 
   const faviconAlphaBounds = await page.evaluate(async () => {
@@ -140,7 +140,7 @@ test("app exposes brand icon assets for browser tabs and install surfaces", asyn
     await new Promise((resolve, reject) => {
       image.onload = resolve;
       image.onerror = () => reject(new Error("Could not load 16px favicon"));
-      image.src = "/assets/icons/noter-16.png";
+      image.src = "/assets/icons/nota-16.png";
     });
     const canvas = document.createElement("canvas");
     canvas.width = 16;

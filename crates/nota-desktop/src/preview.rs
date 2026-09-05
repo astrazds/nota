@@ -1,4 +1,4 @@
-use noter_core::markdown_preview::render_markdown_preview_body;
+use nota_core::markdown_preview::render_markdown_preview_body;
 use url::Url;
 
 pub const PREVIEW_CSP: &str = "default-src 'none'; script-src 'none'; connect-src 'none'; frame-src 'none'; media-src 'none'; object-src 'none'; img-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'";

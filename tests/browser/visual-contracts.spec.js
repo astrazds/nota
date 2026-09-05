@@ -13,11 +13,11 @@ const note = {
 async function seedNotes(page, { dark = false } = {}) {
   await page.addInitScript(
     ({ note, dark }) => {
-      window.localStorage.setItem("noter-notes", JSON.stringify([note]));
-      window.localStorage.setItem("noter-recently-deleted-notes", "[]");
-      window.localStorage.setItem("noter-dark-mode", JSON.stringify(dark));
-      window.localStorage.setItem("noter-sidebar-open", "true");
-      window.localStorage.removeItem("noter-backup-health");
+      window.localStorage.setItem("nota-notes", JSON.stringify([note]));
+      window.localStorage.setItem("nota-recently-deleted-notes", "[]");
+      window.localStorage.setItem("nota-dark-mode", JSON.stringify(dark));
+      window.localStorage.setItem("nota-sidebar-open", "true");
+      window.localStorage.removeItem("nota-backup-health");
     },
     { note, dark },
   );
@@ -26,11 +26,11 @@ async function seedNotes(page, { dark = false } = {}) {
 
 async function seedEmptyCollection(page) {
   await page.addInitScript(() => {
-    window.localStorage.setItem("noter-notes", "[]");
-    window.localStorage.setItem("noter-recently-deleted-notes", "[]");
-    window.localStorage.setItem("noter-dark-mode", "false");
-    window.localStorage.setItem("noter-sidebar-open", "true");
-    window.localStorage.removeItem("noter-backup-health");
+    window.localStorage.setItem("nota-notes", "[]");
+    window.localStorage.setItem("nota-recently-deleted-notes", "[]");
+    window.localStorage.setItem("nota-dark-mode", "false");
+    window.localStorage.setItem("nota-sidebar-open", "true");
+    window.localStorage.removeItem("nota-backup-health");
   });
   await page.goto("/");
 }

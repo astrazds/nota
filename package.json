@@ -1,5 +1,5 @@
 {
-  "name": "noter",
+  "name": "nota",
   "version": "1.0.2",
   "private": true,
   "description": "Browser migration Adapter for Nota, a local-first Markdown note app.",

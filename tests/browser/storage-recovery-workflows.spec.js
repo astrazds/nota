@@ -41,27 +41,27 @@ async function seedRecovery(page, options = {}) {
 
   await page.addInitScript(
     ({ notesJson, recentlyDeletedJson, previousNotes, previousRecentlyDeleted }) => {
-      window.localStorage.setItem("noter-notes", notesJson);
-      window.localStorage.setItem("noter-recently-deleted-notes", recentlyDeletedJson);
-      window.localStorage.setItem("noter-dark-mode", "false");
-      window.localStorage.setItem("noter-sidebar-open", "true");
-      window.localStorage.removeItem("noter-backup-health");
-      window.localStorage.removeItem("noter-notes-corrupt-last");
-      window.localStorage.removeItem("noter-recently-deleted-notes-corrupt-last");
+      window.localStorage.setItem("nota-notes", notesJson);
+      window.localStorage.setItem("nota-recently-deleted-notes", recentlyDeletedJson);
+      window.localStorage.setItem("nota-dark-mode", "false");
+      window.localStorage.setItem("nota-sidebar-open", "true");
+      window.localStorage.removeItem("nota-backup-health");
+      window.localStorage.removeItem("nota-notes-corrupt-last");
+      window.localStorage.removeItem("nota-recently-deleted-notes-corrupt-last");
 
       if (previousNotes) {
-        window.localStorage.setItem("noter-notes-previous", JSON.stringify(previousNotes));
+        window.localStorage.setItem("nota-notes-previous", JSON.stringify(previousNotes));
       } else {
-        window.localStorage.removeItem("noter-notes-previous");
+        window.localStorage.removeItem("nota-notes-previous");
       }
 
       if (previousRecentlyDeleted) {
         window.localStorage.setItem(
-          "noter-recently-deleted-notes-previous",
+          "nota-recently-deleted-notes-previous",
           JSON.stringify(previousRecentlyDeleted),
         );
       } else {
-        window.localStorage.removeItem("noter-recently-deleted-notes-previous");
+        window.localStorage.removeItem("nota-recently-deleted-notes-previous");
       }
     },
     { notesJson, recentlyDeletedJson, previousNotes, previousRecentlyDeleted },
@@ -102,8 +102,8 @@ test("corrupt startup offers recovery paths and restores the previous snapshot",
   await expect(page.getByRole("navigation", { name: "Notes sidebar" }).getByText("Previous active")).toBeVisible();
 
   await page.waitForFunction(() => {
-    const notes = JSON.parse(window.localStorage.getItem("noter-notes") || "[]");
-    const recentlyDeleted = JSON.parse(window.localStorage.getItem("noter-recently-deleted-notes") || "[]");
+    const notes = JSON.parse(window.localStorage.getItem("nota-notes") || "[]");
+    const recentlyDeleted = JSON.parse(window.localStorage.getItem("nota-recently-deleted-notes") || "[]");
     return notes[0]?.title === "Previous active" && recentlyDeleted[0]?.title === "Previous deleted";
   });
 });
@@ -121,10 +121,10 @@ test("start empty quarantines corrupt payloads and diagnostics report the quaran
   await expect(page.getByRole("heading", { name: "Create your first note" })).toBeVisible();
   await page.waitForFunction(() => {
     return (
-      window.localStorage.getItem("noter-notes") === "[]" &&
-      window.localStorage.getItem("noter-recently-deleted-notes") === "[]" &&
-      window.localStorage.getItem("noter-notes-corrupt-last") === "{not valid json" &&
-      window.localStorage.getItem("noter-recently-deleted-notes-corrupt-last") === "{also invalid"
+      window.localStorage.getItem("nota-notes") === "[]" &&
+      window.localStorage.getItem("nota-recently-deleted-notes") === "[]" &&
+      window.localStorage.getItem("nota-notes-corrupt-last") === "{not valid json" &&
+      window.localStorage.getItem("nota-recently-deleted-notes-corrupt-last") === "{also invalid"
     );
   });
 
@@ -146,7 +146,7 @@ test("Backup import remains available from storage recovery", async ({ page }, t
   await expect(page.getByRole("status")).toContainText("Backup imported");
   await expect(page.getByPlaceholder("Note Title")).toHaveValue("Imported from backup");
   await page.waitForFunction(() => {
-    const notes = JSON.parse(window.localStorage.getItem("noter-notes") || "[]");
+    const notes = JSON.parse(window.localStorage.getItem("nota-notes") || "[]");
     return notes.length === 1 && notes[0].title === "Imported from backup";
   });
 });

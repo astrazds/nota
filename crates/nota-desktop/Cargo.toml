@@ -1,5 +1,5 @@
 [package]
-name = "noter-desktop"
+name = "nota-desktop"
 version = "2.0.0-alpha.1"
 edition.workspace = true
 rust-version.workspace = true
@@ -15,7 +15,7 @@ preview-webkit = ["gui", "dep:webkit6"]
 
 [dependencies]
 chrono = { version = "0.4.44", features = ["serde"] }
-noter-core = { path = "../noter-core" }
+nota-core = { path = "../nota-core" }
 pango = { version = "0.22.9", features = ["v1_56"], optional = true }
 relm4 = { version = "0.11.0", features = ["gnome_50"], optional = true }
 serde = { version = "1.0.228", features = ["derive"] }
@@ -31,6 +31,6 @@ tempfile = "3.23.0"
 workspace = true
 
 [[bin]]
-name = "noter-desktop"
+name = "nota-desktop"
 path = "src/main.rs"
 required-features = ["gui"]

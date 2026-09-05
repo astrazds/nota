@@ -52,7 +52,7 @@ impl PreviewPipeline {
         let safe_title = escape_html(title);
         let body = self.render_body(title, content);
 
-        format!("<h1 class=\"noter-preview-title\">{safe_title}</h1>{body}")
+        format!("<h1 class=\"nota-preview-title\">{safe_title}</h1>{body}")
     }
 
     fn render_body(self, title: &str, content: &str) -> String {
@@ -328,7 +328,7 @@ mod tests {
             "# Markdown preview tour\n\nBody content",
         );
 
-        assert!(html.contains("<h1 class=\"noter-preview-title\">Markdown preview tour</h1>"));
+        assert!(html.contains("<h1 class=\"nota-preview-title\">Markdown preview tour</h1>"));
         assert!(!html.contains("<h1>Markdown preview tour</h1>"));
         assert!(html.contains("<p>Body content</p>"));
     }
@@ -371,7 +371,7 @@ mod tests {
     fn markdown_preview_preserves_non_matching_first_content_h1() {
         let html = render_markdown_preview("Roadmap", "# Release notes\n\nBody content");
 
-        assert!(html.contains("<h1 class=\"noter-preview-title\">Roadmap</h1>"));
+        assert!(html.contains("<h1 class=\"nota-preview-title\">Roadmap</h1>"));
         assert!(html.contains("<h1>Release notes</h1>"));
         assert!(html.contains("<p>Body content</p>"));
     }

@@ -21,7 +21,7 @@ mod imp {
 
     #[glib::object_subclass]
     impl ObjectSubclass for WritingPlane {
-        const NAME: &'static str = "NoterWritingPlane";
+        const NAME: &'static str = "NotaWritingPlane";
         type Type = super::WritingPlane;
         type ParentType = gtk::Widget;
     }
@@ -30,7 +30,7 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
             let obj = self.obj();
-            obj.set_css_classes(&["noter-writing-plane"]);
+            obj.set_css_classes(&["nota-writing-plane"]);
             // Fill cross-axis so vertical parents allocate full width; clamp in size_allocate.
             obj.set_halign(gtk::Align::Fill);
             obj.set_hexpand(true);

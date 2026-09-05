@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
   <gresource prefix="/net/astrazds/Nota">
-    <file>noter.css</file>
-    <file>noter-icon.svg</file>
+    <file>nota.css</file>
+    <file>nota-icon.svg</file>
   </gresource>
 </gresources>

@@ -13,13 +13,13 @@ import urllib.request
 from pathlib import Path
 
 APPLICATION_ID = "net.astrazds.Nota"
-BINARY_NAME = "noter-desktop"
+BINARY_NAME = "nota-desktop"
 DESKTOP_FILE = f"usr/share/applications/{APPLICATION_ID}.desktop"
 ICON_FILE = f"usr/share/icons/hicolor/scalable/apps/{APPLICATION_ID}.svg"
 METAINFO_FILE = f"usr/share/metainfo/{APPLICATION_ID}.metainfo.xml"
 FONT_DIR = f"usr/share/{APPLICATION_ID}/fonts"
 WEBKIT_LIBDIR = "usr/lib/webkitgtk-6.0"
-HOOK_FILE = "apprun-hooks/noter-runtime.sh"
+HOOK_FILE = "apprun-hooks/nota-runtime.sh"
 HOST_WEBKIT_LIBDIR = Path("/usr/lib/webkitgtk-6.0")
 
 FONT_FILES = (
@@ -84,7 +84,7 @@ def verify_appdir(root: Path) -> None:
 
     desktop = root / DESKTOP_FILE
     if desktop.is_file() and not _desktop_launches_by_name(desktop.read_text()):
-        problems.append("desktop file must use Exec=noter-desktop")
+        problems.append("desktop file must use Exec=nota-desktop")
 
     hook = root / HOOK_FILE
     if hook.is_file():
@@ -130,7 +130,7 @@ if [ -d "$APPDIR/apprun-hooks" ]; then
     fi
   done
 fi
-BIN="$APPDIR/usr/bin/noter-desktop"
+BIN="$APPDIR/usr/bin/nota-desktop"
 WEBKIT="$APPDIR/usr/lib/webkitgtk-6.0"
 if command -v bwrap >/dev/null 2>&1 && [ -x "$WEBKIT/WebKitWebProcess" ]; then
   exec bwrap --bind / / --dev-bind /dev /dev --proc /proc \\

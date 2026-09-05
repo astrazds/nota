@@ -127,8 +127,8 @@ mod tests {
     use super::*;
     use crate::app::{AppModel, AppMsg};
     use crate::storage::LoadOutcome;
-    use noter_core::Note;
-    use noter_core::transition::ThemePreference;
+    use nota_core::Note;
+    use nota_core::transition::ThemePreference;
 
     #[test]
     fn close_time_flush_persists_only_the_latest_revision() {

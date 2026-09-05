@@ -1,15 +1,15 @@
-use noter_core::backup::export_flat_collection_backup;
-use noter_core::editor_view::EditorViewMode;
-use noter_core::note_list_interaction::NoteListDisplayState;
-use noter_core::note_workspace::FocusIntent;
-use noter_core::transition::ThemePreference;
-use noter_desktop::app::{AppModel, AppMsg};
-use noter_desktop::storage::CollectionEnvelope;
+use nota_core::backup::export_flat_collection_backup;
+use nota_core::editor_view::EditorViewMode;
+use nota_core::note_list_interaction::NoteListDisplayState;
+use nota_core::note_workspace::FocusIntent;
+use nota_core::transition::ThemePreference;
+use nota_desktop::app::{AppModel, AppMsg};
+use nota_desktop::storage::CollectionEnvelope;
 
 #[test]
 fn merge_import_does_not_apply_before_backup_import_preview_confirmation() {
-    let existing = noter_core::Note::new("Local".to_string(), "Keep".to_string());
-    let imported = noter_core::Note::new("Backup".to_string(), "New".to_string());
+    let existing = nota_core::Note::new("Local".to_string(), "Keep".to_string());
+    let imported = nota_core::Note::new("Backup".to_string(), "New".to_string());
     let json = export_flat_collection_backup(std::slice::from_ref(&imported)).unwrap();
     let mut app = AppModel::new(
         CollectionEnvelope::new(vec![existing.clone()], Vec::new()),
@@ -24,7 +24,7 @@ fn merge_import_does_not_apply_before_backup_import_preview_confirmation() {
 
 #[test]
 fn storage_recovery_keeps_import_backup_and_does_not_start_empty_silently() {
-    let imported = noter_core::Note::new("Recovered".to_string(), "From Backup".to_string());
+    let imported = nota_core::Note::new("Recovered".to_string(), "From Backup".to_string());
     let json = export_flat_collection_backup(std::slice::from_ref(&imported)).unwrap();
     let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::Light, None);
     app.set_storage_recovery(true);
@@ -37,7 +37,7 @@ fn storage_recovery_keeps_import_backup_and_does_not_start_empty_silently() {
 
 #[test]
 fn filtered_search_does_not_use_empty_collection_copy() {
-    let note = noter_core::Note::new("Roadmap".to_string(), "Ship native".to_string());
+    let note = nota_core::Note::new("Roadmap".to_string(), "Ship native".to_string());
     let mut app = AppModel::new(
         CollectionEnvelope::new(vec![note], Vec::new()),
         ThemePreference::Light,

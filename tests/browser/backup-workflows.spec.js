@@ -31,11 +31,11 @@ const importedOnly = {
 
 async function seedCollection(page, notes = [existingNote]) {
   await page.addInitScript((notes) => {
-    window.localStorage.setItem("noter-notes", JSON.stringify(notes));
-    window.localStorage.setItem("noter-recently-deleted-notes", "[]");
-    window.localStorage.setItem("noter-dark-mode", "false");
-    window.localStorage.setItem("noter-sidebar-open", "true");
-    window.localStorage.removeItem("noter-backup-health");
+    window.localStorage.setItem("nota-notes", JSON.stringify(notes));
+    window.localStorage.setItem("nota-recently-deleted-notes", "[]");
+    window.localStorage.setItem("nota-dark-mode", "false");
+    window.localStorage.setItem("nota-sidebar-open", "true");
+    window.localStorage.removeItem("nota-backup-health");
   }, notes);
   await page.goto("/");
 }
@@ -60,7 +60,7 @@ async function uploadBackup(page, testInfo, contents, name = "backup.json") {
 
 async function waitForSavedNoteCount(page, count) {
   await page.waitForFunction(
-    (count) => JSON.parse(window.localStorage.getItem("noter-notes") || "[]").length === count,
+    (count) => JSON.parse(window.localStorage.getItem("nota-notes") || "[]").length === count,
     count,
   );
 }
@@ -85,11 +85,11 @@ test("final web release exports a desktop transition bundle", async ({ page }) =
   const download = await downloadPromise;
 
   expect(download.suggestedFilename()).toMatch(
-    /^noter-desktop-transition-\d{4}-\d{2}-\d{2}\.json$/,
+    /^nota-desktop-transition-\d{4}-\d{2}-\d{2}\.json$/,
   );
   const downloadPath = await download.path();
   const transition = JSON.parse(fs.readFileSync(downloadPath, "utf8"));
-  expect(transition.kind).toBe("noter.desktop_transition");
+  expect(transition.kind).toBe("nota.desktop_transition");
   expect(transition.version).toBe(1);
   expect(transition.notes).toEqual([existingNote]);
   expect(transition.recently_deleted_notes).toEqual([]);
@@ -117,7 +117,7 @@ test("user previews, cancels, and confirms a Merge Import", async ({ page }, tes
   await expect(page.getByRole("navigation", { name: "Notes sidebar" }).getByText("Imported only")).toBeVisible();
   await waitForSavedNoteCount(page, 2);
 
-  const savedNotes = await page.evaluate(() => JSON.parse(window.localStorage.getItem("noter-notes")));
+  const savedNotes = await page.evaluate(() => JSON.parse(window.localStorage.getItem("nota-notes")));
   expect(savedNotes).toHaveLength(2);
   expect(savedNotes.map((note) => note.title)).toEqual(["Imported replacement", "Imported only"]);
 });
@@ -131,7 +131,7 @@ test("invalid Backup import fails without changing the Flat Collection", async (
   await expect(page.getByText("Import 2 notes")).toBeHidden();
   await expect(page.getByPlaceholder("Note Title")).toHaveValue("Existing note");
 
-  const savedNotes = await page.evaluate(() => JSON.parse(window.localStorage.getItem("noter-notes")));
+  const savedNotes = await page.evaluate(() => JSON.parse(window.localStorage.getItem("nota-notes")));
   expect(savedNotes).toHaveLength(1);
   expect(savedNotes[0].title).toBe("Existing note");
 });

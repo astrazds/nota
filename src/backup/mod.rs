@@ -1,5 +1,5 @@
 pub(crate) mod controls;
-pub use noter_core::backup::*;
+pub use nota_core::backup::*;
 
 #[cfg(test)]
 mod tests {
@@ -27,7 +27,7 @@ mod tests {
         let backup: Value = serde_json::from_str(&backup_json).unwrap();
 
         assert_eq!(backup["version"], 1);
-        assert_eq!(backup["kind"], "noter.flat_collection");
+        assert_eq!(backup["kind"], "nota.flat_collection");
         assert_eq!(
             backup["notes"][0]["id"],
             "11111111-1111-1111-1111-111111111111"
@@ -52,7 +52,7 @@ mod tests {
         let backup: Value = serde_json::from_str(&backup_json).unwrap();
 
         assert_eq!(backup["version"], 1);
-        assert_eq!(backup["kind"], "noter.flat_collection");
+        assert_eq!(backup["kind"], "nota.flat_collection");
         assert_eq!(backup["notes"], serde_json::json!([]));
     }
 

@@ -21,7 +21,7 @@ Implementation notes:
 - `note_workspace` owns the clear-all confirmation state so bulk clearing remains testable through the workspace and app-state paths.
 - The shared confirmation modal handles both note-specific delete and count-specific Recently Deleted clearing.
 - The sidebar still owns Note List, Recently Deleted, and Backup Controls; the editor-area footer owns only View Mode Controls.
-- The shared footer height is enforced with the local `noter-footer-height` utility because the build pipeline did not emit the Tailwind `min-h-12` utility reliably.
+- The shared footer height is enforced with the local `nota-footer-height` utility because the build pipeline did not emit the Tailwind `min-h-12` utility reliably.
 - Browser verification should cover Write, Preview, Split, compact navigation, Light/Dark contrast, floating notifications, footer rhythm, Search Hint readability, Backup Controls placement, and the Clear All confirmation/cancel/confirm flow.
 
 This keeps Nota aligned with the domain model in `CONTEXT.md`: Formatting Tools are contextual writing aids, View Mode Controls belong with the editor area, and Recently Deleted remains recoverable until the user explicitly confirms permanent removal.

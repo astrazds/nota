@@ -1,15 +1,15 @@
 use chrono::{DateTime, Utc};
-use noter_core::NoteWorkspace;
-use noter_core::backup::{
+use nota_core::NoteWorkspace;
+use nota_core::backup::{
     BackupHealth, BackupHealthRecord, PendingBackupImport, assess_backup_health,
     import_flat_collection_backup, prepare_backup_import,
 };
-use noter_core::editor_view::EditorViewMode;
-use noter_core::markdown_editing::{ByteSelection, MarkdownCommand, apply_markdown_command};
-use noter_core::note_list_interaction::{NoteListInteraction, NoteListRenderModel};
-use noter_core::responsive_navigation::{ViewportClass, normalize_view_mode};
-use noter_core::tag_rules::{TagSuggestion, parse_tags_input, suggest_existing_tags};
-use noter_core::transition::{ThemePreference, TransitionError, import_desktop_transition};
+use nota_core::editor_view::EditorViewMode;
+use nota_core::markdown_editing::{ByteSelection, MarkdownCommand, apply_markdown_command};
+use nota_core::note_list_interaction::{NoteListInteraction, NoteListRenderModel};
+use nota_core::responsive_navigation::{ViewportClass, normalize_view_mode};
+use nota_core::tag_rules::{TagSuggestion, parse_tags_input, suggest_existing_tags};
+use nota_core::transition::{ThemePreference, TransitionError, import_desktop_transition};
 use uuid::Uuid;
 
 use crate::storage::CollectionEnvelope;
@@ -392,7 +392,7 @@ impl AppModel {
         }
     }
 
-    pub fn import_backup(&mut self, json: &str) -> Result<(), noter_core::backup::BackupError> {
+    pub fn import_backup(&mut self, json: &str) -> Result<(), nota_core::backup::BackupError> {
         let mut notes = self.workspace.notes().to_vec();
         let deleted = self.workspace.recently_deleted_notes().to_vec();
         let imported = import_flat_collection_backup(&mut notes, json)?;
@@ -451,7 +451,7 @@ impl AppModel {
 mod tests {
     use super::*;
     use chrono::TimeZone;
-    use noter_core::transition::export_desktop_transition;
+    use nota_core::transition::export_desktop_transition;
 
     #[test]
     fn quick_capture_edit_search_delete_restore_and_clear_follow_messages() {
@@ -525,9 +525,9 @@ mod tests {
 
     #[test]
     fn edit_tags_suggests_other_collection_tags_for_the_current_fragment() {
-        let mut selected = noter_core::Note::new("Selected".to_string(), String::new());
+        let mut selected = nota_core::Note::new("Selected".to_string(), String::new());
         selected.tags = vec!["Work".to_string()];
-        let mut other = noter_core::Note::new("Other".to_string(), String::new());
+        let mut other = nota_core::Note::new("Other".to_string(), String::new());
         other.tags = vec!["Research".to_string(), "Work".to_string()];
         let mut app = AppModel::new(
             CollectionEnvelope::new(vec![selected.clone(), other], Vec::new()),
@@ -545,9 +545,9 @@ mod tests {
 
     #[test]
     fn accepting_a_tag_suggestion_applies_the_first_match_to_the_selected_note() {
-        let mut selected = noter_core::Note::new("Selected".to_string(), String::new());
+        let mut selected = nota_core::Note::new("Selected".to_string(), String::new());
         selected.tags = vec!["Work".to_string()];
-        let mut other = noter_core::Note::new("Other".to_string(), String::new());
+        let mut other = nota_core::Note::new("Other".to_string(), String::new());
         other.tags = vec!["Research".to_string()];
         let mut app = AppModel::new(
             CollectionEnvelope::new(vec![selected.clone(), other], Vec::new()),
@@ -565,8 +565,8 @@ mod tests {
 
     #[test]
     fn selecting_a_note_keeps_note_list_row_order() {
-        let mut older = noter_core::Note::new("Older".to_string(), String::new());
-        let mut newer = noter_core::Note::new("Newer".to_string(), String::new());
+        let mut older = nota_core::Note::new("Older".to_string(), String::new());
+        let mut newer = nota_core::Note::new("Newer".to_string(), String::new());
         older.last_modified = chrono::Utc
             .with_ymd_and_hms(2026, 1, 1, 0, 0, 0)
             .unwrap();
@@ -616,7 +616,7 @@ mod tests {
 
     #[test]
     fn transition_restore_is_exact_on_first_run_and_rejected_after_native_data_exists() {
-        let imported = noter_core::Note::new("From web".to_string(), "Exact state".to_string());
+        let imported = nota_core::Note::new("From web".to_string(), "Exact state".to_string());
         let json = export_desktop_transition(
             std::slice::from_ref(&imported),
             &[],
@@ -645,10 +645,10 @@ mod tests {
 
     #[test]
     fn backup_json_prepares_import_preview_without_mutating_the_collection() {
-        use noter_core::backup::export_flat_collection_backup;
+        use nota_core::backup::export_flat_collection_backup;
 
-        let existing = noter_core::Note::new("Local".to_string(), "Keep me".to_string());
-        let imported = noter_core::Note::new("From backup".to_string(), "New".to_string());
+        let existing = nota_core::Note::new("Local".to_string(), "Keep me".to_string());
+        let imported = nota_core::Note::new("From backup".to_string(), "New".to_string());
         let json = export_flat_collection_backup(std::slice::from_ref(&imported)).unwrap();
         let mut app = AppModel::new(
             CollectionEnvelope::new(vec![existing.clone()], Vec::new()),
@@ -670,9 +670,9 @@ mod tests {
 
     #[test]
     fn backup_import_preview_counts_same_identity_notes_as_replacements() {
-        use noter_core::backup::export_flat_collection_backup;
+        use nota_core::backup::export_flat_collection_backup;
 
-        let mut existing = noter_core::Note::new("Local".to_string(), "Keep me".to_string());
+        let mut existing = nota_core::Note::new("Local".to_string(), "Keep me".to_string());
         let replacement = {
             let mut note = existing.clone();
             note.title = "Replaced".to_string();
@@ -719,7 +719,7 @@ mod tests {
 
     #[test]
     fn quick_capture_requests_note_title_focus() {
-        use noter_core::note_workspace::FocusIntent;
+        use nota_core::note_workspace::FocusIntent;
 
         let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::Light, None);
         assert!(app.apply(AppMsg::QuickCapture));
@@ -738,9 +738,9 @@ mod tests {
 
     #[test]
     fn storage_recovery_allows_backup_import_preview_and_merge() {
-        use noter_core::backup::export_flat_collection_backup;
+        use nota_core::backup::export_flat_collection_backup;
 
-        let imported = noter_core::Note::new("Recovered".to_string(), "From Backup".to_string());
+        let imported = nota_core::Note::new("Recovered".to_string(), "From Backup".to_string());
         let json = export_flat_collection_backup(std::slice::from_ref(&imported)).unwrap();
         let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::Light, None);
         app.set_storage_recovery(true);
@@ -792,9 +792,9 @@ mod tests {
 
     #[test]
     fn search_commit_distinguishes_filtered_empty_from_empty_collection() {
-        use noter_core::note_list_interaction::NoteListDisplayState;
+        use nota_core::note_list_interaction::NoteListDisplayState;
 
-        let note = noter_core::Note::new("Roadmap".to_string(), "Ship native app".to_string());
+        let note = nota_core::Note::new("Roadmap".to_string(), "Ship native app".to_string());
         let mut app = AppModel::new(
             CollectionEnvelope::new(vec![note], Vec::new()),
             ThemePreference::Light,
@@ -826,9 +826,9 @@ mod tests {
     #[test]
     fn selecting_a_tag_filters_the_note_list_without_a_match_label() {
         let mut work =
-            noter_core::Note::new("Sprint".to_string(), "body phrase unique".to_string());
+            nota_core::Note::new("Sprint".to_string(), "body phrase unique".to_string());
         work.tags = vec!["Work".to_string()];
-        let personal = noter_core::Note::new("Groceries".to_string(), "apples".to_string());
+        let personal = nota_core::Note::new("Groceries".to_string(), "apples".to_string());
         let mut app = AppModel::new(
             CollectionEnvelope::new(vec![work, personal], Vec::new()),
             ThemePreference::Light,
@@ -853,10 +853,10 @@ mod tests {
 
     #[test]
     fn confirming_backup_import_preview_applies_merge_import() {
-        use noter_core::backup::export_flat_collection_backup;
+        use nota_core::backup::export_flat_collection_backup;
 
-        let existing = noter_core::Note::new("Local".to_string(), "Keep me".to_string());
-        let imported = noter_core::Note::new("From backup".to_string(), "New".to_string());
+        let existing = nota_core::Note::new("Local".to_string(), "Keep me".to_string());
+        let imported = nota_core::Note::new("From backup".to_string(), "New".to_string());
         let json = export_flat_collection_backup(std::slice::from_ref(&imported)).unwrap();
         let mut app = AppModel::new(
             CollectionEnvelope::new(vec![existing.clone()], Vec::new()),
@@ -875,10 +875,10 @@ mod tests {
 
     #[test]
     fn canceling_backup_import_preview_leaves_the_collection_unchanged() {
-        use noter_core::backup::export_flat_collection_backup;
+        use nota_core::backup::export_flat_collection_backup;
 
-        let existing = noter_core::Note::new("Local".to_string(), "Keep me".to_string());
-        let imported = noter_core::Note::new("From backup".to_string(), "New".to_string());
+        let existing = nota_core::Note::new("Local".to_string(), "Keep me".to_string());
+        let imported = nota_core::Note::new("From backup".to_string(), "New".to_string());
         let json = export_flat_collection_backup(std::slice::from_ref(&imported)).unwrap();
         let mut app = AppModel::new(
             CollectionEnvelope::new(vec![existing.clone()], Vec::new()),
@@ -896,7 +896,7 @@ mod tests {
 
     #[test]
     fn invalid_backup_json_is_rejected_without_a_pending_preview() {
-        let existing = noter_core::Note::new("Local".to_string(), "Keep me".to_string());
+        let existing = nota_core::Note::new("Local".to_string(), "Keep me".to_string());
         let mut app = AppModel::new(
             CollectionEnvelope::new(vec![existing.clone()], Vec::new()),
             ThemePreference::Light,

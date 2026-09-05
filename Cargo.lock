@@ -1446,7 +1446,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60993920e071b0c9b66f14e2b32740a4e27ffc82854dcd72035887f336a09a28"
 
 [[package]]
-name = "noter-core"
+name = "nota-core"
 version = "2.0.0-alpha.1"
 dependencies = [
  "chrono",
@@ -1457,11 +1457,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "noter-desktop"
+name = "nota-desktop"
 version = "2.0.0-alpha.1"
 dependencies = [
  "chrono",
- "noter-core",
+ "nota-core",
  "pango",
  "relm4",
  "serde",
@@ -1473,13 +1473,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "noter-web"
+name = "nota-web"
 version = "1.0.2"
 dependencies = [
  "chrono",
  "gloo-storage",
  "leptos",
- "noter-core",
+ "nota-core",
  "pulldown-cmark",
  "serde",
  "serde_json",

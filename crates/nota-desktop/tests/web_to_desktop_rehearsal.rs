@@ -1,10 +1,10 @@
-use noter_core::backup::export_flat_collection_backup;
-use noter_core::transition::{ThemePreference, TransitionError};
-use noter_desktop::app::{AppModel, AppMsg};
-use noter_desktop::storage::{CollectionEnvelope, LoadOutcome, NativeStore, Preferences};
+use nota_core::backup::export_flat_collection_backup;
+use nota_core::transition::{ThemePreference, TransitionError};
+use nota_desktop::app::{AppModel, AppMsg};
+use nota_desktop::storage::{CollectionEnvelope, LoadOutcome, NativeStore, Preferences};
 
 const WEB_TRANSITION_V1: &str =
-    include_str!("../../noter-core/tests/fixtures/desktop-transition-v1.json");
+    include_str!("../../nota-core/tests/fixtures/desktop-transition-v1.json");
 
 #[test]
 fn clean_profile_restores_web_transition_once_then_uses_merge_import() {
@@ -60,7 +60,7 @@ fn clean_profile_restores_web_transition_once_then_uses_merge_import() {
     .expect_err("a second desktop transition restore must be rejected");
     assert!(matches!(error, TransitionError::CollectionNotEmpty));
 
-    let extra = noter_core::Note::new("After migration".to_string(), "Merge path".to_string());
+    let extra = nota_core::Note::new("After migration".to_string(), "Merge path".to_string());
     let backup = export_flat_collection_backup(std::slice::from_ref(&extra)).unwrap();
     let mut migrated = AppModel::new(before.clone(), relaunched.theme, relaunched.backup_health);
     migrated.apply(AppMsg::ImportBackupJson(backup));

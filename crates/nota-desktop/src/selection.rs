@@ -1,4 +1,4 @@
-use noter_core::markdown_editing::ByteSelection;
+use nota_core::markdown_editing::ByteSelection;
 
 pub fn gtk_character_range_to_byte_selection(
     content: &str,

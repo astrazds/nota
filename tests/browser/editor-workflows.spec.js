@@ -22,11 +22,11 @@ const archiveNote = {
 
 async function seedCollection(page, notes = [launchNote, archiveNote]) {
   await page.addInitScript((notes) => {
-    window.localStorage.setItem("noter-notes", JSON.stringify(notes));
-    window.localStorage.setItem("noter-recently-deleted-notes", "[]");
-    window.localStorage.setItem("noter-dark-mode", "false");
-    window.localStorage.setItem("noter-sidebar-open", "true");
-    window.localStorage.removeItem("noter-backup-health");
+    window.localStorage.setItem("nota-notes", JSON.stringify(notes));
+    window.localStorage.setItem("nota-recently-deleted-notes", "[]");
+    window.localStorage.setItem("nota-dark-mode", "false");
+    window.localStorage.setItem("nota-sidebar-open", "true");
+    window.localStorage.removeItem("nota-backup-health");
   }, notes);
   await page.goto("/");
 }
@@ -54,7 +54,7 @@ async function selectText(locator, start, end) {
 async function waitForSavedTags(page, tags) {
   await page.waitForFunction(
     (tags) => {
-      const notes = JSON.parse(window.localStorage.getItem("noter-notes") || "[]");
+      const notes = JSON.parse(window.localStorage.getItem("nota-notes") || "[]");
       return JSON.stringify(notes[0]?.tags) === JSON.stringify(tags);
     },
     tags,
@@ -176,7 +176,7 @@ test("user can review and apply startup Tag cleanup", async ({ page }) => {
   await expect(page.getByText("Review Tag cleanup")).toBeHidden();
   await waitForSavedTags(page, ["Work"]);
 
-  const savedNotes = await page.evaluate(() => JSON.parse(window.localStorage.getItem("noter-notes")));
+  const savedNotes = await page.evaluate(() => JSON.parse(window.localStorage.getItem("nota-notes")));
   expect(savedNotes[0].tags).toEqual(["Work"]);
 });
 

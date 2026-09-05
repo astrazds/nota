@@ -10,10 +10,11 @@ use crate::Note;
 use crate::backup::BackupHealthRecord;
 
 const TRANSITION_VERSION: u32 = 1;
-const TRANSITION_KIND: &str = "noter.desktop_transition";
+const TRANSITION_KIND: &str = "nota.desktop_transition";
+const LEGACY_TRANSITION_KIND: &str = "noter.desktop_transition";
 
 pub fn desktop_transition_file_name(now: DateTime<Utc>) -> String {
-    format!("noter-desktop-transition-{}.json", now.format("%Y-%m-%d"))
+    format!("nota-desktop-transition-{}.json", now.format("%Y-%m-%d"))
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -121,7 +122,7 @@ pub fn import_desktop_transition(
     if bundle.version != TRANSITION_VERSION {
         return Err(TransitionError::UnsupportedVersion(bundle.version));
     }
-    if bundle.kind != TRANSITION_KIND {
+    if bundle.kind != TRANSITION_KIND && bundle.kind != LEGACY_TRANSITION_KIND {
         return Err(TransitionError::UnsupportedKind(bundle.kind));
     }
     validate_unique_ids(&bundle.notes, &bundle.recently_deleted_notes)?;
@@ -193,7 +194,7 @@ mod tests {
         let now = Utc.with_ymd_and_hms(2026, 9, 3, 12, 0, 0).unwrap();
         assert_eq!(
             desktop_transition_file_name(now),
-            "noter-desktop-transition-2026-09-03.json"
+            "nota-desktop-transition-2026-09-03.json"
         );
     }
 }

@@ -23,11 +23,11 @@ const secondNote = {
 async function seedCollection(page, { notes = [firstNote, secondNote], sidebarOpen = true } = {}) {
   await page.addInitScript(
     ({ notes, sidebarOpen }) => {
-      window.localStorage.setItem("noter-notes", JSON.stringify(notes));
-      window.localStorage.setItem("noter-recently-deleted-notes", "[]");
-      window.localStorage.setItem("noter-dark-mode", "false");
-      window.localStorage.setItem("noter-sidebar-open", JSON.stringify(sidebarOpen));
-      window.localStorage.removeItem("noter-backup-health");
+      window.localStorage.setItem("nota-notes", JSON.stringify(notes));
+      window.localStorage.setItem("nota-recently-deleted-notes", "[]");
+      window.localStorage.setItem("nota-dark-mode", "false");
+      window.localStorage.setItem("nota-sidebar-open", JSON.stringify(sidebarOpen));
+      window.localStorage.removeItem("nota-backup-health");
     },
     { notes, sidebarOpen },
   );
@@ -98,6 +98,6 @@ test("compact sidebar preference survives a reload", async ({ page }) => {
   await page.getByRole("button", { name: "Toggle sidebar" }).click();
   await expectNoteListOpen(navigation);
 
-  const stored = await page.evaluate(() => JSON.parse(window.localStorage.getItem("noter-sidebar-open")));
+  const stored = await page.evaluate(() => JSON.parse(window.localStorage.getItem("nota-sidebar-open")));
   expect(stored).toBe(true);
 });

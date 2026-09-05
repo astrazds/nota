@@ -2,7 +2,7 @@ use crate::backup::{BackupHealth, PendingBackupImport, backup_file_name, prepare
 use crate::{AppState, NotificationTone, theme, ui_recipes};
 use chrono::{DateTime, Utc};
 use leptos::prelude::*;
-use noter_core::transition::desktop_transition_file_name;
+use nota_core::transition::desktop_transition_file_name;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::Closure;
 use web_sys::{FileReader, HtmlAnchorElement, HtmlInputElement, window};
@@ -385,7 +385,7 @@ mod tests {
             let calls = adapter.calls.borrow();
             assert_eq!(calls.len(), 1);
             assert_eq!(calls[0].0, "nota-backup-2026-05-06.json");
-            assert!(calls[0].1.contains("\"kind\": \"noter.flat_collection\""));
+            assert!(calls[0].1.contains("\"kind\": \"nota.flat_collection\""));
             assert_eq!(
                 state
                     .backup_health_record
@@ -431,11 +431,11 @@ mod tests {
             export_desktop_transition_with_adapter_at(state, &adapter, exported_at);
 
             let calls = adapter.calls.borrow();
-            assert_eq!(calls[0].0, "noter-desktop-transition-2026-09-03.json");
+            assert_eq!(calls[0].0, "nota-desktop-transition-2026-09-03.json");
             assert!(
                 calls[0]
                     .1
-                    .contains("\"kind\": \"noter.desktop_transition\"")
+                    .contains("\"kind\": \"nota.desktop_transition\"")
             );
             assert!(calls[0].1.contains("\"recently_deleted_notes\": []"));
             assert!(state.backup_health_record.get_untracked().is_none());

@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Nota
 Comment=Write and find local Markdown notes
-Exec=noter-desktop
+Exec=nota-desktop
 Icon=net.astrazds.Nota
 Terminal=false
 Type=Application

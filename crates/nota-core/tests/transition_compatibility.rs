@@ -1,6 +1,6 @@
-use noter_core::Note;
-use noter_core::backup::import_flat_collection_backup;
-use noter_core::transition::{ThemePreference, TransitionError, import_desktop_transition};
+use nota_core::Note;
+use nota_core::backup::import_flat_collection_backup;
+use nota_core::transition::{ThemePreference, TransitionError, import_desktop_transition};
 
 const TRANSITION_V1: &str = include_str!("fixtures/desktop-transition-v1.json");
 const BACKUP_V1: &str = include_str!("fixtures/flat-collection-backup-v1.json");

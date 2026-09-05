@@ -11,9 +11,9 @@ Source documents:
 
 Concept artifact:
 
-- [`docs/assets/brand/noter-brand-toolkit-concepts.png`](assets/brand/noter-brand-toolkit-concepts.png): exploratory brand toolkit image covering mark direction, README hero, social preview, mood board, and screenshot frames.
-- [`docs/assets/brand/noter-main-app-frame-palette.png`](assets/brand/noter-main-app-frame-palette.png): exploratory palette artifact for main application frame templates.
-- [`docs/assets/brand/noter-main-app-frame-mocks.png`](assets/brand/noter-main-app-frame-mocks.png): exploratory main application frame template mocks for the product UI.
+- [`docs/assets/brand/nota-brand-toolkit-concepts.png`](assets/brand/nota-brand-toolkit-concepts.png): exploratory brand toolkit image covering mark direction, README hero, social preview, mood board, and screenshot frames.
+- [`docs/assets/brand/nota-main-app-frame-palette.png`](assets/brand/nota-main-app-frame-palette.png): exploratory palette artifact for main application frame templates.
+- [`docs/assets/brand/nota-main-app-frame-mocks.png`](assets/brand/nota-main-app-frame-mocks.png): exploratory main application frame template mocks for the product UI.
 
 Approved product frame:
 
@@ -249,12 +249,12 @@ Rules:
 
 Nota now ships a practical app icon set based on the folded-note mark direction. Keep these assets in sync when the mark changes:
 
-- `assets/icons/noter-icon.svg`: full rounded-square app icon source for install and larger surfaces.
-- `assets/icons/noter-maskable.svg`: mask-safe PWA source with generous background coverage.
-- `assets/icons/noter-monochrome.svg`: single-color documentation and mask source.
-- `assets/icons/noter-favicon.svg`: favicon-safe note-only source, cropped to the mark with no outer app tile.
-- `assets/icons/noter-16.png`, `noter-32.png`, `noter-48.png`, and `favicon.ico`: browser favicon rasters generated from the favicon-safe source.
-- `assets/icons/apple-touch-icon.png`, `noter-192.png`, `noter-512.png`, `noter-maskable-192.png`, and `noter-maskable-512.png`: platform install rasters generated from the app and maskable sources.
+- `assets/icons/nota-icon.svg`: full rounded-square app icon source for install and larger surfaces.
+- `assets/icons/nota-maskable.svg`: mask-safe PWA source with generous background coverage.
+- `assets/icons/nota-monochrome.svg`: single-color documentation and mask source.
+- `assets/icons/nota-favicon.svg`: favicon-safe note-only source, cropped to the mark with no outer app tile.
+- `assets/icons/nota-16.png`, `nota-32.png`, `nota-48.png`, and `favicon.ico`: browser favicon rasters generated from the favicon-safe source.
+- `assets/icons/apple-touch-icon.png`, `nota-192.png`, `nota-512.png`, `nota-maskable-192.png`, and `nota-maskable-512.png`: platform install rasters generated from the app and maskable sources.
 - `assets/site.webmanifest`: install metadata and icon declarations.
 
 Minimum-size rule: the 16px favicon must use the note mark itself and fill the canvas. Do not put the full rounded-square app icon inside the 16px favicon.

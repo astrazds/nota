@@ -1,4 +1,4 @@
-use noter_desktop::visual_contract::{
+use nota_desktop::visual_contract::{
     NATIVE_STYLESHEET, NATIVE_VISUAL_CONTRACT, writing_plane_max_width_px,
     writing_plane_measure_chars,
 };
@@ -23,23 +23,23 @@ fn native_workspace_frame_matches_the_web_visual_contract() {
     assert_eq!(contract.signal, "#E7A858");
 
     for required_state in [
-        ".noter-sidebar",
-        ".noter-note-row.selected",
-        ".noter-editor-header",
-        ".noter-formatting-toolbar",
-        ".noter-editor-footer",
-        ".noter-root.noter-dark",
-        ".noter-writing-plane",
-        "button.noter-command-primary",
-        "entry.noter-title",
-        "button.noter-mode-button.active",
-        "window.noter-dialog",
-        ".noter-tag-suggestions",
-        "button.noter-note-tags",
-        ".noter-dialog-field",
-        ".noter-cheatsheet-item",
-        ".noter-dialog-header",
-        "button.noter-dialog-header-close",
+        ".nota-sidebar",
+        ".nota-note-row.selected",
+        ".nota-editor-header",
+        ".nota-formatting-toolbar",
+        ".nota-editor-footer",
+        ".nota-root.nota-dark",
+        ".nota-writing-plane",
+        "button.nota-command-primary",
+        "entry.nota-title",
+        "button.nota-mode-button.active",
+        "window.nota-dialog",
+        ".nota-tag-suggestions",
+        "button.nota-note-tags",
+        ".nota-dialog-field",
+        ".nota-cheatsheet-item",
+        ".nota-dialog-header",
+        "button.nota-dialog-header-close",
     ] {
         assert!(
             NATIVE_STYLESHEET.contains(required_state),
@@ -69,12 +69,12 @@ fn paper_writing_plane_and_capture_pulse_tokens_are_declared() {
     assert!(NATIVE_STYLESHEET.contains("min-height: 45px"));
 
     // Warm Capture Yellow primary for New Note.
-    assert!(NATIVE_STYLESHEET.contains("button.noter-command-primary"));
+    assert!(NATIVE_STYLESHEET.contains("button.nota-command-primary"));
     assert!(NATIVE_STYLESHEET.contains("background: var(--capture)"));
 
     // Amber active mode segment — no white-pill surface or drop shadow.
     let active_idx = NATIVE_STYLESHEET
-        .find("button.noter-mode-button.active")
+        .find("button.nota-mode-button.active")
         .expect("active mode button rule");
     let active_block = &NATIVE_STYLESHEET[active_idx..active_idx + 280];
     assert!(
@@ -105,9 +105,9 @@ fn paper_writing_plane_measure_is_wired_from_the_contract() {
         writing_plane_max_width_px(0.0) >= 1,
         "degenerate ch width must still yield a positive px clamp"
     );
-    // Dark theme redeclares capture + signal under .noter-root.noter-dark.
+    // Dark theme redeclares capture + signal under .nota-root.nota-dark.
     let dark_idx = NATIVE_STYLESHEET
-        .find(".noter-root.noter-dark")
+        .find(".nota-root.nota-dark")
         .expect("dark root");
     let dark_block = &NATIVE_STYLESHEET[dark_idx..dark_idx + 520];
     assert!(dark_block.contains("--capture: #FFB340"));
@@ -117,7 +117,7 @@ fn paper_writing_plane_measure_is_wired_from_the_contract() {
 #[test]
 fn sidebar_tag_pills_use_the_same_compact_chip_sizing_as_the_writing_surface() {
     let button_idx = NATIVE_STYLESHEET
-        .find("button.noter-note-tags")
+        .find("button.nota-note-tags")
         .expect("sidebar Tag pills must share the writing-surface chip rule");
     let block = &NATIVE_STYLESHEET[button_idx..button_idx + 280];
     assert!(

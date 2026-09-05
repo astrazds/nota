@@ -14,7 +14,7 @@ Users should not need to think in terms of files, folders, cloud sync, command s
 
 Noter exists to make local note-taking feel dependable and low-friction on the user's own machine. Success means a user can create a Note quickly, stay oriented in a Flat Collection, edit the Writing Surface without chrome getting in the way, preview Markdown when needed, recover accidental deletes, and export/import a local Backup without risking the current collection.
 
-The primary product frame is a Markdown Note App, not a Markdown workbench. Markdown powers the content, but the main product experience is creating, recognising, finding, organising, and safely preserving Notes.
+The post-1.0 product surface is the Linux Relm4/GTK4 window. The 1.0.2 browser app remains a migration Adapter until native cutover. The primary product frame is a Markdown Note App, not a Markdown workbench. Markdown powers the content, but the main product experience is creating, recognising, finding, organising, and safely preserving Notes.
 
 ## Brand Personality
 
@@ -40,4 +40,4 @@ Avoid hover-only actions, persistent syntax instruction blocks, permanent utilit
 
 Target WCAG AA for contrast and interaction states. Interactive controls should be discoverable by keyboard, pointer, and touch users, with stable Note Actions rather than hover-only affordances. Light and Dark Themes should be tuned separately for text, borders, selection states, Search Hint readability, and selected Note recognition.
 
-Support reduced-motion-safe interactions, avoid relying on color alone for destructive or selected states, preserve readable wrapping/truncation on compact viewports, and keep confirmations specific enough that users can verify the Note or collection impact before destructive actions.
+Support reduced-motion-safe interactions, avoid relying on color alone for destructive or selected states, preserve readable wrapping/truncation on compact viewports, and keep confirmations specific enough that users can verify the Note or collection impact before destructive actions. Native uses GTK accessible roles and names; the browser Adapter uses ARIA labels and panel-owned dialog semantics. Selecting a Note in the Note List should keep that row in view.

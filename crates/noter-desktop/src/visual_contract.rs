@@ -8,6 +8,8 @@
 //!
 //! GTK Stylesheet rejects CSS `max-width`, so the native shell enforces the writing
 //! measure in layout: Pango `ch` width × [`NativeVisualContract::editor_measure_chars`].
+//! Paper dialogs, compact Tag pills, and Split 50/50 allocation are part of the
+//! same native visual contract (`noter.css`).
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct NativePalette {

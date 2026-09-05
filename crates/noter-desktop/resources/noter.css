@@ -153,12 +153,21 @@ button.noter-note-select:hover, button.noter-note-select:active { background: tr
 .noter-note-date, .noter-note-preview { color: var(--muted); font-size: 11px; }
 .noter-note-preview { color: var(--preview-muted); }
 .noter-note-pin { color: var(--pin); font-size: 9px; }
-.noter-note-tags {
-  padding: 1px 7px;
+.noter-note-tags, button.noter-note-tags {
+  min-height: 18px;
+  min-width: 0;
+  padding: 2px 8px;
   background: alpha(var(--signal), 0.20);
+  border: 0;
   border-radius: 999px;
+  box-shadow: none;
   color: var(--tag-fg);
   font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+button.noter-note-tags:hover {
+  background: alpha(var(--signal), 0.32);
 }
 menubutton.noter-note-actions { margin: 4px 3px 0 0; }
 menubutton.noter-note-actions > button {
@@ -519,3 +528,180 @@ button.noter-help-button { min-width: 25px; padding: 2px 6px; }
 }
 .noter-dark .noter-empty-state { border-color: var(--border-strong); color: var(--muted); }
 .noter-dark .noter-empty-title { color: var(--ink-soft); }
+
+/* Paper-neutral confirmation / About / Markdown help windows. */
+window.noter-dialog {
+  background: var(--surface);
+  color: var(--graphite);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+}
+.noter-dialog-header {
+  background: var(--surface);
+  padding: 18px 16px 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.noter-dialog-panel {
+  background: var(--surface);
+}
+.noter-dialog-title {
+  color: var(--graphite);
+  font-size: 20px;
+  font-weight: 600;
+}
+.noter-dialog-subtitle {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.noter-dialog-copy {
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.noter-dialog-body {
+  padding: 20px 24px 12px 24px;
+}
+.noter-dialog-footer {
+  padding: 12px 20px 16px 20px;
+  border-top: 1px solid var(--border);
+}
+.noter-dialog-field {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.noter-dialog-field.last {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.noter-dialog-key {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+.noter-dialog-value {
+  color: var(--graphite);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.noter-cheatsheet-heading {
+  color: var(--graphite);
+  font-size: 12px;
+  font-weight: 600;
+}
+.noter-cheatsheet-item {
+  background: var(--sidebar);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--ink-soft);
+  font-family: "Source Code Pro", monospace;
+  font-size: 12.5px;
+  padding: 8px 12px;
+}
+button.noter-dialog-header-close {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  box-shadow: none;
+  background: transparent;
+  color: var(--muted);
+}
+button.noter-dialog-header-close:hover {
+  background: var(--sidebar);
+  color: var(--graphite);
+}
+.noter-dialog-actions {
+  margin-top: 4px;
+}
+button.noter-dialog-cancel, button.noter-dialog-accept, button.noter-dialog-close {
+  min-height: 36px;
+  min-width: 72px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 6px;
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 600;
+}
+button.noter-dialog-cancel {
+  background: var(--sidebar);
+  color: var(--graphite);
+}
+button.noter-dialog-cancel:hover {
+  background: var(--border);
+}
+button.noter-dialog-close {
+  background: var(--capture);
+  color: #25221F;
+}
+button.noter-dialog-close:hover {
+  background: var(--signal);
+  color: #25221F;
+}
+button.noter-dialog-accept.danger {
+  background: #C0392B;
+  color: #FDFCF9;
+}
+button.noter-dialog-accept.danger:hover {
+  background: #A93226;
+  color: #FDFCF9;
+}
+.noter-dark button.noter-dialog-cancel {
+  background: var(--sidebar);
+  color: var(--graphite);
+}
+.noter-dark button.noter-dialog-close {
+  background: var(--capture);
+  color: #25221F;
+}
+.noter-dark button.noter-dialog-accept.danger {
+  background: #C0392B;
+  color: #FDFCF9;
+}
+.noter-dark .noter-cheatsheet-item {
+  background: rgba(247, 245, 241, 0.06);
+  border-color: var(--border);
+  color: var(--graphite);
+}
+.noter-dark button.noter-dialog-header-close:hover {
+  background: rgba(247, 245, 241, 0.08);
+  color: var(--graphite);
+}
+
+/* Tag autocomplete panel under Edit tags (web tag suggestion list parity). */
+.noter-tag-suggestions {
+  margin-top: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 4px 12px rgba(37, 34, 31, 0.12);
+}
+button.noter-tag-suggestion {
+  min-height: 32px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  color: var(--graphite);
+  font-size: 13px;
+}
+button.noter-tag-suggestion label {
+  min-width: 0;
+}
+button.noter-tag-suggestion:hover {
+  background: rgba(37, 34, 31, 0.08);
+}
+.noter-dark .noter-tag-suggestions {
+  border-color: var(--border-strong);
+  background: var(--sidebar);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+.noter-dark button.noter-tag-suggestion {
+  color: var(--graphite);
+}
+.noter-dark button.noter-tag-suggestion:hover {
+  background: rgba(247, 245, 241, 0.08);
+}

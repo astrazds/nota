@@ -1,29 +1,30 @@
+use std::cell::Cell;
+use std::rc::Rc;
+
 use relm4::factory::{DynamicIndex, FactoryComponent, FactorySender, FactoryVecDeque};
 use relm4::gtk;
 use relm4::gtk::prelude::*;
-use relm4::{ComponentParts, ComponentSender, RelmApp, SimpleComponent};
+use relm4::{ComponentParts, ComponentSender, RelmApp, RelmWidgetExt, SimpleComponent};
 use uuid::Uuid;
 
 use noter_core::backup::{
     BackupHealth, assess_backup_health, backup_file_name, export_flat_collection_backup,
 };
 use noter_core::editor_view::EditorViewMode;
-use noter_core::markdown_editing::{MarkdownCommand, markdown_cheatsheet_text};
+use noter_core::markdown_editing::{MARKDOWN_CHEATSHEET_SECTIONS, MarkdownCommand};
 use noter_core::note_discovery::HighlightSegment;
 use noter_core::note_list_interaction::{NoteListDisplayState, SEARCH_DEBOUNCE_MS};
 use noter_core::note_workspace::FocusIntent;
+use noter_core::responsive_navigation::WIDE_VIEWPORT_MIN_WIDTH;
 use noter_core::transition::{desktop_transition_file_name, export_desktop_transition};
 use noter_desktop::APPLICATION_ID;
 use noter_desktop::app::{AppModel, AppMsg, NotificationTone, SaveStatus};
-use noter_core::responsive_navigation::WIDE_VIEWPORT_MIN_WIDTH;
 use noter_desktop::persistence::PersistenceWorker;
 use noter_desktop::selection::gtk_character_range_to_byte_selection;
 use noter_desktop::storage::{
     CollectionEnvelope, LoadOutcome, NativeRecovery, NativeStore, Preferences,
 };
-use noter_desktop::visual_contract::{
-    writing_plane_max_width_px, NATIVE_VISUAL_CONTRACT,
-};
+use noter_desktop::visual_contract::{NATIVE_VISUAL_CONTRACT, writing_plane_max_width_px};
 #[cfg(feature = "preview-webkit")]
 use noter_desktop::webkit_preview::SecurePreview;
 
@@ -39,6 +40,8 @@ struct DesktopComponent {
     note_rows: FactoryVecDeque<NoteRow>,
     deleted_rows: FactoryVecDeque<DeletedRow>,
     title: gtk::Entry,
+    tags: gtk::Entry,
+    tag_suggestion_count: Rc<Cell<usize>>,
 }
 
 struct DesktopWidgets {
@@ -67,12 +70,14 @@ struct DesktopWidgets {
     empty_copy: gtk::Label,
     empty_create: gtk::Button,
     tags_pills: gtk::Box,
+    tag_suggestions: gtk::Box,
     edit_tags: gtk::Button,
     filter_row: gtk::Box,
     filter_chip: gtk::Button,
     clear_all: gtk::Button,
     theme_label: gtk::Label,
     writing: gtk::Box,
+    surface_row: gtk::Box,
     #[cfg(feature = "preview-webkit")]
     preview: SecurePreview,
     /// Non-webkit Preview/Split surface (message stub).
@@ -115,11 +120,9 @@ impl FactoryComponent for NoteRow {
         gtk::Box {
             set_orientation: gtk::Orientation::Horizontal,
             set_spacing: 0,
-            set_css_classes: if self.selected {
-                &["noter-note-row", "selected"]
-            } else {
-                &["noter-note-row"]
-            },
+            set_css_classes: &["noter-note-row"],
+            #[watch]
+            set_class_active: ("selected", self.selected),
 
             gtk::Button {
                 set_hexpand: true,
@@ -182,7 +185,7 @@ impl FactoryComponent for NoteRow {
                         gtk::Button {
                             set_css_classes: &["noter-note-tags"],
                             #[watch]
-                            set_visible: self.tags.first().is_some(),
+                            set_visible: !self.tags.is_empty(),
                             #[watch]
                             set_label: &self
                                 .tags
@@ -374,10 +377,17 @@ impl DesktopComponent {
 
     fn refresh_factories(&mut self) {
         {
-            let mut rows = self.note_rows.guard();
-            rows.clear();
-            for row in self.app.note_list_render_model().projection.rows {
-                rows.push_back(NoteRow {
+            let dark = matches!(
+                self.app.theme,
+                noter_core::transition::ThemePreference::Dark
+            );
+            let next: Vec<NoteRow> = self
+                .app
+                .note_list_render_model()
+                .projection
+                .rows
+                .into_iter()
+                .map(|row| NoteRow {
                     id: row.id,
                     title_markup: markup_or_plain(&row.title_highlights, &row.display_title),
                     date: row.display_date,
@@ -385,11 +395,29 @@ impl DesktopComponent {
                     tags: row.tags,
                     pinned: row.is_pinned,
                     selected: row.is_selected,
-                    dark: matches!(
-                        self.app.theme,
-                        noter_core::transition::ThemePreference::Dark
-                    ),
-                });
+                    dark,
+                })
+                .collect();
+            let mut rows = self.note_rows.guard();
+            let update_in_place = note_list_can_update_in_place(
+                &(0..rows.len())
+                    .filter_map(|index| rows.get(index).map(|row| row.id))
+                    .collect::<Vec<_>>(),
+                &next.iter().map(|row| row.id).collect::<Vec<_>>(),
+            );
+            if update_in_place {
+                // Keep the existing row widgets so the sidebar does not jump to the
+                // top or steal focus when the user selects a Note.
+                for (index, row) in next.into_iter().enumerate() {
+                    if let Some(current) = rows.get_mut(index) {
+                        *current = row;
+                    }
+                }
+            } else {
+                rows.clear();
+                for row in next {
+                    rows.push_back(row);
+                }
             }
         }
         {
@@ -672,6 +700,14 @@ impl SimpleComponent for DesktopComponent {
         header_inner.append(&tags_pills);
         header_inner.append(&edit_tags);
         header_inner.append(&tags);
+        let tag_suggestions = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        tag_suggestions.set_css_classes(&["noter-tag-suggestions"]);
+        tag_suggestions.set_halign(gtk::Align::Fill);
+        tag_suggestions.set_valign(gtk::Align::Start);
+        tag_suggestions.set_hexpand(true);
+        tag_suggestions.set_vexpand(false);
+        tag_suggestions.set_visible(false);
+        header_inner.append(&tag_suggestions);
         tags.set_visible(false);
         let header_plane = WritingPlane::new(writing_plane_max_px);
         header_plane.set_child(Some(&header_inner));
@@ -776,6 +812,7 @@ impl SimpleComponent for DesktopComponent {
         let surface_row = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         surface_row.set_hexpand(true);
         surface_row.set_vexpand(true);
+        surface_row.set_homogeneous(false);
         surface_row.set_css_classes(&["noter-surface-row"]);
         editor.append(&recovery_panel);
         editor.append(&surface_row);
@@ -923,7 +960,7 @@ impl SimpleComponent for DesktopComponent {
         });
         let help_window = window.clone();
         help.connect_clicked(move |_| {
-            show_noter_info(&help_window, "Markdown syntax", &markdown_cheatsheet_text());
+            show_markdown_help(&help_window);
         });
         let sidebar_navigation_sender = sender.input_sender().clone();
         sidebar_navigation.connect_clicked(move |_| {
@@ -971,6 +1008,24 @@ impl SimpleComponent for DesktopComponent {
             let _send_result = finish_tags_sender.send(AppMsg::FinishEditTags);
         });
         tags.add_controller(tags_focus);
+        let tag_suggestion_count = Rc::new(Cell::new(0));
+        let tags_key = gtk::EventControllerKey::new();
+        let tags_for_key = tags.clone();
+        let accept_tag_sender = sender.input_sender().clone();
+        let tag_suggestion_count_for_key = tag_suggestion_count.clone();
+        tags_key.connect_key_pressed(move |_, keyval, _, _| {
+            if tag_suggestion_count_for_key.get() == 0 {
+                return gtk::glib::Propagation::Proceed;
+            }
+            if keyval == gtk::gdk::Key::Return || keyval == gtk::gdk::Key::Tab {
+                let _send_result = accept_tag_sender
+                    .send(AppMsg::AcceptTagSuggestion(tags_for_key.text().to_string()));
+                gtk::glib::Propagation::Stop
+            } else {
+                gtk::glib::Propagation::Proceed
+            }
+        });
+        tags.add_controller(tags_key);
         let content_sender = sender.input_sender().clone();
         let content_view = content.clone();
         content.buffer().connect_changed(move |buffer| {
@@ -1022,6 +1077,8 @@ impl SimpleComponent for DesktopComponent {
             note_rows,
             deleted_rows,
             title: title.clone(),
+            tags: tags.clone(),
+            tag_suggestion_count,
         };
         model.refresh_factories();
         let widgets = DesktopWidgets {
@@ -1050,12 +1107,14 @@ impl SimpleComponent for DesktopComponent {
             empty_copy,
             empty_create,
             tags_pills,
+            tag_suggestions,
             edit_tags,
             filter_row,
             filter_chip,
             clear_all,
             theme_label,
             writing,
+            surface_row,
             #[cfg(feature = "preview-webkit")]
             preview,
             #[cfg(not(feature = "preview-webkit"))]
@@ -1084,14 +1143,12 @@ impl SimpleComponent for DesktopComponent {
             } else {
                 "No corrupt payload quarantine"
             };
-            show_noter_info(
+            show_about_dialog(
                 &self.window,
-                "About Noter",
-                &format!(
-                    "Version {}\nStorage: {}\n{backup}\nRecovery: {quarantine}",
-                    env!("CARGO_PKG_VERSION"),
-                    self.store.data_dir().display(),
-                ),
+                env!("CARGO_PKG_VERSION"),
+                &self.store.data_dir().display().to_string(),
+                &backup,
+                quarantine,
             );
             return;
         }
@@ -1149,16 +1206,19 @@ impl SimpleComponent for DesktopComponent {
             {
                 show_confirmation(
                     &self.window,
-                    "Merge Import this Backup?",
-                    &format!(
-                        "Import {} notes: {} new, {} replace",
-                        preview.total_imported_notes,
-                        preview.notes_to_add,
-                        preview.notes_to_replace
-                    ),
-                    "Import",
-                    AppMsg::ConfirmBackupImport,
-                    AppMsg::CancelBackupImport,
+                    ConfirmationRequest {
+                        title: "Merge Import this Backup?",
+                        detail: format!(
+                            "Import {} notes: {} new, {} replace",
+                            preview.total_imported_notes,
+                            preview.notes_to_add,
+                            preview.notes_to_replace
+                        ),
+                        accept_label: "Import",
+                        accepted: AppMsg::ConfirmBackupImport,
+                        cancelled: AppMsg::CancelBackupImport,
+                        destructive: false,
+                    },
                     &sender,
                 );
             }
@@ -1238,6 +1298,7 @@ impl SimpleComponent for DesktopComponent {
         let confirmed_backup_import = matches!(&message, AppMsg::ConfirmBackupImport);
         let edited_search = matches!(&message, AppMsg::EditSearch(_));
         let captured = matches!(&message, AppMsg::QuickCapture);
+        let started_edit_tags = matches!(&message, AppMsg::StartEditTags);
         if self.app.apply(message) {
             self.schedule_save(&sender);
             if confirmed_backup_import {
@@ -1247,6 +1308,9 @@ impl SimpleComponent for DesktopComponent {
         if captured && self.app.workspace.focus_intent() == FocusIntent::NoteTitle {
             let _intent = self.app.workspace.take_focus_intent();
             self.title.grab_focus();
+        }
+        if started_edit_tags {
+            self.tags.grab_focus();
         }
         if edited_search {
             let sender = sender.input_sender().clone();
@@ -1275,11 +1339,14 @@ impl SimpleComponent for DesktopComponent {
                 .unwrap_or("New Note");
             show_confirmation(
                 &self.window,
-                "Move to Recently Deleted?",
-                &format!("Move “{title}” to Recently Deleted?"),
-                "Move",
-                AppMsg::ConfirmDelete,
-                AppMsg::CancelDelete,
+                ConfirmationRequest {
+                    title: "Move to Recently Deleted?",
+                    detail: format!("“{title}” will move to Recently Deleted."),
+                    accept_label: "Move",
+                    accepted: AppMsg::ConfirmDelete,
+                    cancelled: AppMsg::CancelDelete,
+                    destructive: true,
+                },
                 &sender,
             );
         }
@@ -1290,13 +1357,19 @@ impl SimpleComponent for DesktopComponent {
                 .clear_all_recently_deleted_confirmation_count()
                 .unwrap_or(0);
             if count > 0 {
+                let note_label = if count == 1 { "Note" } else { "Notes" };
                 show_confirmation(
                     &self.window,
-                    "Permanently clear Recently Deleted?",
-                    &format!("Permanently remove {count} recoverable Notes?"),
-                    "Clear All",
-                    AppMsg::ConfirmClearAll,
-                    AppMsg::CancelClearAll,
+                    ConfirmationRequest {
+                        title: "Permanently clear Recently Deleted?",
+                        detail: format!(
+                            "This will permanently clear {count} recently deleted {note_label}."
+                        ),
+                        accept_label: "Clear All",
+                        accepted: AppMsg::ConfirmClearAll,
+                        cancelled: AppMsg::CancelClearAll,
+                        destructive: true,
+                    },
                     &sender,
                 );
             }
@@ -1304,15 +1377,17 @@ impl SimpleComponent for DesktopComponent {
         self.refresh_factories();
     }
 
-    fn update_view(&self, widgets: &mut Self::Widgets, _sender: ComponentSender<Self>) {
+    fn update_view(&self, widgets: &mut Self::Widgets, sender: ComponentSender<Self>) {
         let dark = matches!(
             self.app.theme,
             noter_core::transition::ThemePreference::Dark
         );
         if dark {
             widgets.root.add_css_class("noter-dark");
+            self.window.add_css_class("noter-dark");
         } else {
             widgets.root.remove_css_class("noter-dark");
+            self.window.remove_css_class("noter-dark");
         }
         widgets
             .theme_label
@@ -1335,7 +1410,9 @@ impl SimpleComponent for DesktopComponent {
             BackupHealth::Recent { .. } => "recent",
             BackupHealth::Stale { .. } => "stale",
         };
-        widgets.backup_dot.set_css_classes(&["noter-backup-dot", backup_dot_class]);
+        widgets
+            .backup_dot
+            .set_css_classes(&["noter-backup-dot", backup_dot_class]);
         widgets
             .backup_label
             .set_label(self.app.backup_health_label(chrono::Utc::now()));
@@ -1343,14 +1420,12 @@ impl SimpleComponent for DesktopComponent {
         let recovering = self.recovery.is_some() || self.app.is_in_storage_recovery();
         widgets.create.set_sensitive(!recovering);
         widgets.search.set_sensitive(!recovering);
-        widgets
-            .restore_previous
-            .set_sensitive(
-                self.recovery
-                    .as_ref()
-                    .and_then(|recovery| recovery.previous_snapshot.as_ref())
-                    .is_some(),
-            );
+        widgets.restore_previous.set_sensitive(
+            self.recovery
+                .as_ref()
+                .and_then(|recovery| recovery.previous_snapshot.as_ref())
+                .is_some(),
+        );
         widgets
             .clear_all
             .set_visible(!self.app.workspace.recently_deleted_notes().is_empty());
@@ -1367,7 +1442,9 @@ impl SimpleComponent for DesktopComponent {
             NoteListDisplayState::EmptyCollection => {
                 widgets.empty_state.set_visible(true);
                 widgets.empty_title.set_text("A quiet place for your notes");
-                widgets.empty_copy.set_text("Create a Note to start writing.");
+                widgets
+                    .empty_copy
+                    .set_text("Create a Note to start writing.");
                 widgets.empty_create.set_visible(true);
             }
             NoteListDisplayState::FilteredEmpty => {
@@ -1442,6 +1519,40 @@ impl SimpleComponent for DesktopComponent {
             widgets.statistics.set_text("0 lines · 0 words · 0 chars");
             widgets.edit_tags.set_visible(false);
         }
+        while let Some(child) = widgets.tag_suggestions.first_child() {
+            widgets.tag_suggestions.remove(&child);
+        }
+        if editing_tags && !recovering {
+            let suggestions = self.app.tag_suggestions(widgets.tags.text().as_str());
+            self.tag_suggestion_count.set(suggestions.len());
+            for suggestion in suggestions {
+                let completed = suggestion.completed_input.clone();
+                let label = gtk::Label::new(Some(&format!("#{}", suggestion.label)));
+                label.set_halign(gtk::Align::Start);
+                label.set_xalign(0.0);
+                label.set_hexpand(true);
+                let button = gtk::Button::new();
+                button.set_child(Some(&label));
+                button.set_halign(gtk::Align::Fill);
+                button.set_valign(gtk::Align::Start);
+                button.set_focus_on_click(false);
+                button.set_css_classes(&["noter-tag-suggestion"]);
+                let tags_entry = widgets.tags.clone();
+                let suggestion_sender = sender.input_sender().clone();
+                button.connect_clicked(move |_| {
+                    tags_entry.set_text(&completed);
+                    let _send_result =
+                        suggestion_sender.send(AppMsg::UpdateTags(completed.clone()));
+                });
+                widgets.tag_suggestions.append(&button);
+            }
+            widgets
+                .tag_suggestions
+                .set_visible(self.tag_suggestion_count.get() > 0);
+        } else {
+            self.tag_suggestion_count.set(0);
+            widgets.tag_suggestions.set_visible(false);
+        }
         widgets.status.set_text(match self.app.save_status {
             SaveStatus::Saved => "Saved",
             SaveStatus::Saving => "Saving…",
@@ -1462,6 +1573,9 @@ impl SimpleComponent for DesktopComponent {
             widgets.notification.set_visible(false);
         }
         let surfaces = self.app.view_mode.surfaces();
+        widgets
+            .surface_row
+            .set_homogeneous(surfaces.writing && surfaces.preview);
         widgets.writing.set_visible(surfaces.writing);
         for (mode, button) in &widgets.mode_buttons {
             if *mode == self.app.view_mode {
@@ -1648,14 +1762,14 @@ fn command_button_parts(icon: &str, label: &str, shortcut: &str) -> (gtk::Button
     (button, label)
 }
 
-
 /// GTK4 `Entry` keeps keyboard focus on an inner `GtkText`, so `has_focus()` is
 /// false while the user is editing. `FOCUS_WITHIN` is set on the Entry itself.
 fn entry_has_input_focus(entry: &gtk::Entry) -> bool {
-    entry.has_focus()
-        || entry
-            .state_flags()
-            .contains(gtk::StateFlags::FOCUS_WITHIN)
+    entry.has_focus() || entry.state_flags().contains(gtk::StateFlags::FOCUS_WITHIN)
+}
+
+fn note_list_can_update_in_place(current_ids: &[Uuid], next_ids: &[Uuid]) -> bool {
+    current_ids == next_ids
 }
 
 fn formatting_button(label: &str, tooltip: &str) -> gtk::Button {
@@ -1664,7 +1778,6 @@ fn formatting_button(label: &str, tooltip: &str) -> gtk::Button {
     button.set_tooltip_text(Some(tooltip));
     button
 }
-
 
 /// Prefer Frame A dual-pane on open. Compact exclusive-pane remains available by
 /// resizing below the wide breakpoint; do not restore a sub-wide size that was
@@ -1677,10 +1790,7 @@ fn frame_a_startup_window_size(preferences: &Preferences) -> (i32, i32) {
             preferences.window_height.max(defaults.window_height),
         )
     } else {
-        (
-            preferences.window_width,
-            preferences.window_height.max(480),
-        )
+        (preferences.window_width, preferences.window_height.max(480))
     }
 }
 
@@ -1748,68 +1858,297 @@ fn connect_formatting_button(
     });
 }
 
-fn show_noter_info(parent: &gtk::ApplicationWindow, title: &str, body: &str) {
-    let dialog = gtk::Window::builder()
+fn paper_dialog(
+    parent: &gtk::ApplicationWindow,
+    title: &str,
+    subtitle: Option<&str>,
+    width: i32,
+    height: i32,
+) -> gtk::Window {
+    let mut dialog = gtk::Window::builder()
         .transient_for(parent)
         .modal(true)
         .title(title)
-        .default_width(420)
-        .build();
-    dialog.set_css_classes(&["noter-root"]);
-    let root = gtk::Box::new(gtk::Orientation::Vertical, 12);
-    root.set_margin_start(20);
-    root.set_margin_end(20);
-    root.set_margin_top(16);
-    root.set_margin_bottom(16);
+        .default_width(width);
+    if height > 0 {
+        dialog = dialog.default_height(height);
+    }
+    let dialog = dialog.build();
+    let mut classes = vec!["noter-root", "noter-dialog"];
+    if parent.has_css_class("noter-dark") {
+        classes.push("noter-dark");
+    }
+    dialog.set_css_classes(&classes);
+    dialog.set_accessible_role(gtk::AccessibleRole::Dialog);
+    dialog.set_hide_on_close(true);
+
     let heading = gtk::Label::new(Some(title));
     heading.set_halign(gtk::Align::Start);
-    heading.set_css_classes(&["noter-empty-title"]);
-    let copy = gtk::Label::new(Some(body));
-    copy.set_halign(gtk::Align::Start);
-    copy.set_wrap(true);
-    copy.set_selectable(true);
-    let close = gtk::Button::with_label("Close");
-    close.set_halign(gtk::Align::End);
-    close.set_css_classes(&["noter-footer-button"]);
+    heading.set_hexpand(true);
+    heading.set_xalign(0.0);
+    heading.set_wrap(true);
+    heading.set_css_classes(&["noter-dialog-title"]);
+    let titles = gtk::Box::new(gtk::Orientation::Vertical, 4);
+    titles.set_hexpand(true);
+    titles.set_halign(gtk::Align::Start);
+    titles.append(&heading);
+    if let Some(subtitle) = subtitle {
+        let sub = gtk::Label::new(Some(subtitle));
+        sub.set_halign(gtk::Align::Start);
+        sub.set_xalign(0.0);
+        sub.set_wrap(true);
+        sub.set_css_classes(&["noter-dialog-subtitle"]);
+        titles.append(&sub);
+    }
+
+    let close = gtk::Button::from_icon_name("window-close-symbolic");
+    close.set_valign(gtk::Align::Start);
+    close.set_tooltip_text(Some("Close"));
+    close.set_has_frame(false);
+    close.set_css_classes(&["noter-dialog-header-close"]);
+    close.update_property(&[gtk::accessible::Property::Label("Close")]);
     let dialog_close = dialog.clone();
     close.connect_clicked(move |_| dialog_close.close());
-    root.append(&heading);
-    root.append(&copy);
-    root.append(&close);
+
+    let header = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+    header.set_css_classes(&["noter-dialog-header"]);
+    header.append(&titles);
+    header.append(&close);
+    let handle = gtk::WindowHandle::new();
+    handle.set_child(Some(&header));
+    dialog.set_titlebar(Some(&handle));
+    dialog
+}
+
+fn dialog_close_button(dialog: &gtk::Window) -> gtk::Button {
+    let close = gtk::Button::with_label("Close");
+    close.set_halign(gtk::Align::End);
+    close.set_css_classes(&["noter-dialog-close"]);
+    let dialog_close = dialog.clone();
+    close.connect_clicked(move |_| dialog_close.close());
+    close
+}
+
+fn dialog_footer(dialog: &gtk::Window) -> (gtk::Box, gtk::Button) {
+    let footer = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    footer.set_halign(gtk::Align::Fill);
+    footer.set_css_classes(&["noter-dialog-footer"]);
+    let close = dialog_close_button(dialog);
+    let spacer = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    spacer.set_hexpand(true);
+    footer.append(&spacer);
+    footer.append(&close);
+    (footer, close)
+}
+
+fn meta_field(key: &str, value: &str, last: bool) -> gtk::Box {
+    let field = gtk::Box::new(gtk::Orientation::Vertical, 4);
+    field.set_css_classes(if last {
+        &["noter-dialog-field", "last"]
+    } else {
+        &["noter-dialog-field"]
+    });
+    let key_label = gtk::Label::new(Some(key));
+    key_label.set_halign(gtk::Align::Start);
+    key_label.set_xalign(0.0);
+    key_label.set_css_classes(&["noter-dialog-key"]);
+    let value_label = gtk::Label::new(Some(value));
+    value_label.set_halign(gtk::Align::Start);
+    value_label.set_hexpand(true);
+    value_label.set_xalign(0.0);
+    value_label.set_wrap(true);
+    value_label.set_ellipsize(gtk::pango::EllipsizeMode::Middle);
+    value_label.set_selectable(true);
+    value_label.set_tooltip_text(Some(value));
+    value_label.set_css_classes(&["noter-dialog-value"]);
+    field.append(&key_label);
+    field.append(&value_label);
+    field
+}
+
+fn cheatsheet_section(title: &str, items: &[&str]) -> gtk::Box {
+    let section = gtk::Box::new(gtk::Orientation::Vertical, 6);
+    section.set_hexpand(true);
+    section.set_halign(gtk::Align::Fill);
+    let heading = gtk::Label::new(Some(title));
+    heading.set_halign(gtk::Align::Start);
+    heading.set_xalign(0.0);
+    heading.set_css_classes(&["noter-cheatsheet-heading"]);
+    section.append(&heading);
+    for item in items {
+        let code = gtk::Label::new(Some(*item));
+        code.set_halign(gtk::Align::Fill);
+        code.set_xalign(0.0);
+        code.set_wrap(true);
+        code.set_selectable(true);
+        code.set_css_classes(&["noter-cheatsheet-item"]);
+        section.append(&code);
+    }
+    section
+}
+
+fn show_about_dialog(
+    parent: &gtk::ApplicationWindow,
+    version: &str,
+    storage: &str,
+    backup: &str,
+    recovery: &str,
+) {
+    let dialog = paper_dialog(
+        parent,
+        "About Noter",
+        Some(&format!("Noter {version}")),
+        460,
+        0,
+    );
+    dialog.set_resizable(false);
+    let root = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    root.set_css_classes(&["noter-dialog-panel"]);
+    let body = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    body.set_css_classes(&["noter-dialog-body"]);
+    body.append(&meta_field("Storage", storage, false));
+    body.append(&meta_field("Backup Health", backup, false));
+    body.append(&meta_field("Recovery", recovery, true));
+    let (footer, close) = dialog_footer(&dialog);
+    root.append(&body);
+    root.append(&footer);
     dialog.set_child(Some(&root));
+    dialog.set_default_widget(Some(&close));
     dialog.present();
+    close.grab_focus();
+}
+
+fn show_markdown_help(parent: &gtk::ApplicationWindow) {
+    let dialog = paper_dialog(
+        parent,
+        "Markdown syntax",
+        Some("Syntax Noter renders in Preview."),
+        720,
+        520,
+    );
+    let root = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    root.set_hexpand(true);
+    root.set_vexpand(true);
+    root.set_css_classes(&["noter-dialog-panel"]);
+    let body = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    body.set_hexpand(true);
+    body.set_vexpand(true);
+    body.set_css_classes(&["noter-dialog-body"]);
+
+    let columns = gtk::Box::new(gtk::Orientation::Horizontal, 28);
+    columns.set_hexpand(true);
+    columns.set_halign(gtk::Align::Fill);
+    let left = gtk::Box::new(gtk::Orientation::Vertical, 18);
+    left.set_hexpand(true);
+    left.set_halign(gtk::Align::Fill);
+    let right = gtk::Box::new(gtk::Orientation::Vertical, 18);
+    right.set_hexpand(true);
+    right.set_halign(gtk::Align::Fill);
+    let midpoint = MARKDOWN_CHEATSHEET_SECTIONS.len().div_ceil(2);
+    for (index, section) in MARKDOWN_CHEATSHEET_SECTIONS.iter().enumerate() {
+        let column = if index < midpoint { &left } else { &right };
+        column.append(&cheatsheet_section(section.title, section.items));
+    }
+    columns.append(&left);
+    columns.append(&right);
+    let scroll = gtk::ScrolledWindow::builder()
+        .hscrollbar_policy(gtk::PolicyType::Never)
+        .vscrollbar_policy(gtk::PolicyType::Automatic)
+        .vexpand(true)
+        .hexpand(true)
+        .child(&columns)
+        .build();
+    body.append(&scroll);
+    let (footer, close) = dialog_footer(&dialog);
+    root.append(&body);
+    root.append(&footer);
+    dialog.set_child(Some(&root));
+    dialog.set_default_widget(Some(&close));
+    dialog.present();
+    close.grab_focus();
+}
+
+struct ConfirmationRequest {
+    title: &'static str,
+    detail: String,
+    accept_label: &'static str,
+    accepted: AppMsg,
+    cancelled: AppMsg,
+    destructive: bool,
 }
 
 fn show_confirmation(
     window: &gtk::ApplicationWindow,
-    message: &str,
-    detail: &str,
-    accept_label: &str,
-    accepted: AppMsg,
-    cancelled: AppMsg,
+    request: ConfirmationRequest,
     sender: &ComponentSender<DesktopComponent>,
 ) {
-    let dialog = gtk::AlertDialog::builder()
-        .modal(true)
-        .message(message)
-        .detail(detail)
-        .buttons(["Cancel", accept_label])
-        .cancel_button(0)
-        .default_button(0)
-        .build();
+    let ConfirmationRequest {
+        title: message,
+        detail,
+        accept_label,
+        accepted,
+        cancelled,
+        destructive,
+    } = request;
+    let dialog = paper_dialog(window, message, None, 440, 0);
+    dialog.set_resizable(false);
+    let root = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    root.set_css_classes(&["noter-dialog-panel"]);
+    let body = gtk::Box::new(gtk::Orientation::Vertical, 12);
+    body.set_css_classes(&["noter-dialog-body"]);
+    let copy = gtk::Label::new(Some(&detail));
+    copy.set_halign(gtk::Align::Start);
+    copy.set_wrap(true);
+    copy.set_xalign(0.0);
+    copy.set_css_classes(&["noter-dialog-copy"]);
+    body.append(&copy);
+    let footer = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    footer.set_halign(gtk::Align::Fill);
+    footer.set_css_classes(&["noter-dialog-footer"]);
+    let spacer = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    spacer.set_hexpand(true);
+    let cancel = gtk::Button::with_label("Cancel");
+    cancel.set_css_classes(&["noter-dialog-cancel"]);
+    let accept = gtk::Button::with_label(accept_label);
+    if destructive {
+        accept.set_css_classes(&["noter-dialog-accept", "danger"]);
+    } else {
+        accept.set_css_classes(&["noter-dialog-accept", "noter-dialog-close"]);
+    }
+    footer.append(&spacer);
+    footer.append(&cancel);
+    footer.append(&accept);
+    root.append(&body);
+    root.append(&footer);
+    dialog.set_child(Some(&root));
+    dialog.set_default_widget(Some(&cancel));
+
+    let responded = Rc::new(Cell::new(false));
     let sender = sender.input_sender().clone();
-    dialog.choose(
-        Some(window),
-        None::<&gtk::gio::Cancellable>,
-        move |response| {
-            let message = if response == Ok(1) {
-                accepted
-            } else {
-                cancelled
-            };
+    let send_once = {
+        let responded = responded.clone();
+        let sender = sender.clone();
+        let dialog = dialog.clone();
+        move |message: AppMsg| {
+            if responded.replace(true) {
+                return;
+            }
+            dialog.close();
             let _send_result = sender.send(message);
-        },
-    );
+        }
+    };
+    let cancel_send = send_once.clone();
+    let cancelled_on_cancel = cancelled.clone();
+    cancel.connect_clicked(move |_| cancel_send(cancelled_on_cancel.clone()));
+    let accept_send = send_once.clone();
+    accept.connect_clicked(move |_| accept_send(accepted.clone()));
+    let close_send = send_once;
+    dialog.connect_close_request(move |_| {
+        close_send(cancelled.clone());
+        gtk::glib::Propagation::Proceed
+    });
+    dialog.present();
+    cancel.grab_focus();
 }
 
 fn main() {
@@ -1842,4 +2181,31 @@ fn main() {
         app.set_storage_recovery(true);
     }
     RelmApp::new(APPLICATION_ID).run::<DesktopComponent>((app, store, recovery, preferences));
+}
+
+#[cfg(test)]
+mod note_list_sync_tests {
+    use super::note_list_can_update_in_place;
+    use uuid::Uuid;
+
+    #[test]
+    fn selecting_a_note_keeps_row_identity_so_widgets_can_stay_mounted() {
+        let first = Uuid::from_u128(1);
+        let second = Uuid::from_u128(2);
+        assert!(note_list_can_update_in_place(
+            &[first, second],
+            &[first, second]
+        ));
+    }
+
+    #[test]
+    fn filtering_or_reordering_rebuilds_the_note_list() {
+        let first = Uuid::from_u128(1);
+        let second = Uuid::from_u128(2);
+        assert!(!note_list_can_update_in_place(&[first, second], &[second]));
+        assert!(!note_list_can_update_in_place(
+            &[first, second],
+            &[second, first]
+        ));
+    }
 }

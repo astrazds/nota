@@ -18,6 +18,7 @@ Concept artifact:
 Approved product frame:
 
 - **Frame A, Quiet Notebook Frame** is the product UI reference for the main app frame: light paper default, compact restrained sidebar, warm selected Note row, thin editor toolbar, stable editor-area footer, and paper-neutral popup panels.
+- Paper-neutral product windows cover About, Markdown help, Delete Confirmation, Clear All, and Backup Import Preview. They use a notebook header and paper body, not stock GTK alert chrome.
 - The post-1.0 product surface is the Relm4/GTK4 native window. Use browser Adapter screenshots only when the migration Adapter itself is the subject.
 
 ## Brand Promise
@@ -266,8 +267,10 @@ The product layout is a working notebook, not a marketing dashboard.
 
 - Keep the Writing Surface visually primary.
 - Keep Write, Preview, and Split on one Pane Rhythm.
+- In Split, divide the editor area 50/50 of the current viewport.
 - Keep View Mode Controls in the editor-area footer, not in a persistent app header.
 - Keep the sidebar dense enough to scan several Notes.
+- Keep Note List and Writing Surface Tag pills on the same compact chip.
 - Keep Search as the primary discovery control.
 - Keep Backup Controls compact and secondary.
 - Keep Product Metadata and diagnostics outside the primary workflow.
@@ -368,6 +371,7 @@ Screenshot guidance:
 - Do not expose private or joke data.
 - Include Light and Dark Theme only when comparing theme support.
 - Prefer the native window; keep browser chrome out of frame unless the browser Adapter is the subject.
+- Capture About, Markdown help, and confirmations as paper product windows, not stock GTK alerts.
 
 ## Motion
 

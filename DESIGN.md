@@ -111,6 +111,7 @@ The visual language rejects an Apple Notes clone, a developer Markdown workbench
 - Light surfaces read as paper neutrals; Dark Theme reads as Dim Desk Surfaces, not inverted colors.
 - Compact controls and stable 45px footers keep workflow chrome predictable.
 - Markdown affordances support writing without becoming the product frame.
+- Native GTK uses bundled CSS and paper-neutral product windows, not libadwaita or stock alert chrome. GTK Stylesheet rejects `max-width`; the 72ch writing plane is enforced in layout.
 
 ## 2. Colors
 
@@ -174,8 +175,9 @@ Noter is flat by default. Depth is conveyed mostly through tonal layering, borde
 - **Icon Buttons:** Sidebar utility icons use shared theme-aware neutral foregrounds plus matching hover foreground/background states in Light and Dark Themes. Do not rely on inherited text color for standalone icons.
 
 ### Chips
-- **Style:** Rounded pills (9999px radius), soft neutral fill, muted text, compact 2px by 8px padding.
+- **Style:** Rounded pills (9999px radius), soft signal-tinted fill, muted text, compact 2px by 8px padding, 18px height, 10px type.
 - **State:** Filter chips use Warm Capture Yellow fill. Tag chips remain secondary metadata, never primary navigation.
+- **Parity:** Note List Tag pills and Writing Surface Tag pills share that compact chip. Native sidebar Tags are buttons for filtering; they must not pick up default GTK button height.
 
 ### Cards / Containers
 - **Corner Style:** Small to medium radius (6px to 8px).
@@ -198,6 +200,8 @@ Noter is flat by default. Depth is conveyed mostly through tonal layering, borde
 - **Editor-area Footer:** Stable 45px compact footer that owns Write, Preview, Split, and Markdown syntax help.
 - **Search Hint:** Temporary popup below Search, theme-aware and readable in Light and Dark without pushing the Note List down.
 - **Global Notification:** Floating, compact, transient feedback for save, Backup, and import outcomes.
+- **Paper Dialog:** About, Markdown help, Delete Confirmation, Clear All, and Backup Import Preview use a notebook header (title plus optional subtitle, quiet close), paper body, and a compact footer. Close on About/help is Warm Capture Yellow. Destructive accepts use Recovery Red. Cancel stays the default focused confirmation control. Do not use stock GTK `AlertDialog` or an Adwaita headerbar for these surfaces.
+- **Split:** The editor area divides 50/50 of the current viewport. Each pane keeps Pane Rhythm and the 72ch writing plane. One footer spans both panes.
 
 ## 6. Do's and Don'ts
 
@@ -207,6 +211,9 @@ Noter is flat by default. Depth is conveyed mostly through tonal layering, borde
 - **Do** use compact 45px footers for sidebar utilities and editor View Mode Controls.
 - **Do** tune Light and Dark Themes separately for text, borders, selection, and overlay readability.
 - **Do** use full borders, tonal backgrounds, rings, and explicit labels for important states.
+- **Do** keep Note List and Writing Surface Tag pills on the same compact chip.
+- **Do** split the editor area equally in Split.
+- **Do** use paper-neutral product windows for About, Markdown help, and confirmations.
 
 ### Don't:
 - **Don't** make Noter feel like an Apple Notes clone.
@@ -215,4 +222,6 @@ Noter is flat by default. Depth is conveyed mostly through tonal layering, borde
 - **Don't** turn Search into a command-palette-first productivity shell.
 - **Don't** imply cloud sync through persistent status chrome.
 - **Don't** hide Note Actions behind hover-only affordances.
+- **Don't** use stock GTK/Adwaita alert chrome for product confirmations or diagnostics.
+- **Don't** rebuild the Note List in a way that steals focus or scroll when the user selects a Note.
 - **Don't** use persistent syntax instruction blocks, generic destructive confirmations, decorative chrome around the Writing Surface, gradient text, glassmorphism, colored side-stripe borders, or identical decorative card grids.

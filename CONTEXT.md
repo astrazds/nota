@@ -169,6 +169,7 @@ _Avoid_: Replace import by default
 - A **Note** shows **Note Metadata** near its header or details surface.
 - A **Preview** shows the **Note Title**, then read-only **Note Metadata**, then the Markdown body so Preview and Split view match the Writing Surface header order.
 - **Pane Rhythm** keeps the **Writing Surface**, full **Preview**, and Split panes aligned to the same content origin and readable measure.
+- In Split, the editor area is divided equally (50/50 of the current viewport) while each pane keeps **Pane Rhythm**.
 - A **Note** has a **Save Status** while it is being edited.
 - A **Global Notification** can show save, Backup, and import outcomes above the app chrome, then clear itself after a short delay.
 - A **Markdown Note App** prioritises creating, writing, finding, and organising **Notes** over exposing Markdown tooling.
@@ -178,6 +179,9 @@ _Avoid_: Replace import by default
 - A **Writing Surface** is the default **View Mode** for a **Note**.
 - **View Mode Controls** belong in a consistent editor-area footer and should keep a stable height across Write, Preview, and Split.
 - In Split, one editor-area footer should span the editor/preview area because both panes are one **View Mode** for the same **Note**.
+- Selecting a **Note** in the **Note List** should keep that row in view; the list should not jump to the top.
+- **Note List** Tag pills and **Writing Surface** Tag pills share compact chip sizing.
+- About, Markdown help, **Delete Confirmation**, **Clear All**, and **Backup Import Preview** use paper-neutral product windows, not stock toolkit alerts.
 - Desktop should avoid a persistent editor header when the editor-area footer can carry **View Mode Controls**.
 - Compact viewports may keep a minimal **Responsive Navigation** toggle so the user can return to the **Note List**.
 - **Formatting Tools** support the **Writing Surface** but should not dominate the app chrome.
@@ -262,6 +266,15 @@ _Avoid_: Replace import by default
 > **Dev:** "Should Preview be centred because it is read-only?"
 > **Domain expert:** "No — keep the same **Pane Rhythm** as the **Writing Surface** so changing **View Mode** does not feel like moving to a separate document."
 >
+> **Dev:** "In Split, should one pane keep a fixed 72ch strip while the other takes leftover space?"
+> **Domain expert:** "No — split the editor area 50/50 of the current viewport, then keep **Pane Rhythm** inside each pane."
+>
+> **Dev:** "Can native About and Delete Confirmation use the stock GTK alert?"
+> **Domain expert:** "No — those are product windows. Use the paper-neutral popup model, name the **Note** or impact, and keep Cancel as the default confirmation focus."
+>
+> **Dev:** "When the user selects a Note further down the list, can the sidebar jump to the top?"
+> **Domain expert:** "No — keep that **Note** in view. Selection is not a reason to rebuild or re-scroll the **Note List**."
+>
 > **Dev:** "Should Search syntax be permanently visible below Search?"
 > **Domain expert:** "No — use a **Search Hint** while Search is focused, then give the space back to the **Note List**."
 >
@@ -308,6 +321,9 @@ _Avoid_: Replace import by default
 
 - "Markdown workbench" was considered as the product shape — resolved: Noter should be framed as a **Markdown Note App**.
 - "Preview toggle" sounded like a layout control — resolved: preview is a **View Mode** for a **Note**.
+- Split leftover-space allocation — resolved: Split divides the editor area 50/50 of the current viewport, then keeps **Pane Rhythm** inside each pane.
+- Stock GTK alerts for About/help/confirmations — resolved: use paper-neutral product windows.
+- Selecting a Note rebuilt the **Note List** — resolved: keep the selected row in view.
 - "Tag navigation" implied a primary organising model — resolved: a **Tag** is secondary filtering metadata.
 - "No Note Selected" was used for both no selection and no notes — resolved: no notes is an **Empty Collection** with a creation path.
 - "Hover controls" hid secondary operations — resolved: **Note Actions** should be exposed through a stable control.

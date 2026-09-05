@@ -22,7 +22,7 @@ This is a single-context repo:
 ├── docs/brand-toolkit.md
 ├── docs/adr/          ← including ADR-0009 native replacement and ADR-0010 AppImage
 ├── crates/noter-core/
-├── crates/noter-desktop/
+├── crates/noter-desktop/  ← Relm4/GTK4 product; XDG data under net.astrazds.Noter
 └── src/               ← browser Adapter until native cutover
 ```
 

@@ -1,6 +1,6 @@
 use noter_desktop::visual_contract::{
-    writing_plane_max_width_px, writing_plane_measure_chars, NATIVE_STYLESHEET,
-    NATIVE_VISUAL_CONTRACT,
+    NATIVE_STYLESHEET, NATIVE_VISUAL_CONTRACT, writing_plane_max_width_px,
+    writing_plane_measure_chars,
 };
 
 #[test]
@@ -33,6 +33,13 @@ fn native_workspace_frame_matches_the_web_visual_contract() {
         "button.noter-command-primary",
         "entry.noter-title",
         "button.noter-mode-button.active",
+        "window.noter-dialog",
+        ".noter-tag-suggestions",
+        "button.noter-note-tags",
+        ".noter-dialog-field",
+        ".noter-cheatsheet-item",
+        ".noter-dialog-header",
+        "button.noter-dialog-header-close",
     ] {
         assert!(
             NATIVE_STYLESHEET.contains(required_state),
@@ -71,7 +78,8 @@ fn paper_writing_plane_and_capture_pulse_tokens_are_declared() {
         .expect("active mode button rule");
     let active_block = &NATIVE_STYLESHEET[active_idx..active_idx + 280];
     assert!(
-        active_block.contains("var(--selected)") || active_block.contains("background: var(--selected)"),
+        active_block.contains("var(--selected)")
+            || active_block.contains("background: var(--selected)"),
         "active mode should use amber selected fill"
     );
     assert!(
@@ -104,4 +112,18 @@ fn paper_writing_plane_measure_is_wired_from_the_contract() {
     let dark_block = &NATIVE_STYLESHEET[dark_idx..dark_idx + 520];
     assert!(dark_block.contains("--capture: #FFB340"));
     assert!(dark_block.contains("--signal: #E7A858"));
+}
+
+#[test]
+fn sidebar_tag_pills_use_the_same_compact_chip_sizing_as_the_writing_surface() {
+    let button_idx = NATIVE_STYLESHEET
+        .find("button.noter-note-tags")
+        .expect("sidebar Tag pills must share the writing-surface chip rule");
+    let block = &NATIVE_STYLESHEET[button_idx..button_idx + 280];
+    assert!(
+        block.contains("min-height: 18px"),
+        "sidebar Tag pills must not use GTK default button height"
+    );
+    assert!(block.contains("font-size: 10px"));
+    assert!(block.contains("padding: 2px 8px"));
 }

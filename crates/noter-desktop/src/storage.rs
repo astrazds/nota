@@ -12,6 +12,7 @@ use noter_core::transition::ThemePreference;
 use serde::{Deserialize, Serialize};
 
 const COLLECTION_VERSION: u32 = 1;
+const LEGACY_DATA_DIR_NAME: &str = "noter";
 static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -115,7 +116,21 @@ impl NativeStore {
                     .map(|home| home.join(".local/share"))
             })
             .ok_or(StorageError::DataDirectoryUnavailable)?;
-        Ok(Self::at(data_home.join("noter")))
+        Ok(Self::discover_in(data_home))
+    }
+
+    fn discover_in(data_home: impl AsRef<Path>) -> Self {
+        let data_home = data_home.as_ref();
+        let canonical = data_home.join(crate::APPLICATION_ID);
+        let legacy = data_home.join(LEGACY_DATA_DIR_NAME);
+        if canonical.exists() || !legacy.exists() {
+            Self::at(canonical)
+        } else {
+            match fs::rename(&legacy, &canonical) {
+                Ok(()) => Self::at(canonical),
+                Err(_) => Self::at(legacy),
+            }
+        }
     }
 
     pub fn at(data_dir: impl Into<PathBuf>) -> Self {
@@ -427,6 +442,55 @@ mod tests {
             store.restore_previous(&recovery),
             Err(StorageError::InvalidCollection(_))
         ));
+    }
+
+    #[test]
+    fn discover_uses_the_application_id_directory_under_xdg_data_home() {
+        let temp = tempfile::tempdir().unwrap();
+        let store = NativeStore::discover_in(temp.path());
+
+        assert_eq!(store.data_dir(), temp.path().join(crate::APPLICATION_ID));
+    }
+
+    #[test]
+    fn discover_migrates_a_legacy_noter_directory_into_the_application_id_path() {
+        let temp = tempfile::tempdir().unwrap();
+        let legacy = temp.path().join("noter");
+        fs::create_dir_all(&legacy).unwrap();
+        fs::write(
+            legacy.join("collection.json"),
+            b"{\"version\":1,\"notes\":[],\"recently_deleted_notes\":[]}",
+        )
+        .unwrap();
+
+        let store = NativeStore::discover_in(temp.path());
+
+        assert_eq!(store.data_dir(), temp.path().join(crate::APPLICATION_ID));
+        assert!(store.data_dir().join("collection.json").exists());
+        assert!(!legacy.exists());
+    }
+
+    #[test]
+    fn discover_keeps_an_existing_application_id_directory_and_does_not_touch_legacy() {
+        let temp = tempfile::tempdir().unwrap();
+        let canonical = temp.path().join(crate::APPLICATION_ID);
+        let legacy = temp.path().join("noter");
+        fs::create_dir_all(&canonical).unwrap();
+        fs::create_dir_all(&legacy).unwrap();
+        fs::write(canonical.join("collection.json"), b"canonical").unwrap();
+        fs::write(legacy.join("collection.json"), b"legacy").unwrap();
+
+        let store = NativeStore::discover_in(temp.path());
+
+        assert_eq!(store.data_dir(), canonical);
+        assert_eq!(
+            fs::read_to_string(canonical.join("collection.json")).unwrap(),
+            "canonical"
+        );
+        assert_eq!(
+            fs::read_to_string(legacy.join("collection.json")).unwrap(),
+            "legacy"
+        );
     }
 
     #[test]

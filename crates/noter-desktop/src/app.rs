@@ -8,7 +8,7 @@ use noter_core::editor_view::EditorViewMode;
 use noter_core::markdown_editing::{ByteSelection, MarkdownCommand, apply_markdown_command};
 use noter_core::note_list_interaction::{NoteListInteraction, NoteListRenderModel};
 use noter_core::responsive_navigation::{ViewportClass, normalize_view_mode};
-use noter_core::tag_rules::parse_tags_input;
+use noter_core::tag_rules::{TagSuggestion, parse_tags_input, suggest_existing_tags};
 use noter_core::transition::{ThemePreference, TransitionError, import_desktop_transition};
 use uuid::Uuid;
 
@@ -34,7 +34,7 @@ pub struct GlobalNotification {
     pub tone: NotificationTone,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AppMsg {
     QuickCapture,
     SelectNote(Uuid),
@@ -82,6 +82,7 @@ pub enum AppMsg {
     DismissNotification(u64),
     StartEditTags,
     FinishEditTags,
+    AcceptTagSuggestion(String),
 }
 
 #[derive(Debug)]
@@ -260,6 +261,13 @@ impl AppModel {
                 self.editing_tags = false;
                 false
             }
+            AppMsg::AcceptTagSuggestion(input) => {
+                let Some(suggestion) = self.tag_suggestions(&input).into_iter().next() else {
+                    return false;
+                };
+                self.workspace
+                    .update_selected_tags(parse_tags_input(&suggestion.completed_input))
+            }
             AppMsg::ImportBackupJson(json) => {
                 match prepare_backup_import(self.workspace.notes(), json) {
                     Ok(pending) => {
@@ -326,6 +334,11 @@ impl AppModel {
 
     pub fn is_editing_tags(&self) -> bool {
         self.editing_tags
+    }
+
+    pub fn tag_suggestions(&self, input: &str) -> Vec<TagSuggestion> {
+        let selected = self.workspace.selected_note();
+        suggest_existing_tags(self.workspace.notes(), selected.as_ref(), input)
     }
 
     pub fn backup_health_label(&self, now: DateTime<Utc>) -> &'static str {
@@ -437,6 +450,7 @@ impl AppModel {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::TimeZone;
     use noter_core::transition::export_desktop_transition;
 
     #[test]
@@ -507,6 +521,86 @@ mod tests {
         assert!(!app.note_list_visible);
         app.apply(AppMsg::Resize(1200.0));
         assert!(app.note_list_visible);
+    }
+
+    #[test]
+    fn edit_tags_suggests_other_collection_tags_for_the_current_fragment() {
+        let mut selected = noter_core::Note::new("Selected".to_string(), String::new());
+        selected.tags = vec!["Work".to_string()];
+        let mut other = noter_core::Note::new("Other".to_string(), String::new());
+        other.tags = vec!["Research".to_string(), "Work".to_string()];
+        let mut app = AppModel::new(
+            CollectionEnvelope::new(vec![selected.clone(), other], Vec::new()),
+            ThemePreference::Light,
+            None,
+        );
+        app.apply(AppMsg::SelectNote(selected.id));
+
+        let suggestions = app.tag_suggestions("Work, r");
+
+        assert_eq!(suggestions.len(), 1);
+        assert_eq!(suggestions[0].label, "Research");
+        assert_eq!(suggestions[0].completed_input, "Work, Research");
+    }
+
+    #[test]
+    fn accepting_a_tag_suggestion_applies_the_first_match_to_the_selected_note() {
+        let mut selected = noter_core::Note::new("Selected".to_string(), String::new());
+        selected.tags = vec!["Work".to_string()];
+        let mut other = noter_core::Note::new("Other".to_string(), String::new());
+        other.tags = vec!["Research".to_string()];
+        let mut app = AppModel::new(
+            CollectionEnvelope::new(vec![selected.clone(), other], Vec::new()),
+            ThemePreference::Light,
+            None,
+        );
+        app.apply(AppMsg::SelectNote(selected.id));
+
+        assert!(app.apply(AppMsg::AcceptTagSuggestion("Work, r".to_string())));
+        assert_eq!(
+            app.workspace.selected_note().unwrap().tags,
+            vec!["Work".to_string(), "Research".to_string()]
+        );
+    }
+
+    #[test]
+    fn selecting_a_note_keeps_note_list_row_order() {
+        let mut older = noter_core::Note::new("Older".to_string(), String::new());
+        let mut newer = noter_core::Note::new("Newer".to_string(), String::new());
+        older.last_modified = chrono::Utc
+            .with_ymd_and_hms(2026, 1, 1, 0, 0, 0)
+            .unwrap();
+        newer.last_modified = chrono::Utc
+            .with_ymd_and_hms(2026, 1, 2, 0, 0, 0)
+            .unwrap();
+        let older_id = older.id;
+        let newer_id = newer.id;
+        let mut app = AppModel::new(
+            CollectionEnvelope::new(vec![older, newer], Vec::new()),
+            ThemePreference::Light,
+            None,
+        );
+        app.apply(AppMsg::SelectNote(older_id));
+        let before: Vec<_> = app
+            .note_list_render_model()
+            .projection
+            .rows
+            .iter()
+            .map(|row| row.id)
+            .collect();
+
+        app.apply(AppMsg::SelectNote(newer_id));
+
+        let after: Vec<_> = app
+            .note_list_render_model()
+            .projection
+            .rows
+            .iter()
+            .map(|row| row.id)
+            .collect();
+        assert_eq!(before, after);
+        assert_eq!(after, vec![newer_id, older_id]);
+        assert_eq!(app.workspace.selected_id(), Some(newer_id));
     }
 
     #[test]
@@ -629,10 +723,7 @@ mod tests {
 
         let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::Light, None);
         assert!(app.apply(AppMsg::QuickCapture));
-        assert_eq!(
-            app.workspace.focus_intent(),
-            FocusIntent::NoteTitle
-        );
+        assert_eq!(app.workspace.focus_intent(), FocusIntent::NoteTitle);
     }
 
     #[test]
@@ -734,7 +825,8 @@ mod tests {
 
     #[test]
     fn selecting_a_tag_filters_the_note_list_without_a_match_label() {
-        let mut work = noter_core::Note::new("Sprint".to_string(), "body phrase unique".to_string());
+        let mut work =
+            noter_core::Note::new("Sprint".to_string(), "body phrase unique".to_string());
         work.tags = vec!["Work".to_string()];
         let personal = noter_core::Note::new("Groceries".to_string(), "apples".to_string());
         let mut app = AppModel::new(
@@ -816,7 +908,9 @@ mod tests {
         assert_eq!(app.workspace.notes(), std::slice::from_ref(&existing));
         assert!(app.pending_backup_import().is_none());
         assert_eq!(
-            app.notification.as_ref().map(|notification| notification.tone),
+            app.notification
+                .as_ref()
+                .map(|notification| notification.tone),
             Some(NotificationTone::Error)
         );
         assert_eq!(app.revision(), 0);

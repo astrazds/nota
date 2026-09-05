@@ -44,11 +44,7 @@ mod imp {
     }
 
     impl WidgetImpl for WritingPlane {
-        fn measure(
-            &self,
-            orientation: gtk::Orientation,
-            for_size: i32,
-        ) -> (i32, i32, i32, i32) {
+        fn measure(&self, orientation: gtk::Orientation, for_size: i32) -> (i32, i32, i32, i32) {
             let Some(child) = self.child.upgrade() else {
                 return (0, 0, -1, -1);
             };

@@ -2,15 +2,15 @@
 
 A local-first Markdown note-taking app. The Linux-native **Relm4/GTK4** app is the post-1.0 product (`2.0.0-alpha.1`). The stable **1.0.2** line is the **Leptos** browser Adapter, kept as the migration source until native cutover.
 
-This is not a 2.0.0 release. ADR-0009 and ADR-0010 withhold a 2.0.0 tag until a clean-profile web-to-desktop rehearsal on the AppImage is recorded and publication is approved. Native already presents the 1.0 product rules (Backup Import Preview, Storage Recovery, Search-led discovery, Preview/Split, installed fonts). The first shippable native artifact is an x86_64 AppImage wrapping the Meson prefix.
+This is not a 2.0.0 release. ADR-0009 and ADR-0010 withhold a 2.0.0 tag until a clean-profile web-to-desktop rehearsal on the AppImage is recorded and publication is approved. Native already presents the 1.0 Markdown Note App: Backup Import Preview, Storage Recovery, Search-led discovery, Tag pills with Edit tags and collection Tag autocomplete, paper-neutral About / Markdown help / confirmations, Preview and 50/50 Split, and installed fonts. The first shippable native artifact is an x86_64 AppImage wrapping the Meson prefix.
 
 ## Native migration
 
 - `noter-core` owns toolkit-independent Notes, Flat Collection behavior, Search, Tags, Backup v1, Storage Recovery rules, Markdown Preview generation, UTF-8 byte-range formatting, and the Markdown syntax cheatsheet.
 - `noter-web` remains the final browser migration Adapter and exposes **Export for desktop** (`noter.desktop_transition` v1).
-- `noter-desktop` is the Relm4 root `AppModel`/`AppMsg` Component: GTK Writing Surface, Note List factories, Backup Import Preview then Merge Import, desktop-transition Restore into an Empty Collection, Storage Recovery, Search Hint and Discovery Depth UI, Tag pills with an Edit tags flow, Light/Dark Theme, XDG collection storage, atomic Previous Snapshot replacement, Corrupt Payload Quarantine, Diagnostics, and close-time persistence flush.
+- `noter-desktop` is the Relm4 root `AppModel`/`AppMsg` Component: GTK Writing Surface, Note List factories that update in place on selection, Backup Import Preview then Merge Import, desktop-transition Restore into an Empty Collection, Storage Recovery, Search Hint and Discovery Depth UI, compact Tag pills with an Edit tags flow and collection Tag autocomplete, paper-neutral About / Markdown help / Delete Confirmation / Clear All / Backup Import Preview windows, Light/Dark Theme, XDG collection storage under `net.astrazds.Noter`, atomic Previous Snapshot replacement, Corrupt Payload Quarantine, Diagnostics, and close-time persistence flush.
 
-Production desktop, icon, and binary use application ID `net.astrazds.Noter`. Devel Flatpak uses `net.astrazds.Noter.Devel` and stays in tree for later. Source Sans 3 and Source Code Pro ship in `assets/fonts` and install with the app; installed runs do not read `node_modules`.
+Production desktop, icon, and binary use application ID `net.astrazds.Noter`. Collection data lives at `$XDG_DATA_HOME/net.astrazds.Noter` (typically `~/.local/share/net.astrazds.Noter`). A first launch migrates a legacy `$XDG_DATA_HOME/noter` directory when the canonical path is absent. Devel Flatpak uses `net.astrazds.Noter.Devel` and stays in tree for later. Source Sans 3 and Source Code Pro ship in `assets/fonts` and install with the app; installed runs do not read `node_modules`.
 
 The first native distribution path is an AppImage wrapping the Meson prefix (ADR-0010):
 
@@ -35,18 +35,18 @@ That packager downloads linuxdeploy tools into `build-aux/.tool-cache` on demand
   - Use 2 spaces at line-end for hard line breaks.
   - Preview suppresses a duplicate first content heading when it matches the Note Title.
   - Preview renders the Note Title and read-only Tags before the Markdown body, matching the editor header order.
-  - Write, Preview, and Split share a left-aligned pane rhythm, `72ch` reading measure, and Note Title scale so view switches do not reframe the note.
+  - Write, Preview, and Split share a left-aligned pane rhythm, `72ch` reading measure, and Note Title scale so view switches do not reframe the note. Split divides the editor area 50/50 of the current viewport.
 - **Organisation Tools**:
   - **Search**: Real-time search bar (with debounce) to filter notes by title, content, or tags with title/Tag highlighting, compact body Match Snippets, lightweight result status, and filtered-empty explanations.
   - **Scoped Search**: Optional syntax for quoted phrases, `title:`, `tag:`, and `is:pinned` filters, shown as a focus-time hint while keeping Search focused on Notes.
-  - **Tags**: Lightweight Note Metadata with normalization, compact read-only Tag pills, preview visibility beneath the Note Title, and an Edit tags flow. The browser Adapter also offers autocomplete and collection-wide Tag cleanup.
+  - **Tags**: Lightweight Note Metadata with normalization, compact read-only Tag pills on both the Note List and Writing Surface, preview visibility beneath the Note Title, and an Edit tags flow with collection Tag autocomplete. The browser Adapter also offers collection-wide Tag cleanup.
   - **Pinning**: Pin important notes to the top of your list.
-- **Local Persistence**: Debounced saves while typing, preserving the previous valid active/Recently Deleted collection snapshot before each safe save. The browser Adapter uses `LocalStorage`. Native stores a versioned `collection.json` under the XDG data directory.
+- **Local Persistence**: Debounced saves while typing, preserving the previous valid active/Recently Deleted collection snapshot before each safe save. The browser Adapter uses `LocalStorage`. Native stores a versioned `collection.json` under `$XDG_DATA_HOME/net.astrazds.Noter`.
 - **Quick Capture**: Create a new Note from the sidebar, empty state, or `Ctrl/Cmd+N`; compact viewports return directly to the Writing Surface with the Note Title focused.
 - **Recoverable Delete**: Deleted Notes move to Recently Deleted so accidental deletes can be restored, individually cleared, or cleared all at once after a count-specific confirmation.
 - **Storage Recovery**: If saved Notes or Recently Deleted payloads become corrupt, Noter starts in a recovery state with Restore previous snapshot, Start empty, and Import Backup paths before normal editing resumes.
 - **Backup & Restore**: Export a versioned Flat Collection backup, track the last successful export with actionable stale/missing Backup Health nudges, and preview add/replace impact before safely merge-importing backups from compact sidebar footer controls.
-- **Diagnostics**: About Noter opens from the main frame and exposes version, storage mode, Backup Health, and corrupt-payload quarantine state without adding persistent metadata to the main note workflow.
+- **Diagnostics**: About Noter is a paper-neutral product window from the sidebar and exposes version, storage path, Backup Health, and corrupt-payload quarantine state without adding persistent metadata to the main note workflow.
 - **Debug Starter Notes**: Browser Adapter debug builds seed three representative notes when there is no saved collection yet, giving manual testing coverage for pinning, tags, rich Markdown, preview safety, search, and responsive editing.
 - **Tuned Themes**: Supports Light and Dark themes with coherent surfaces, borders, selection states, and accents.
 - **Polished Sidebar Utilities**: Search has a clear affordance, Recently Deleted actions use explicit recovery/destructive copy, and Backup controls sit in a compact labelled footer row.
@@ -57,10 +57,10 @@ That packager downloads linuxdeploy tools into `build-aux/.tool-cache` on demand
   - Preview prose uses the same readable body scale in Light, Dark, full Preview, and Split modes, with tinted dark-theme prose rather than pure white.
   - Tag chips stay compact near the Note header, defer removal to the Edit tags flow, preserve 44px mobile touch targets where they become controls, and switch to a single edit input only when editing.
   - Contextual formatting tools (Bold, Italic, Strikethrough, Task List, Insert Table) inside the Writing Surface after Note Metadata.
-  - Markdown syntax modal uses the shared paper-neutral popup model with dialog semantics on the popup panel.
+  - Markdown syntax help uses the shared paper-neutral popup model: a notebook header, two-column cheatsheet, and dialog semantics on the popup panel.
   - Floating global notification outlet for save, Backup, and import feedback, inset from the app chrome so it does not sit on the viewport corner.
 - **Stable Note Actions**: Pin/unpin and delete are available from a note action menu instead of hover-only controls.
-- **Delete Confirmation**: Modal confirmation uses the "Move to Recently Deleted?" frame, names the target Note, and defaults keyboard focus to Cancel before recoverable or permanent removal.
+- **Delete Confirmation**: Paper-neutral confirmation uses the "Move to Recently Deleted?" frame, names the target Note, and defaults keyboard focus to Cancel before recoverable or permanent removal. Clear All and Backup Import Preview use the same paper dialog model.
 - **Accessibility**: Discoverable controls for keyboard, pointer, and touch. The browser Adapter uses ARIA labels and panel-owned dialog semantics. Native uses GTK accessible roles and names.
 
 ## Technology Stack
@@ -142,12 +142,12 @@ Tests cover core domain logic including:
 - **Filtering & Sorting**: Real-time search, scoped query parsing, quoted phrase matching, title/Tag highlighting, compact body Match Snippets, render-ready note list projection, active Search/Tag result status, filtered-empty explanations, active tag filtering, and note pinning logic.
 - **Browser Visual Regressions**: Playwright coverage verifies Light/Dark Theme readability, Search Hint contrast and placement, selected Note state, emitted Tailwind/style contracts, local Source font loading, app icon/manifest assets, Frame A material surfaces, editor/sidebar footer height parity, compact footer controls, compact desktop Tag chips, labelled desktop actions, 44px mobile touch targets, popup panel dialog semantics, startup notification quietness, Preview/Split Note Title consistency, Note Metadata ordering, dark Preview/Split prose, Write/Preview/Split pane alignment, Backup Controls placement, and floating Global Notification layering.
 - **Browser Workflow Regressions**: Playwright coverage exercises Quick Capture, Note Title editing, Note creation/edit/save, scoped Search, pinning, Tags, Formatting Tools, Preview safety, Backup export/import, Responsive Navigation, Markdown syntax help, recoverable delete/restore, and Clear All.
-- **Native Workflow Smoke**: `noter-desktop` tests cover Backup Import Preview then Merge Import, Storage Recovery including Import Backup, Search filtered-empty vs Empty Collection, Quick Capture Note Title focus, Preview/Split View Mode surfaces, bundled fonts without `node_modules`, and a clean-profile web-to-desktop transition restore that rejects a second exact restore and then uses Merge Import.
+- **Native Workflow Smoke**: `noter-desktop` tests cover Backup Import Preview then Merge Import, Storage Recovery including Import Backup, Search filtered-empty vs Empty Collection, Quick Capture Note Title focus, Preview/Split View Mode surfaces, bundled fonts without `node_modules`, XDG `net.astrazds.Noter` discovery with legacy `noter` migration, Tag suggestions, Note List in-place selection, paper-dialog visual contracts, and a clean-profile web-to-desktop transition restore that rejects a second exact restore and then uses Merge Import.
 - **AppImage AppDir contract**: `build-aux/test_package_appimage.py` (also `meson test`) checks the installed layout, bundled WebKitGTK 6 helpers, font files, desktop file `Exec=noter-desktop`, and the runtime hook that sets `NOTER_FONT_DIR` and overlays WebKit helpers.
 - **Formatting**: Named Markdown commands and UTF-16/UTF-8-safe selection handling.
 - **Note Logic**: Workspace behaviours for quick capture, note creation, selected note editing, recoverable delete/restore/individual clear/count-confirmed Clear All, delete confirmation, title extraction, date formatting, preview truncation, and deserialisation.
 - **Tags**: Parsing, display formatting, autocomplete suggestions, normalization, individual removal, cleanup planning, case-insensitive matching, collection, and sorting.
-- **Persistence**: Debounced saves, previous snapshot preservation, corrupt-payload recovery, Recently Deleted storage, and Backup Health metadata. Browser Adapter tests cover LocalStorage; native tests cover XDG `collection.json` and close-time flush.
+- **Persistence**: Debounced saves, previous snapshot preservation, corrupt-payload recovery, Recently Deleted storage, and Backup Health metadata. Browser Adapter tests cover LocalStorage; native tests cover XDG `$XDG_DATA_HOME/net.astrazds.Noter/collection.json` and close-time flush.
 - **Starter Notes**: Debug-only sample notes cover pinning, tags, rich Markdown, preview safety, long previews, and responsive editing checks.
 - **Preview Rendering & Safety**: Title/body separation, duplicate heading suppression, raw HTML escaping, safe URL policy, and supported Markdown preview dialect on the same body-rendering path used by the app.
 - **Unicode Support**: Proper handling of multi-byte characters in character counting, preview truncation, formatting, and search highlighting.
@@ -163,7 +163,7 @@ Toolkit-independent behaviour lives in `noter-core` (some Modules are still `#[p
 - `src/storage/` / `noter-core`: Storage Recovery rules, Previous Snapshot, Corrupt Payload Quarantine.
 - `src/ui/` / `noter-core`: View Mode, Markdown commands, Markdown Preview generation, Responsive Navigation.
 
-The Relm4 desktop app lives in `crates/noter-desktop/`: `AppModel`/`AppMsg`, XDG `NativeStore`, bundled font lookup, WebKit Preview when enabled, and the GTK shell. Meson installs the binary, desktop file, icon, metainfo, and Source fonts. `build-aux/package_appimage.py` wraps that prefix into an AppImage and bundles WebKitGTK 6 helpers.
+The Relm4 desktop app lives in `crates/noter-desktop/`: `AppModel`/`AppMsg`, XDG `NativeStore` under `net.astrazds.Noter`, bundled font lookup, WebKit Preview when enabled, paper-neutral GTK dialogs, and the GTK shell. Selecting a Note updates existing Note List row widgets in place so the sidebar does not jump to the top. Meson installs the binary, desktop file, icon, metainfo, and Source fonts. `build-aux/package_appimage.py` wraps that prefix into an AppImage and bundles WebKitGTK 6 helpers.
 
 The browser Adapter lives under `src/app/`, `src/components/`, and the remaining `src/storage/` / `src/backup/` Adapters (LocalStorage, download/FileReader, Trunk/Tailwind). Crate-level aliases preserve Module names (`note_workspace`, `note_discovery`, `ui_recipes`, `storage_recovery`) so tests keep the product vocabulary.
 

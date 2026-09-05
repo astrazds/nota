@@ -9,15 +9,19 @@ pub const BUNDLED_FONT_FILES: &[&str] = &[
 
 pub fn bundled_font_search_dirs() -> Vec<PathBuf> {
     let mut dirs = Vec::new();
-    if let Some(dir) = std::env::var_os("NOTER_FONT_DIR") {
+    if let Some(dir) = std::env::var_os("NOTA_FONT_DIR").or_else(|| std::env::var_os("NOTER_FONT_DIR"))
+    {
         dirs.push(PathBuf::from(dir));
     }
     if let Some(dirs_env) = std::env::var_os("XDG_DATA_DIRS") {
         for part in std::env::split_paths(&dirs_env) {
-            dirs.push(part.join("net.astrazds.Noter/fonts"));
+            dirs.push(part.join(format!("{}/fonts", crate::APPLICATION_ID)));
         }
     }
-    dirs.push(PathBuf::from("/usr/share/net.astrazds.Noter/fonts"));
+    dirs.push(PathBuf::from(format!(
+        "/usr/share/{}/fonts",
+        crate::APPLICATION_ID
+    )));
     dirs.push(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../assets/fonts"),
     );

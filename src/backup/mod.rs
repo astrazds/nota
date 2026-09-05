@@ -57,10 +57,10 @@ mod tests {
     }
 
     #[test]
-    fn backup_filename_identifies_noter_and_the_current_date() {
+    fn backup_filename_identifies_nota_and_the_current_date() {
         let now = Utc.with_ymd_and_hms(2026, 5, 6, 9, 30, 0).unwrap();
 
-        assert_eq!(backup_file_name(now), "noter-backup-2026-05-06.json");
+        assert_eq!(backup_file_name(now), "nota-backup-2026-05-06.json");
     }
 
     #[test]

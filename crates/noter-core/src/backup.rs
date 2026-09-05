@@ -63,7 +63,7 @@ pub fn export_flat_collection_backup(notes: &[Note]) -> Result<String, BackupErr
 }
 
 pub fn backup_file_name(now: DateTime<Utc>) -> String {
-    format!("noter-backup-{}.json", now.format("%Y-%m-%d"))
+    format!("nota-backup-{}.json", now.format("%Y-%m-%d"))
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]

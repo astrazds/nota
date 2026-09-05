@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>net.astrazds.Noter</id>
+  <id>net.astrazds.Nota</id>
   <name>Nota</name>
   <summary>Write and find local Markdown notes</summary>
   <metadata_license>CC0-1.0</metadata_license>
@@ -18,7 +18,7 @@
     <display_length compare="ge">360</display_length>
   </requires>
 
-  <launchable type="desktop-id">net.astrazds.Noter.desktop</launchable>
+  <launchable type="desktop-id">net.astrazds.Nota.desktop</launchable>
   <developer id="net.astrazds">
     <name>Andrejs Strazds</name>
   </developer>
@@ -34,7 +34,7 @@
   <releases>
     <release version="2.0.0-alpha.1" date="2026-09-05">
       <description>
-        <p>Native alpha presents the 1.0 Markdown Note App: Search, Tags with Edit tags and collection autocomplete, recoverable delete, paper-neutral About/help/confirmations, Backup Import Preview, Storage Recovery, Preview and 50/50 Split, and web-to-desktop transition restore. Collection data lives under the XDG application id net.astrazds.Noter. The first shippable native artifact is an x86_64 AppImage. Not a 2.0.0 release.</p>
+        <p>Native alpha presents the 1.0 Markdown Note App: Search, Tags with Edit tags and collection autocomplete, recoverable delete, paper-neutral About/help/confirmations, Backup Import Preview, Storage Recovery, Preview and 50/50 Split, and web-to-desktop transition restore. Collection data lives under the XDG application id net.astrazds.Nota. The first shippable native artifact is an x86_64 AppImage. Not a 2.0.0 release.</p>
       </description>
     </release>
   </releases>

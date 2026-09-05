@@ -12,7 +12,7 @@ import sys
 import urllib.request
 from pathlib import Path
 
-APPLICATION_ID = "net.astrazds.Noter"
+APPLICATION_ID = "net.astrazds.Nota"
 BINARY_NAME = "noter-desktop"
 DESKTOP_FILE = f"usr/share/applications/{APPLICATION_ID}.desktop"
 ICON_FILE = f"usr/share/icons/hicolor/scalable/apps/{APPLICATION_ID}.svg"
@@ -52,13 +52,14 @@ RUNTIME_HOOK = """\
 # Nota AppImage runtime: bundled fonts, WebKit helpers, and Wayland.
 APPDIR="${APPDIR:-"$(dirname "$(readlink -f "$0")")"}"
 unset GDK_BACKEND
-export NOTER_FONT_DIR="$APPDIR/usr/share/net.astrazds.Noter/fonts"
+export NOTA_FONT_DIR="$APPDIR/usr/share/net.astrazds.Nota/fonts"
+export NOTER_FONT_DIR="$NOTA_FONT_DIR"
 export WEBKIT_EXEC_PATH="$APPDIR/usr/lib/webkitgtk-6.0"
 export WEBKIT_DISABLE_DMABUF_RENDERER="${WEBKIT_DISABLE_DMABUF_RENDERER:-1}"
 # Arch/Omarchy WebKitGTK 6 ignores WEBKIT_EXEC_PATH. Overlay bundled helpers once.
-if [ -z "${NOTER_WEBKIT_OVERLAY:-}" ] && command -v bwrap >/dev/null 2>&1; then
+if [ -z "${NOTA_WEBKIT_OVERLAY:-}" ] && command -v bwrap >/dev/null 2>&1; then
   if [ -x "$APPDIR/usr/lib/webkitgtk-6.0/WebKitWebProcess" ]; then
-    export NOTER_WEBKIT_OVERLAY=1
+    export NOTA_WEBKIT_OVERLAY=1
     exec bwrap --bind / / --dev-bind /dev /dev --proc /proc \\
       --bind "$APPDIR/usr/lib/webkitgtk-6.0" /usr/lib/webkitgtk-6.0 \\
       "$APPDIR/AppRun" "$@"
@@ -88,7 +89,7 @@ def verify_appdir(root: Path) -> None:
     hook = root / HOOK_FILE
     if hook.is_file():
         text = hook.read_text()
-        for token in ("NOTER_FONT_DIR", "WEBKIT_EXEC_PATH"):
+        for token in ("NOTA_FONT_DIR", "WEBKIT_EXEC_PATH"):
             if token not in text:
                 problems.append(f"runtime hook must set {token}")
 

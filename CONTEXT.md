@@ -352,4 +352,4 @@ _Avoid_: Replace import by default
 - "Previous notes" could imply full history — resolved: a **Previous Snapshot** is one last-known-good active/Recently Deleted collection pair, not version history.
 - "Start empty" could destroy evidence of the corrupt payload — resolved: use **Corrupt Payload Quarantine** for diagnostics after the user chooses that path.
 - "Diagnostics" could become persistent app chrome — resolved: keep Product Metadata and storage diagnostics in a secondary **Diagnostics Surface**.
-- "Noter" and `noter-leptos-md` were the previous product and repository names — resolved: the product and repository are **Nota**. Technical identifiers (`noter-desktop`, `net.astrazds.Noter`, crate paths) stay until a dedicated identifier migration.
+- "Noter" and `noter-leptos-md` were the previous product and repository names — resolved: the product, repository, and application ID are **Nota** / `astrazds/nota` / `net.astrazds.Nota`. Crate paths, CSS prefixes, and the `noter-desktop` binary stay until a dedicated crate rename.

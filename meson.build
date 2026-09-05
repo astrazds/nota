@@ -21,16 +21,16 @@ noter_binary = custom_target(
 )
 
 install_data(
-  'data/net.astrazds.Noter.desktop',
+  'data/net.astrazds.Nota.desktop',
   install_dir: get_option('datadir') / 'applications',
 )
 install_data(
-  'data/net.astrazds.Noter.metainfo.xml',
+  'data/net.astrazds.Nota.metainfo.xml',
   install_dir: get_option('datadir') / 'metainfo',
 )
 install_data(
   'assets/icons/noter-icon.svg',
-  rename: 'net.astrazds.Noter.svg',
+  rename: 'net.astrazds.Nota.svg',
   install_dir: get_option('datadir') / 'icons/hicolor/scalable/apps',
 )
 install_data(
@@ -40,7 +40,7 @@ install_data(
     'assets/fonts/source-code-pro-latin-wght-normal.woff2',
     'assets/fonts/source-code-pro-latin-wght-italic.woff2',
   ],
-  install_dir: get_option('datadir') / 'net.astrazds.Noter/fonts',
+  install_dir: get_option('datadir') / 'net.astrazds.Nota/fonts',
 )
 
 test(

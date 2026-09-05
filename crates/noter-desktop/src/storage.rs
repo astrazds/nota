@@ -12,6 +12,7 @@ use noter_core::transition::ThemePreference;
 use serde::{Deserialize, Serialize};
 
 const COLLECTION_VERSION: u32 = 1;
+const PREVIOUS_APPLICATION_ID: &str = "net.astrazds.Noter";
 const LEGACY_DATA_DIR_NAME: &str = "noter";
 static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
@@ -122,15 +123,20 @@ impl NativeStore {
     fn discover_in(data_home: impl AsRef<Path>) -> Self {
         let data_home = data_home.as_ref();
         let canonical = data_home.join(crate::APPLICATION_ID);
-        let legacy = data_home.join(LEGACY_DATA_DIR_NAME);
-        if canonical.exists() || !legacy.exists() {
-            Self::at(canonical)
-        } else {
-            match fs::rename(&legacy, &canonical) {
-                Ok(()) => Self::at(canonical),
-                Err(_) => Self::at(legacy),
-            }
+        if canonical.exists() {
+            return Self::at(canonical);
         }
+        for predecessor in [PREVIOUS_APPLICATION_ID, LEGACY_DATA_DIR_NAME] {
+            let source = data_home.join(predecessor);
+            if !source.exists() {
+                continue;
+            }
+            return match fs::rename(&source, &canonical) {
+                Ok(()) => Self::at(canonical),
+                Err(_) => Self::at(source),
+            };
+        }
+        Self::at(canonical)
     }
 
     pub fn at(data_dir: impl Into<PathBuf>) -> Self {
@@ -490,6 +496,47 @@ mod tests {
         assert_eq!(
             fs::read_to_string(legacy.join("collection.json")).unwrap(),
             "legacy"
+        );
+    }
+
+    #[test]
+    fn discover_migrates_the_previous_application_id_directory_into_the_canonical_path() {
+        let temp = tempfile::tempdir().unwrap();
+        let previous = temp.path().join("net.astrazds.Noter");
+        fs::create_dir_all(&previous).unwrap();
+        fs::write(
+            previous.join("collection.json"),
+            b"{\"version\":1,\"notes\":[],\"recently_deleted_notes\":[]}",
+        )
+        .unwrap();
+
+        let store = NativeStore::discover_in(temp.path());
+
+        assert_eq!(store.data_dir(), temp.path().join(crate::APPLICATION_ID));
+        assert!(store.data_dir().join("collection.json").exists());
+        assert!(!previous.exists());
+    }
+
+    #[test]
+    fn discover_keeps_canonical_and_does_not_touch_the_previous_application_id() {
+        let temp = tempfile::tempdir().unwrap();
+        let canonical = temp.path().join(crate::APPLICATION_ID);
+        let previous = temp.path().join("net.astrazds.Noter");
+        fs::create_dir_all(&canonical).unwrap();
+        fs::create_dir_all(&previous).unwrap();
+        fs::write(canonical.join("collection.json"), b"canonical").unwrap();
+        fs::write(previous.join("collection.json"), b"previous").unwrap();
+
+        let store = NativeStore::discover_in(temp.path());
+
+        assert_eq!(store.data_dir(), canonical);
+        assert_eq!(
+            fs::read_to_string(canonical.join("collection.json")).unwrap(),
+            "canonical"
+        );
+        assert_eq!(
+            fs::read_to_string(previous.join("collection.json")).unwrap(),
+            "previous"
         );
     }
 

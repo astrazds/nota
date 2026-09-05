@@ -378,13 +378,13 @@ mod tests {
             export_backup_with_adapter_file_name(
                 state,
                 &adapter,
-                "noter-backup-2026-05-06.json",
+                "nota-backup-2026-05-06.json",
                 exported_at,
             );
 
             let calls = adapter.calls.borrow();
             assert_eq!(calls.len(), 1);
-            assert_eq!(calls[0].0, "noter-backup-2026-05-06.json");
+            assert_eq!(calls[0].0, "nota-backup-2026-05-06.json");
             assert!(calls[0].1.contains("\"kind\": \"noter.flat_collection\""));
             assert_eq!(
                 state

@@ -1822,7 +1822,7 @@ fn install_workspace_fonts(window: &gtk::ApplicationWindow) {
 
 fn install_css() {
     let provider = gtk::CssProvider::new();
-    provider.load_from_resource("/net/astrazds/Noter/noter.css");
+    provider.load_from_resource("/net/astrazds/Nota/noter.css");
     if let Some(display) = gtk::gdk::Display::default() {
         gtk::style_context_add_provider_for_display(
             &display,

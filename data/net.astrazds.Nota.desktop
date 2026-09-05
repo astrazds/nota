@@ -2,10 +2,10 @@
 Name=Nota
 Comment=Write and find local Markdown notes
 Exec=noter-desktop
-Icon=net.astrazds.Noter
+Icon=net.astrazds.Nota
 Terminal=false
 Type=Application
 Categories=Utility;TextEditor;
 Keywords=notes;markdown;writing;
 StartupNotify=true
-StartupWMClass=net.astrazds.Noter
+StartupWMClass=net.astrazds.Nota

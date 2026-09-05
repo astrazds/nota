@@ -17,13 +17,13 @@ from package_appimage import (
 
 REQUIRED_RELATIVE_PATHS = (
     "usr/bin/noter-desktop",
-    "usr/share/applications/net.astrazds.Noter.desktop",
-    "usr/share/icons/hicolor/scalable/apps/net.astrazds.Noter.svg",
-    "usr/share/metainfo/net.astrazds.Noter.metainfo.xml",
-    "usr/share/net.astrazds.Noter/fonts/source-sans-3-latin-wght-normal.woff2",
-    "usr/share/net.astrazds.Noter/fonts/source-sans-3-latin-wght-italic.woff2",
-    "usr/share/net.astrazds.Noter/fonts/source-code-pro-latin-wght-normal.woff2",
-    "usr/share/net.astrazds.Noter/fonts/source-code-pro-latin-wght-italic.woff2",
+    "usr/share/applications/net.astrazds.Nota.desktop",
+    "usr/share/icons/hicolor/scalable/apps/net.astrazds.Nota.svg",
+    "usr/share/metainfo/net.astrazds.Nota.metainfo.xml",
+    "usr/share/net.astrazds.Nota/fonts/source-sans-3-latin-wght-normal.woff2",
+    "usr/share/net.astrazds.Nota/fonts/source-sans-3-latin-wght-italic.woff2",
+    "usr/share/net.astrazds.Nota/fonts/source-code-pro-latin-wght-normal.woff2",
+    "usr/share/net.astrazds.Nota/fonts/source-code-pro-latin-wght-italic.woff2",
     "usr/lib/webkitgtk-6.0/WebKitWebProcess",
     "usr/lib/webkitgtk-6.0/WebKitNetworkProcess",
     "usr/lib/webkitgtk-6.0/WebKitGPUProcess",
@@ -48,7 +48,7 @@ def complete_appdir(root: Path) -> None:
                         "[Desktop Entry]",
                         "Name=Nota",
                         "Exec=noter-desktop",
-                        "Icon=net.astrazds.Noter",
+                        "Icon=net.astrazds.Nota",
                         "Type=Application",
                     ]
                 ),
@@ -59,7 +59,7 @@ def complete_appdir(root: Path) -> None:
                 relative,
                 "\n".join(
                     [
-                        "export NOTER_FONT_DIR=\"$APPDIR/usr/share/net.astrazds.Noter/fonts\"",
+                        "export NOTA_FONT_DIR=\"$APPDIR/usr/share/net.astrazds.Nota/fonts\"",
                         "export WEBKIT_EXEC_PATH=\"$APPDIR/usr/lib/webkitgtk-6.0\"",
                         "export WEBKIT_DISABLE_DMABUF_RENDERER=1",
                     ]
@@ -77,7 +77,7 @@ class VerifyAppdirTests(unittest.TestCase):
                 verify_appdir(root)
             message = str(raised.exception)
             self.assertIn("usr/bin/noter-desktop", message)
-            self.assertIn("net.astrazds.Noter.desktop", message)
+            self.assertIn("net.astrazds.Nota.desktop", message)
             self.assertIn("source-sans-3-latin-wght-normal.woff2", message)
             self.assertIn("WebKitWebProcess", message)
             self.assertIn("noter-runtime.sh", message)
@@ -94,13 +94,13 @@ class VerifyAppdirTests(unittest.TestCase):
             complete_appdir(root)
             write_file(
                 root,
-                "usr/share/applications/net.astrazds.Noter.desktop",
+                "usr/share/applications/net.astrazds.Nota.desktop",
                 "\n".join(
                     [
                         "[Desktop Entry]",
                         "Name=Nota",
                         "Exec=/usr/bin/noter-desktop",
-                        "Icon=net.astrazds.Noter",
+                        "Icon=net.astrazds.Nota",
                         "Type=Application",
                     ]
                 ),
@@ -117,7 +117,7 @@ class VerifyAppdirTests(unittest.TestCase):
             with self.assertRaises(AppDirError) as raised:
                 verify_appdir(root)
             message = str(raised.exception)
-            self.assertIn("NOTER_FONT_DIR", message)
+            self.assertIn("NOTA_FONT_DIR", message)
             self.assertIn("WEBKIT_EXEC_PATH", message)
 
 
@@ -149,7 +149,7 @@ class PrepareAppdirTests(unittest.TestCase):
                                 "[Desktop Entry]",
                                 "Name=Nota",
                                 "Exec=noter-desktop",
-                                "Icon=net.astrazds.Noter",
+                                "Icon=net.astrazds.Nota",
                                 "Type=Application",
                             ]
                         ),
@@ -159,7 +159,7 @@ class PrepareAppdirTests(unittest.TestCase):
             prepare_appdir(root, webkit)
             verify_appdir(root)
             hook = (root / "apprun-hooks/noter-runtime.sh").read_text()
-            self.assertIn("NOTER_FONT_DIR", hook)
+            self.assertIn("NOTA_FONT_DIR", hook)
             self.assertIn("WEBKIT_EXEC_PATH", hook)
             self.assertIn("unset GDK_BACKEND", hook)
             self.assertIn("bwrap", hook)

@@ -4,16 +4,42 @@
 /build
 /build-aux/.tool-cache
 __pycache__/
-/.pi
-/.agents
 /.scratch
 /.playwright-cli
 /test-results
 /playwright-report
 .ui-review/
-# skills.sh --agent '*' copies; canonical copies live in gitignored .agents/skills
+
+# Local AI agent configuration, state, and generated artifacts.
+# Keep shared AGENTS.md, CONTEXT.md, and docs/agents guidance versioned.
+/.agent
+/.agents
+/.aider*
 /.claude
+/.cline
+/.codex
+/.continue
+/.copilot
+/.cursor
+/.gemini
 /.grok
+/.impeccable
+/.junie
+/.kilocode
+/.kiro
+/.opencode
+/.pi
+/.roo
+/.trae
+/.windsurf
+/.mcp.json
+/.mcp.local.json
+AGENTS.local.md
+AGENTS.override.md
+CLAUDE.local.md
+
+# skills.sh copies and lockfile; canonical local skills live in .agents/skills.
 /skills
 /agent
 /data/skills
+/skills-lock.json

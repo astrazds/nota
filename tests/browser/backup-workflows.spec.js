@@ -69,7 +69,7 @@ test("user can export a Backup and see Backup Health update", async ({ page }) =
   await seedCollection(page);
 
   const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Export" }).click();
+  await page.getByRole("button", { name: "Export backup", exact: true }).click();
   const download = await downloadPromise;
 
   expect(download.suggestedFilename()).toMatch(/^nota-backup-\d{4}-\d{2}-\d{2}\.json$/);

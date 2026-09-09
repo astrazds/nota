@@ -29,6 +29,20 @@ fn paper_dialog(
     dialog.set_accessible_role(gtk::AccessibleRole::Dialog);
     dialog.set_hide_on_close(true);
 
+    let escape = gtk::EventControllerKey::new();
+    escape.set_propagation_phase(gtk::PropagationPhase::Capture);
+    let dialog_weak = dialog.downgrade();
+    escape.connect_key_pressed(move |_, keyval, _, _| {
+        if keyval != gtk::gdk::Key::Escape {
+            return gtk::glib::Propagation::Proceed;
+        }
+        if let Some(dialog) = dialog_weak.upgrade() {
+            dialog.close();
+        }
+        gtk::glib::Propagation::Stop
+    });
+    dialog.add_controller(escape);
+
     let heading = gtk::Label::new(Some(title));
     heading.set_halign(gtk::Align::Start);
     heading.set_hexpand(true);

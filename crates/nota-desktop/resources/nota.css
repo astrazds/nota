@@ -532,14 +532,21 @@ button.nota-help-button { min-width: 25px; padding: 2px 6px; }
 /* Paper-neutral confirmation / About / Markdown help windows. */
 window.nota-dialog {
   background: var(--surface);
+  background-image: none;
   color: var(--graphite);
   border: 1px solid var(--border-strong);
   border-radius: 8px;
+  box-shadow: none;
 }
 .nota-dialog-header {
-  background: var(--surface);
+  background: var(--sidebar);
+  background-image: none;
   padding: 18px 16px 16px 24px;
+  border: 0;
   border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  box-shadow: none;
+  text-shadow: none;
 }
 .nota-dialog-panel {
   background: var(--surface);
@@ -562,9 +569,19 @@ window.nota-dialog {
 .nota-dialog-body {
   padding: 20px 24px 12px 24px;
 }
+.nota-dialog-scroll, .nota-dialog-scroll > viewport {
+  background: transparent;
+  background-image: none;
+  border: 0;
+  box-shadow: none;
+}
 .nota-dialog-footer {
-  padding: 12px 20px 16px 20px;
+  min-height: 32px;
+  padding: 6px 20px;
+  background: var(--sidebar);
+  background-image: none;
   border-top: 1px solid var(--border);
+  box-shadow: none;
 }
 .nota-dialog-field {
   padding: 12px 0;
@@ -602,28 +619,32 @@ button.nota-dialog-header-close {
   min-width: 32px;
   min-height: 32px;
   padding: 0;
+  background: transparent;
+  background-image: none;
   border: 0;
   border-radius: 6px;
   box-shadow: none;
-  background: transparent;
   color: var(--muted);
+  text-shadow: none;
 }
 button.nota-dialog-header-close:hover {
-  background: var(--sidebar);
+  background: rgba(37, 34, 31, 0.08);
   color: var(--graphite);
 }
 .nota-dialog-actions {
   margin-top: 4px;
 }
 button.nota-dialog-cancel, button.nota-dialog-accept, button.nota-dialog-close {
-  min-height: 36px;
-  min-width: 72px;
-  padding: 8px 16px;
+  min-height: 24px;
+  min-width: 48px;
+  padding: 4px 14px;
+  background-image: none;
   border: 0;
   border-radius: 6px;
   box-shadow: none;
   font-size: 13px;
   font-weight: 600;
+  text-shadow: none;
 }
 button.nota-dialog-cancel {
   background: var(--sidebar);
@@ -647,6 +668,25 @@ button.nota-dialog-accept.danger {
 button.nota-dialog-accept.danger:hover {
   background: #A93226;
   color: #FDFCF9;
+}
+window.nota-dialog button:focus,
+window.nota-dialog label.nota-dialog-value:focus,
+window.nota-dialog label.nota-cheatsheet-item:focus {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+window.nota-dialog label selection {
+  background: var(--selected);
+  color: var(--graphite);
+}
+window.nota-dialog.nota-dark,
+.nota-dark .nota-dialog-panel {
+  background: var(--sidebar);
+}
+.nota-dark .nota-dialog-header,
+.nota-dark .nota-dialog-footer {
+  background: rgba(255, 255, 255, 0.05);
 }
 .nota-dark button.nota-dialog-cancel {
   background: var(--sidebar);

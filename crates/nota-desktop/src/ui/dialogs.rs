@@ -72,10 +72,10 @@ fn paper_dialog(
     close.connect_clicked(move |_| dialog_close.close());
 
     let header = gtk::Box::new(gtk::Orientation::Horizontal, 12);
-    header.set_css_classes(&["nota-dialog-header"]);
     header.append(&titles);
     header.append(&close);
     let handle = gtk::WindowHandle::new();
+    handle.set_css_classes(&["nota-dialog-header"]);
     handle.set_child(Some(&header));
     dialog.set_titlebar(Some(&handle));
     dialog
@@ -141,6 +141,7 @@ fn cheatsheet_section(title: &str, items: &[&str]) -> gtk::Box {
         code.set_halign(gtk::Align::Fill);
         code.set_xalign(0.0);
         code.set_wrap(true);
+        code.set_wrap_mode(gtk::pango::WrapMode::WordChar);
         code.set_selectable(true);
         code.set_css_classes(&["nota-cheatsheet-item"]);
         section.append(&code);
@@ -199,6 +200,7 @@ pub(super) fn show_markdown_help(parent: &gtk::ApplicationWindow) {
     let columns = gtk::Box::new(gtk::Orientation::Horizontal, 28);
     columns.set_hexpand(true);
     columns.set_halign(gtk::Align::Fill);
+    columns.set_homogeneous(true);
     let left = gtk::Box::new(gtk::Orientation::Vertical, 18);
     left.set_hexpand(true);
     left.set_halign(gtk::Align::Fill);
@@ -219,6 +221,7 @@ pub(super) fn show_markdown_help(parent: &gtk::ApplicationWindow) {
         .hexpand(true)
         .child(&columns)
         .build();
+    scroll.set_css_classes(&["nota-dialog-scroll"]);
     body.append(&scroll);
     let (footer, close) = dialog_footer(&dialog);
     root.append(&body);

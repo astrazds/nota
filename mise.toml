@@ -1,0 +1,71 @@
+[tools]
+node = "22.23.2"
+rust = "1.98.1"
+"github:trunk-rs/trunk" = "0.21.14"
+
+[tasks."setup:rust"]
+description = "Install Rust verification components and the browser target"
+run = ["rustup component add rustfmt clippy", "rustup target add wasm32-unknown-unknown"]
+
+[tasks."setup:browser"]
+description = "Install locked browser dependencies and Chromium"
+run = ["npm ci", "node node_modules/@playwright/test/cli.js install chromium"]
+
+[tasks."clippy:core"]
+description = "Lint the toolkit-independent core"
+run = "cargo clippy -p nota-core --all-targets --all-features --locked -- -D warnings"
+
+[tasks."test:core"]
+description = "Test the toolkit-independent core and compatibility fixtures"
+run = "cargo test -p nota-core --all-features --locked"
+
+[tasks.fmt]
+description = "Check Rust formatting"
+run = "cargo fmt --check"
+
+[tasks.check]
+description = "Check all Rust targets and features"
+run = "cargo check --workspace --all-targets --all-features --locked"
+
+[tasks.clippy]
+description = "Lint all Rust targets and features"
+run = "cargo clippy --workspace --all-targets --all-features --locked -- -D warnings"
+
+[tasks.test]
+description = "Run workspace behavior and compatibility tests"
+run = "cargo test --workspace --all-features --locked"
+
+[tasks."check:web"]
+description = "Check the browser WebAssembly adapter"
+run = "cargo check -p nota-web --target wasm32-unknown-unknown --all-features --locked"
+
+[tasks."test:browser"]
+description = "Run browser workflow and visual contracts"
+run = "npm run test:browser --"
+
+[tasks."test:package"]
+description = "Verify the AppImage directory contract"
+run = "python3 build-aux/test_package_appimage.py"
+
+[tasks.doc]
+description = "Build Rust API documentation"
+run = "cargo doc --workspace --all-features --no-deps --locked"
+
+[tasks.verify]
+description = "Run repository checks in order without competing Cargo builds"
+run = [
+  "mise run fmt",
+  "mise run clippy",
+  "mise run test",
+  "mise run check:web",
+  "mise run test:package",
+  "mise run test:browser",
+]
+
+[tasks."dev:web"]
+description = "Run the browser migration app"
+run = "npm run dev"
+
+[tasks."dev:desktop"]
+description = "Run the desktop app with WebKit preview"
+run = "cargo run -p nota-desktop --features preview-webkit --locked"

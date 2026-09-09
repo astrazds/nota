@@ -1480,7 +1480,6 @@ dependencies = [
  "gloo-storage",
  "leptos",
  "nota-core",
- "pulldown-cmark",
  "serde",
  "serde_json",
  "uuid",

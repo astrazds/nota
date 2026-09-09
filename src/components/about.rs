@@ -1,7 +1,7 @@
-use crate::AppState;
+use crate::app::AppState;
 use crate::components::Modal;
-use crate::theme::{ThemeAccent, ThemeState, ThemeText};
-use crate::ui_recipes;
+use crate::ui::recipes as ui_recipes;
+use crate::ui::theme::{ThemeAccent, ThemeState, ThemeText};
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 

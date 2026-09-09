@@ -1,10 +1,10 @@
-use crate::AppState;
-use crate::backup_controls::SidebarBackupControls;
-use crate::note_discovery::NoteListItem;
-use crate::note_list_interaction::{NoteListDisplayState, SEARCH_DEBOUNCE_MS};
-use crate::theme::{ThemeAccent, ThemeState, ThemeSurface, ThemeText};
-use crate::ui_recipes;
+use crate::app::AppState;
+use crate::backup::controls::SidebarBackupControls;
+use crate::ui::recipes as ui_recipes;
+use crate::ui::theme::{ThemeAccent, ThemeState, ThemeSurface, ThemeText};
 use leptos::prelude::*;
+use nota_core::note_discovery::NoteListItem;
+use nota_core::note_list_interaction::{NoteListDisplayState, SEARCH_DEBOUNCE_MS};
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::JsCast;

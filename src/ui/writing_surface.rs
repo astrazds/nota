@@ -1,8 +1,8 @@
-use crate::editor_view::EditorViewMode;
-pub use crate::markdown_editing::MarkdownCommand;
-use crate::markdown_editing::{BrowserSelection, apply_markdown_command};
-use crate::markdown_preview::render_markdown_preview_body;
-use crate::model::Note;
+pub use crate::ui::markdown_editing::MarkdownCommand;
+use crate::ui::markdown_editing::{BrowserSelection, apply_markdown_command};
+use nota_core::editor_view::EditorViewMode;
+use nota_core::markdown_preview::render_markdown_preview_body;
+use nota_core::model::Note;
 
 pub const HIDDEN_BY_FILTER_MESSAGE: &str = "This note is outside the current Search or Tag filter. Clear the filter in the Note List to show it there again.";
 

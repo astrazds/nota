@@ -1,12 +1,12 @@
-use crate::backup::BackupHealthRecord;
-use crate::model::Note;
-use crate::sample_notes::debug_starter_notes;
-#[cfg(target_arch = "wasm32")]
-use crate::storage_recovery::plan_collection_save_from_json;
-use crate::storage_recovery::{CollectionStartup, StoredCollectionPayload};
 use gloo_storage::errors::StorageError;
 use gloo_storage::{LocalStorage, Storage};
 use leptos::prelude::{RwSignal, Set, window};
+use nota_core::backup::BackupHealthRecord;
+use nota_core::model::Note;
+use nota_core::sample_notes::debug_starter_notes;
+#[cfg(target_arch = "wasm32")]
+use nota_core::storage_recovery::plan_collection_save_from_json;
+use nota_core::storage_recovery::{CollectionStartup, StoredCollectionPayload};
 use serde::de::DeserializeOwned;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -171,7 +171,7 @@ fn log_browser_storage_error(operation: &str, key: &str, error: &wasm_bindgen::J
 
 pub fn load_collection_startup() -> CollectionStartup {
     let adapter = BrowserNotesStorage;
-    let startup = crate::storage_recovery::decide_collection_startup(
+    let startup = nota_core::storage_recovery::decide_collection_startup(
         StoredCollectionPayload {
             notes_json: adapter.load_notes_json(),
             recently_deleted_notes_json: adapter.load_recently_deleted_notes_json(),

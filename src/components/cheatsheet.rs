@@ -1,7 +1,7 @@
 use crate::components::Modal;
-use crate::markdown_editing::{MARKDOWN_CHEATSHEET_SECTIONS, MarkdownCheatsheetSection};
-use crate::theme::{ThemeAccent, ThemeState, ThemeText};
-use crate::ui_recipes;
+use crate::ui::markdown_editing::{MARKDOWN_CHEATSHEET_SECTIONS, MarkdownCheatsheetSection};
+use crate::ui::recipes as ui_recipes;
+use crate::ui::theme::{ThemeAccent, ThemeState, ThemeText};
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 

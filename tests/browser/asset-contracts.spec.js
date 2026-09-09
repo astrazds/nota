@@ -97,7 +97,8 @@ test("app exposes brand icon assets for browser tabs and install surfaces", asyn
   }
 
   const faviconSvg = await (await request.get("/assets/icons/nota-favicon.svg")).text();
-  expect(faviconSvg).toContain("Canvas-filling folded note mark");
+  expect(faviconSvg).toContain('viewBox="0 0 16 16"');
+  expect(faviconSvg).toContain('shape-rendering="crispEdges"');
   expect(faviconSvg).not.toContain('<rect width="64" height="64"');
 
   const pngSizes = await page.evaluate(async () => {
@@ -164,5 +165,5 @@ test("app exposes brand icon assets for browser tabs and install surfaces", asyn
 
     return bounds;
   });
-  expect(faviconAlphaBounds).toEqual({ left: 0, top: 0, right: 15, bottom: 15 });
+  expect(faviconAlphaBounds).toEqual({ left: 1, top: 1, right: 11, bottom: 15 });
 });

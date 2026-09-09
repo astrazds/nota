@@ -1,4 +1,4 @@
-use crate::theme::ThemeSurface;
+use crate::ui::theme::ThemeSurface;
 use leptos::prelude::*;
 use std::sync::Arc;
 use wasm_bindgen::JsCast;

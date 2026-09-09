@@ -1,7 +1,10 @@
-use crate::backup::{BackupHealth, PendingBackupImport, backup_file_name, prepare_backup_import};
-use crate::{AppState, NotificationTone, theme, ui_recipes};
+use crate::app::{AppState, NotificationTone};
+use crate::ui::{recipes as ui_recipes, theme};
 use chrono::{DateTime, Utc};
 use leptos::prelude::*;
+use nota_core::backup::{
+    BackupHealth, PendingBackupImport, backup_file_name, prepare_backup_import,
+};
 use nota_core::transition::desktop_transition_file_name;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::Closure;
@@ -307,12 +310,12 @@ fn percent_encode_data_url(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::app_runtime::AppRuntimeStartup;
-    use crate::backup::export_flat_collection_backup;
-    use crate::model::Note;
-    use crate::responsive_navigation::{StoredNoteListState, ViewportClass};
+    use crate::app::AppRuntimeStartup;
     use chrono::{TimeZone, Utc};
     use leptos::prelude::{GetUntracked, Owner, RwSignal};
+    use nota_core::backup::export_flat_collection_backup;
+    use nota_core::model::Note;
+    use nota_core::responsive_navigation::{StoredNoteListState, ViewportClass};
     use std::cell::RefCell;
     use std::rc::Rc;
 
@@ -347,8 +350,8 @@ mod tests {
         }
     }
 
-    fn state_with_notes(notes: Vec<Note>) -> crate::AppState {
-        crate::AppState::from_startup(AppRuntimeStartup {
+    fn state_with_notes(notes: Vec<Note>) -> crate::app::AppState {
+        crate::app::AppState::from_startup(AppRuntimeStartup {
             notes,
             recently_deleted_notes: Vec::new(),
             is_dark_mode: false,

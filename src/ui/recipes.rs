@@ -1,4 +1,4 @@
-use crate::theme::{ThemeState, ThemeSurface, ThemeText};
+use crate::ui::theme::{ThemeState, ThemeSurface, ThemeText};
 
 const COMPACT_FOOTER_HEIGHT_CLASS: &str = "h-[45px]";
 const NOTE_MEASURE_CLASS: &str = "w-full max-w-[72ch]";

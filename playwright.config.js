@@ -8,7 +8,7 @@ module.exports = defineConfig({
     timeout: 5_000,
   },
   webServer: {
-    command: "env -u NO_COLOR trunk serve --port 1420 --no-autoreload",
+    command: "env -u NO_COLOR trunk serve --port 1420 --no-autoreload --watch src --watch crates",
     url: "http://127.0.0.1:1420",
     reuseExistingServer: false,
     timeout: 120_000,

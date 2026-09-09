@@ -1,28 +1,22 @@
-use crate::AppState;
-use crate::NotificationTone;
-use crate::backup::PendingBackupImport;
-use crate::backup_controls::{
+use crate::app::AppState;
+use crate::app::NotificationTone;
+use crate::backup::controls::{
     cancel_pending_backup_import, confirm_pending_backup_import, import_backup_from_input_event,
 };
 use crate::components::CheatsheetModal;
-use crate::editor_view::EditorViewMode;
-use crate::model::Note;
-use crate::note_workspace::{FocusIntent, WorkspaceDisplayState};
 use crate::storage::SaveStatus;
-use crate::tag_rules::{parse_tags_input, tags_to_input};
-use crate::theme::{ThemeAccent, ThemeState, ThemeSurface, ThemeText};
-use crate::ui_recipes;
-use crate::writing_surface::{
+use crate::ui::recipes as ui_recipes;
+use crate::ui::theme::{ThemeAccent, ThemeState, ThemeSurface, ThemeText};
+use crate::ui::writing_surface::{
     HIDDEN_BY_FILTER_MESSAGE, MarkdownCommand, WritingSurfaceModel, WritingSurfaceSelection,
     apply_formatting_command,
 };
 use leptos::prelude::*;
-use std::cell::RefCell;
-use std::rc::Rc;
-use wasm_bindgen::{JsCast, prelude::Closure};
-
-const NOTIFICATION_HIDE_MS: i32 = 3_000;
-type NotificationTimeout = Rc<RefCell<Option<(i32, Closure<dyn FnMut()>)>>>;
+use nota_core::backup::PendingBackupImport;
+use nota_core::editor_view::EditorViewMode;
+use nota_core::model::Note;
+use nota_core::note_workspace::{FocusIntent, WorkspaceDisplayState};
+use nota_core::tag_rules::{parse_tags_input, tags_to_input};
 
 #[component]
 pub fn Editor() -> impl IntoView {
@@ -583,69 +577,6 @@ pub fn Editor() -> impl IntoView {
     }
 }
 
-#[component]
-pub fn GlobalNotificationOutlet() -> impl IntoView {
-    let state = use_context::<AppState>().expect("state not found");
-    let timeout: NotificationTimeout = Rc::new(RefCell::new(None));
-
-    Effect::new(move |_| {
-        if let Some((id, _closure)) = timeout.borrow_mut().take()
-            && let Some(win) = web_sys::window()
-        {
-            win.clear_timeout_with_handle(id);
-        }
-
-        let Some(notification) = state.notification.get() else {
-            return;
-        };
-        let notification_id = notification.id;
-        let timeout_ref = timeout.clone();
-        let closure = Closure::wrap(Box::new(move || {
-            state.clear_notification(notification_id);
-            timeout_ref.borrow_mut().take();
-        }) as Box<dyn FnMut()>);
-
-        let Some(win) = web_sys::window() else {
-            return;
-        };
-        if let Ok(id) = win.set_timeout_with_callback_and_timeout_and_arguments_0(
-            closure.as_ref().unchecked_ref(),
-            NOTIFICATION_HIDE_MS,
-        ) {
-            *timeout.borrow_mut() = Some((id, closure));
-        }
-    });
-
-    view! {
-        <div class=notification_outlet_classes>
-            {move || {
-                state.notification.get().map(|notification| {
-                    view! {
-                        <span
-                            role="status"
-                            class=notification_classes(notification.tone)
-                        >
-                            {notification.message}
-                        </span>
-                    }
-                })
-            }}
-        </div>
-    }
-}
-
-fn notification_outlet_classes() -> &'static str {
-    ui_recipes::global_notification_outlet()
-}
-
-fn notification_classes(tone: NotificationTone) -> String {
-    ui_recipes::global_notification(match tone {
-        NotificationTone::Progress => ui_recipes::GlobalNotificationTone::Progress,
-        NotificationTone::Success => ui_recipes::GlobalNotificationTone::Success,
-        NotificationTone::Error => ui_recipes::GlobalNotificationTone::Error,
-    })
-}
-
 fn editor_view_button_classes(is_active: bool, is_split: bool) -> String {
     ui_recipes::compact_segmented_button(is_active, is_split)
 }
@@ -1050,36 +981,5 @@ mod tests {
         assert!(preview_content.contains("prose-sm"));
         assert!(preview_content.contains("max-w-[72ch]"));
         assert!(!preview_content.contains("mx-auto"));
-    }
-
-    #[test]
-    fn global_notification_classes_are_visible_but_compact() {
-        let outlet = notification_outlet_classes();
-        let progress = notification_classes(NotificationTone::Progress);
-        let success = notification_classes(NotificationTone::Success);
-        let error = notification_classes(NotificationTone::Error);
-
-        assert!(outlet.contains("fixed"));
-        assert!(outlet.contains("bottom-16"));
-        assert!(outlet.contains("sm:bottom-auto"));
-        assert!(outlet.contains("sm:top-5"));
-        assert!(outlet.contains("right-3"));
-        assert!(outlet.contains("sm:right-5"));
-        assert!(outlet.contains("z-50"));
-        assert!(outlet.contains("pointer-events-none"));
-
-        for classes in [&progress, &success, &error] {
-            assert!(classes.contains("pointer-events-auto"));
-            assert!(classes.contains("rounded-md"));
-            assert!(classes.contains("border"));
-            assert!(classes.contains("shadow-sm"));
-            assert!(classes.contains("text-xs"));
-            assert!(classes.contains("max-w-[11rem]"));
-            assert!(classes.contains("truncate"));
-        }
-
-        assert!(progress.contains("bg-apple-yellow/10"));
-        assert!(success.contains("bg-emerald-500/10"));
-        assert!(error.contains("bg-red-500/10"));
     }
 }

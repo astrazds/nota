@@ -126,23 +126,22 @@ See [PRIVACY.md](PRIVACY.md) for the complete data boundary.
 Product language lives in [`CONTEXT.md`](CONTEXT.md). The register, visual
 system, and brand rules are [`PRODUCT.md`](PRODUCT.md), [`DESIGN.md`](DESIGN.md),
 and [`docs/brand-toolkit.md`](docs/brand-toolkit.md).
+Module ownership and workflow traces live in [the architecture map](docs/architecture.md).
 
 ## Development
 
 ```sh
-cargo fmt --check
-cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo test --workspace --all-features
-cargo check --target wasm32-unknown-unknown --all-features
-python3 build-aux/test_package_appimage.py
+mise install
+mise run setup:rust
+mise run setup:browser
+mise run verify
 ```
 
 CI on `main` is the [CI workflow](https://github.com/astrazds/nota/actions/workflows/ci.yml).
 It runs formatting, `nota-core` tests, a wasm check, and the AppDir contract,
 then a native job in the [gtk4-rs GTK 4 container](https://relm4.org/book/stable/continuous_integration.html)
 so Relm4's `gnome_50` stack (GTK 4.22 and libadwaita 1.9) is not tied to Ubuntu
-LTS packages. Browser Playwright coverage (`npm ci`,
-`npx playwright install chromium`, `npm run test:browser`) stays a local gate
+LTS packages. Browser Playwright coverage (`mise run test:browser`) stays a local gate
 because Trunk has to emit load-bearing CSS during startup.
 
 Contributions are welcome; read [CONTRIBUTING.md](CONTRIBUTING.md) before

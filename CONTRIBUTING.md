@@ -17,19 +17,21 @@ to review.
 5. Run the complete local check:
 
    ```sh
-   cargo fmt --check
-   cargo clippy --workspace --all-targets --all-features -- -D warnings
-   cargo test --workspace --all-features
-   cargo check --target wasm32-unknown-unknown --all-features
-   python3 build-aux/test_package_appimage.py
+   mise install
+   mise run setup:rust
+   mise run setup:browser
+   mise run verify
    ```
 
    Native GTK work also needs GTK 4.22, libadwaita 1.9, and, for
    Preview/Split, WebKitGTK 6. GitHub Actions runs that native job in the
    [gtk4-rs GTK 4 container](https://relm4.org/book/stable/continuous_integration.html)
    rather than Ubuntu LTS packages. Browser visual and workflow contracts
-   additionally need `npm ci`, `npx playwright install chromium`, and
-   `npm run test:browser`.
+   use the Trunk version pinned in `mise.toml`.
+
+Read [the architecture map](docs/architecture.md) before moving behavior
+between the core, browser, and native modules. `mise.toml` owns tool versions
+and common tasks. `mise tasks` lists focused checks and development commands.
 
 ## Pull requests
 

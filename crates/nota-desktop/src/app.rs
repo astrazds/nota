@@ -2,7 +2,6 @@ use chrono::{DateTime, Utc};
 use nota_core::NoteWorkspace;
 use nota_core::backup::{
     BackupHealth, BackupHealthRecord, PendingBackupImport, assess_backup_health,
-    import_flat_collection_backup, prepare_backup_import,
 };
 use nota_core::editor_view::EditorViewMode;
 use nota_core::markdown_editing::{ByteSelection, MarkdownCommand, apply_markdown_command};
@@ -269,7 +268,7 @@ impl AppModel {
                     .update_selected_tags(parse_tags_input(&suggestion.completed_input))
             }
             AppMsg::ImportBackupJson(json) => {
-                match prepare_backup_import(self.workspace.notes(), json) {
+                match self.workspace.prepare_backup_import(json) {
                     Ok(pending) => {
                         self.pending_backup_import = Some(pending);
                         self.set_notification("Backup ready", NotificationTone::Success);
@@ -393,10 +392,7 @@ impl AppModel {
     }
 
     pub fn import_backup(&mut self, json: &str) -> Result<(), nota_core::backup::BackupError> {
-        let mut notes = self.workspace.notes().to_vec();
-        let deleted = self.workspace.recently_deleted_notes().to_vec();
-        let imported = import_flat_collection_backup(&mut notes, json)?;
-        self.workspace = NoteWorkspace::new_with_recently_deleted(notes, deleted);
+        let imported = self.workspace.import_flat_collection_backup(json)?;
         if let Some(id) = imported.selected_id {
             self.workspace.select_note(id);
         }

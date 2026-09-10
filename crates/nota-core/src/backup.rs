@@ -103,9 +103,10 @@ pub fn assess_backup_health(
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BackupImport {
     pub selected_id: Option<Uuid>,
+    pub(crate) imported_ids: HashSet<Uuid>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -122,11 +123,12 @@ pub struct PendingBackupImport {
     pub preview: BackupImportPreview,
 }
 
-pub fn prepare_backup_import(
-    notes: &[Note],
+pub fn prepare_backup_import<'a>(
+    notes: impl IntoIterator<Item = &'a Note>,
     backup_json: String,
 ) -> Result<PendingBackupImport, BackupError> {
-    let preview = preview_flat_collection_backup(notes, &backup_json)?;
+    let backup = parse_flat_collection_backup(&backup_json)?;
+    let preview = import_preview(notes, &backup.notes);
     Ok(PendingBackupImport {
         backup_json,
         preview,
@@ -147,8 +149,12 @@ pub fn import_flat_collection_backup(
 ) -> Result<BackupImport, BackupError> {
     let backup = parse_flat_collection_backup(backup_json)?;
     let selected_id = backup.notes.first().map(|note| note.id);
+    let imported_ids = backup.notes.iter().map(|note| note.id).collect();
     merge_notes(notes, backup.notes);
-    Ok(BackupImport { selected_id })
+    Ok(BackupImport {
+        selected_id,
+        imported_ids,
+    })
 }
 
 fn parse_flat_collection_backup(backup_json: &str) -> Result<FlatCollectionBackup, BackupError> {
@@ -157,10 +163,14 @@ fn parse_flat_collection_backup(backup_json: &str) -> Result<FlatCollectionBacku
     Ok(backup)
 }
 
-fn import_preview(notes: &[Note], backup_notes: &[Note]) -> BackupImportPreview {
+fn import_preview<'a>(
+    notes: impl IntoIterator<Item = &'a Note>,
+    backup_notes: &[Note],
+) -> BackupImportPreview {
+    let existing_ids: HashSet<_> = notes.into_iter().map(|note| note.id).collect();
     let notes_to_replace = backup_notes
         .iter()
-        .filter(|backup_note| notes.iter().any(|note| note.id == backup_note.id))
+        .filter(|backup_note| existing_ids.contains(&backup_note.id))
         .count();
     BackupImportPreview {
         notes_to_add: backup_notes.len().saturating_sub(notes_to_replace),

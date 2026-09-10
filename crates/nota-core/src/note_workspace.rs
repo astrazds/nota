@@ -1,4 +1,7 @@
-use crate::backup::{BackupError, BackupImport, import_flat_collection_backup};
+use crate::backup::{
+    BackupError, BackupImport, PendingBackupImport, import_flat_collection_backup,
+    prepare_backup_import,
+};
 use crate::model::Note;
 use crate::note_collection::NoteCollection;
 use crate::note_discovery::{NoteListProjection, project_note_list};
@@ -171,11 +174,23 @@ impl NoteWorkspace {
         NoteCollection::apply_tag_cleanup(&mut self.notes, plan)
     }
 
+    pub fn prepare_backup_import(
+        &self,
+        backup_json: String,
+    ) -> Result<PendingBackupImport, BackupError> {
+        prepare_backup_import(
+            self.notes.iter().chain(&self.recently_deleted_notes),
+            backup_json,
+        )
+    }
+
     pub fn import_flat_collection_backup(
         &mut self,
         backup_json: &str,
     ) -> Result<BackupImport, BackupError> {
         let imported = import_flat_collection_backup(&mut self.notes, backup_json)?;
+        self.recently_deleted_notes
+            .retain(|note| !imported.imported_ids.contains(&note.id));
         self.selected_id = imported
             .selected_id
             .or_else(|| self.notes.first().map(|note| note.id));

@@ -30,20 +30,25 @@ storage.
 ## Follow a change through the app
 
 User actions enter through `AppMsg` in `crates/nota-desktop/src/app.rs`.
-`AppState` delegates Note mutations to `NoteWorkspace` and increments its save
+`AppModel` delegates Note mutations to `NoteWorkspace` and increments its save
 revision after a persistent change. The desktop shell schedules
-`PersistenceWorker`, which writes through `NativeStore` and flushes on
-shutdown.
+`PersistenceWorker`, which coalesces edits, writes through `NativeStore`, and
+reports completion back as an `AppMsg`. The GTK thread does not wait for a
+normal save. Orderly shutdown flushes the latest pending revision.
 
 Search uses `NoteListInteraction` to produce a render-ready projection. The
 desktop `NoteLists` owns its factories and updates existing row widgets when
 UUID order is unchanged. Dialogs and file selection emit `AppMsg` through a
 channel. They do not depend on the root Relm4 component type.
 
-Core Markdown formatting accepts UTF-8 byte ranges. GTK character conversion
-stays in `crates/nota-desktop/src/selection.rs`. Preview policy produces
-generated HTML in the core, while the desktop crate owns WebKitGTK navigation
-and external-link handling.
+Core Markdown formatting accepts UTF-8 byte ranges. The GTK toolbar applies
+the changed range as one TextBuffer user action so undo, redo, and caret
+placement remain owned by GTK. GTK character conversion stays in
+`crates/nota-desktop/src/selection.rs`. The core renders the Markdown body.
+Desktop `preview.rs` wraps it with the
+Note Title, Tags, CSS, and content security policy. `webkit_preview.rs` owns
+WebKitGTK settings and navigation; the GTK shell opens allowed external links
+through the system handler.
 
 ## Boundaries worth preserving
 
@@ -59,6 +64,21 @@ fixtures live in `crates/nota-core/tests/fixtures/`.
 Keep the GTK widget hierarchy stable during structural changes. Module tests
 cover domain behavior and storage contracts. Native visual contract tests
 check declared layout rules, so a GTK UI change also needs a live run.
+
+## Storage and compatibility
+
+`NativeStore` validates the active and Recently Deleted collections together.
+It writes `collection.json` atomically and retains `collection.previous.json`
+as the last valid pair. Preferences and Backup Health have separate files.
+Unreadable collection data enters `LoadOutcome::Recovery`; it is never
+silently replaced with starter Notes.
+
+Merge Import operates through `NoteWorkspace`, including identities currently
+in Recently Deleted. Desktop-transition restore requires both collections to
+be empty and transfers optional Backup Health exactly. These formats have
+separate fixtures and tests because their restore semantics differ.
+
+See [the user guide](usage.md) for the user-facing recovery choices.
 
 ## Verification entrypoints
 

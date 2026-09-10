@@ -1,39 +1,27 @@
-# Domain Docs
+# Domain documentation for agents
 
-How the engineering skills should consume this repo's domain documentation when exploring the codebase.
+Read [CONTEXT.md](../../CONTEXT.md) before changing domain behavior. Use its
+terms for Notes, Tags, Backup, Desktop Transition, and Storage Recovery.
 
-## Before exploring, read these
+Read additional guidance when the task reaches that area:
 
-- **`CONTEXT.md`** at the repo root.
-- **`docs/brand-toolkit.md`** when the work touches brand, screenshots, README copy, release notes, landing pages, logo/mark direction, or external presentation.
-- **`docs/adr/`**: read ADRs that touch the area you're about to work in.
+- [Architecture](../architecture.md) maps behavior to the core or desktop owner.
+- [Product](../../PRODUCT.md) defines users and product scope.
+- [Design](../../DESIGN.md) identifies native styling and layout owners.
+- [Brand toolkit](../brand-toolkit.md) covers icons, screenshots, and public copy.
+- [ADR index](../adr/README.md) distinguishes active decisions from historical
+  browser implementation notes.
+- [Contributing](../../CONTRIBUTING.md) defines development and verification
+  commands through `mise.toml`.
 
-If any of these files don't exist, proceed silently. The producer skill (`/grill-with-docs`) creates them lazily when terms or decisions actually get resolved.
+This repository has one domain context. `nota-core` owns toolkit-independent
+behavior and compatibility formats. `nota-desktop` owns GTK, WebKitGTK, native
+persistence, and the app's effects. The browser frontend is no longer in tree.
 
-## File structure
+When a task exposes missing or ambiguous terminology, record the question and
+resolve it in the existing domain document. When a decision changes, add or
+amend an ADR with its rationale and link the superseded decision. Preserve the
+original context rather than silently rewriting it as if the new decision had
+always applied.
 
-This is a single-context repo:
-
-```text
-/
-├── CONTEXT.md
-├── PRODUCT.md
-├── DESIGN.md
-├── docs/brand-toolkit.md
-├── docs/adr/          ← including ADR-0009 native replacement, ADR-0010 AppImage, ADR-0011 Nota name
-├── docs/agents/appimage-rehearsal.md  ← AppImage and migration compatibility pass
-├── crates/nota-core/  ← toolkit-independent domain and compatibility formats
-├── crates/nota-desktop/  ← Relm4/GTK4 product; XDG data under net.astrazds.Nota
-├── build-aux/         ← Meson cargo wrapper and AppImage packager
-└── data/              ← desktop entry and AppStream metadata
-```
-
-## Use the glossary's vocabulary
-
-When your output names a domain concept, use the term as defined in `CONTEXT.md`. Don't drift to synonyms the glossary explicitly avoids.
-
-If the concept you need isn't in the glossary yet, either reconsider the term or note it for `/grill-with-docs`.
-
-## Flag ADR conflicts
-
-If your output contradicts an existing ADR, surface it explicitly rather than silently overriding.
+See [the documentation index](../README.md) for user and agent entrypoints.

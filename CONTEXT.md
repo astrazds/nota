@@ -33,7 +33,7 @@ The shared inset, reading measure, type scale, and footer height that make Write
 _Avoid_: Per-mode layout personality
 
 **View Mode**:
-A user-selected way to see a Note, such as writing, previewing, or desktop-only split view.
+A user-selected way to see a Note, such as Write, Preview, or Split in a wide native window.
 _Avoid_: Layout toggle
 
 **View Mode Controls**:
@@ -153,11 +153,25 @@ A confirmation step that validates a Backup and shows how many Notes a Merge Imp
 _Avoid_: Blind import
 
 **Merge Import**:
-The safe restore behaviour that adds Notes from a Backup and replaces same-identity Notes without destructively clearing the current Flat Collection.
+The restore behaviour that adds Notes from a Backup and replaces same-identity Notes without clearing unrelated Notes. A matching Recently Deleted Note returns to the active collection.
 _Avoid_: Replace import by default
+
+**Desktop Transition**:
+A versioned migration file containing active Notes, Recently Deleted, Theme,
+and optional Backup Health. Restore requires both native collections to be
+empty. It is distinct from a Backup and from Previous Snapshot recovery.
+_Avoid_: Sync, Merge Import, full application profile
+
+**Native Collection**:
+The active Notes and Recently Deleted pair saved in one validated,
+versioned `collection.json`. Preferences and Backup Health are stored separately.
+_Avoid_: Browser LocalStorage, individual Markdown files
 
 ## Relationships
 
+- A **Native Collection** contains active **Notes** and **Recently Deleted**.
+- A **Desktop Transition** restores those collections plus Theme and optional Backup Health into an empty native collection.
+- A **Backup** exports active Notes only and enters the app through **Merge Import**.
 - A **Note** has one **Preview** when rendered.
 - A **Note** has one **Note Title**.
 - A **Note** can have zero or more **Tags**.
@@ -222,134 +236,134 @@ _Avoid_: Replace import by default
 ## Example dialogue
 
 > **Dev:** "Should the split Markdown preview be the default workspace?"
-> **Domain expert:** "No — Nota is a **Markdown Note App**, so the default should foreground the **Note** and keep Markdown tooling contextual."
+> **Domain expert:** "No. Nota is a **Markdown Note App**, so the default should foreground the **Note** and keep Markdown tooling contextual."
 >
 > **Dev:** "Should preview live beside the editor all the time?"
-> **Domain expert:** "No — make the **Writing Surface** the default and let preview be an explicit **View Mode**."
+> **Domain expert:** "No. make the **Writing Surface** the default and let preview be an explicit **View Mode**."
 >
 > **Dev:** "Should the sidebar lead with every available tag?"
-> **Domain expert:** "No — **Tags** are lightweight filters; search and the note list remain primary."
+> **Domain expert:** "No. **Tags** are lightweight filters; search and the note list remain primary."
 >
 > **Dev:** "When there are no notes, should we show 'No Note Selected'?"
-> **Domain expert:** "No — that is an **Empty Collection**, so show a direct path to create the first **Note**."
+> **Domain expert:** "No. that is an **Empty Collection**, so show a direct path to create the first **Note**."
 >
 > **Dev:** "Should pin and delete only appear when hovering over a note row?"
-> **Domain expert:** "No — **Note Actions** need a stable control so touch and keyboard users can discover them."
+> **Domain expert:** "No. **Note Actions** need a stable control so touch and keyboard users can discover them."
 >
 > **Dev:** "Should creating a note leave mobile users in the Note List?"
-> **Domain expert:** "No — **Quick Capture** should create the **Note**, select it, and return to the **Writing Surface** with the **Note Title** ready."
+> **Domain expert:** "No. **Quick Capture** should create the **Note**, select it, and return to the **Writing Surface** with the **Note Title** ready."
 >
 > **Dev:** "Should the UI copy Apple Notes as closely as possible?"
-> **Domain expert:** "No — use a **Local-First Note Identity** that feels familiar but belongs to Nota."
+> **Domain expert:** "No. use a **Local-First Note Identity** that feels familiar but belongs to Nota."
 >
 > **Dev:** "Should save feedback live in the sidebar footer?"
-> **Domain expert:** "No — **Save Status** belongs near the active **Note** and editing context."
+> **Domain expert:** "No. **Save Status** belongs near the active **Note** and editing context."
 >
 > **Dev:** "Should Backup status stay in the sidebar footer?"
-> **Domain expert:** "No — use a **Global Notification** for transient save, Backup, and import feedback, then let it clear itself."
+> **Domain expert:** "No. use a **Global Notification** for transient save, Backup, and import feedback, then let it clear itself."
 >
 > **Dev:** "Should Markdown commands always fill the top bar?"
-> **Domain expert:** "No — **Formatting Tools** should be available while writing, but secondary to the **Writing Surface**."
+> **Domain expert:** "No. **Formatting Tools** should be available while writing, but secondary to the **Writing Surface**."
 >
 > **Dev:** "Should the app version stay visible in the sidebar footer?"
-> **Domain expert:** "No — **Product Metadata** belongs in a support or about surface, not primary navigation."
+> **Domain expert:** "No. **Product Metadata** belongs in a support or about surface, not primary navigation."
 >
 > **Dev:** "Should search become a command palette?"
-> **Domain expert:** "No — **Search** is the primary discovery control for **Notes**, but not a general command system."
+> **Domain expert:** "No. **Search** is the primary discovery control for **Notes**, but not a general command system."
 >
 > **Dev:** "Should tags stay in a permanent bottom bar?"
-> **Domain expert:** "No — **Note Metadata** belongs near the **Note** header or details, not below the writing area."
+> **Domain expert:** "No. **Note Metadata** belongs near the **Note** header or details, not below the writing area."
 >
 > **Dev:** "Should tags disappear when previewing?"
-> **Domain expert:** "No — show read-only **Note Metadata** under the **Note Title** in **Preview** and Split view so organising context stays visible and matches the **Writing Surface**."
+> **Domain expert:** "No. show read-only **Note Metadata** under the **Note Title** in **Preview** and Split view so organising context stays visible and matches the **Writing Surface**."
 >
 > **Dev:** "Should Preview be centred because it is read-only?"
-> **Domain expert:** "No — keep the same **Pane Rhythm** as the **Writing Surface** so changing **View Mode** does not feel like moving to a separate document."
+> **Domain expert:** "No. keep the same **Pane Rhythm** as the **Writing Surface** so changing **View Mode** does not feel like moving to a separate document."
 >
 > **Dev:** "In Split, should one pane keep a fixed 72ch strip while the other takes leftover space?"
-> **Domain expert:** "No — split the editor area 50/50 of the current viewport, then keep **Pane Rhythm** inside each pane."
+> **Domain expert:** "No. split the editor area 50/50 of the current viewport, then keep **Pane Rhythm** inside each pane."
 >
 > **Dev:** "Can native About and Delete Confirmation use the stock GTK alert?"
-> **Domain expert:** "No — those are product windows. Use the paper-neutral popup model, name the **Note** or impact, and keep Cancel as the default confirmation focus."
+> **Domain expert:** "No. those are product windows. Use the paper-neutral popup model, name the **Note** or impact, and keep Cancel as the default confirmation focus."
 >
 > **Dev:** "When the user selects a Note further down the list, can the sidebar jump to the top?"
-> **Domain expert:** "No — keep that **Note** in view. Selection is not a reason to rebuild or re-scroll the **Note List**."
+> **Domain expert:** "No. keep that **Note** in view. Selection is not a reason to rebuild or re-scroll the **Note List**."
 >
 > **Dev:** "Should Search syntax be permanently visible below Search?"
-> **Domain expert:** "No — use a **Search Hint** while Search is focused, then give the space back to the **Note List**."
+> **Domain expert:** "No. use a **Search Hint** while Search is focused, then give the space back to the **Note List**."
 >
 > **Dev:** "Should Backup use a disclosure dropdown?"
-> **Domain expert:** "No — **Backup Controls** are compact secondary utilities and fit in the sidebar footer."
+> **Domain expert:** "No. **Backup Controls** are compact secondary utilities and fit in the sidebar footer."
 >
 > **Dev:** "Should each note row expand to show all tags by default?"
-> **Domain expert:** "No — the **Note List** should stay scannable, with **Tags** shown only when they help recognition or filtering."
+> **Domain expert:** "No. the **Note List** should stay scannable, with **Tags** shown only when they help recognition or filtering."
 >
 > **Dev:** "Can dark mode just invert the light colours?"
-> **Domain expert:** "No — each **Theme** needs separately tuned surfaces, borders, selection states, and accents."
+> **Domain expert:** "No. each **Theme** needs separately tuned surfaces, borders, selection states, and accents."
 >
 > **Dev:** "Should collapsed sidebar use a floating mid-page expand tab?"
-> **Domain expert:** "No — sidebar collapse is **Responsive Navigation**, so mobile should use normal top-bar navigation."
+> **Domain expert:** "No. sidebar collapse is **Responsive Navigation**, so mobile should use normal top-bar navigation."
 >
 > **Dev:** "Is 'Delete Note?' enough confirmation?"
-> **Domain expert:** "No — the **Delete Confirmation** should name the **Note** so the user can verify what is moving to **Recently Deleted**."
+> **Domain expert:** "No. the **Delete Confirmation** should name the **Note** so the user can verify what is moving to **Recently Deleted**."
 >
 > **Dev:** "Should the title be inferred from the first Markdown heading?"
-> **Domain expert:** "No — keep a **Note Title** as a distinct name, but present it as part of the **Note** rather than a form field."
+> **Domain expert:** "No. keep a **Note Title** as a distinct name, but present it as part of the **Note** rather than a form field."
 >
 > **Dev:** "Should the redesign introduce notebooks?"
-> **Domain expert:** "No — keep a **Flat Collection** and improve **Search**, the **Note List**, and **Tags** first."
+> **Domain expert:** "No. keep a **Flat Collection** and improve **Search**, the **Note List**, and **Tags** first."
 >
 > **Dev:** "Should importing a backup replace the current collection by default?"
-> **Domain expert:** "No — use **Merge Import** for the first backup flow so restore remains safe by default."
+> **Domain expert:** "No. use **Merge Import** for the first backup flow so restore remains safe by default."
 >
 > **Dev:** "Should Backup import apply as soon as a file is selected?"
-> **Domain expert:** "No — show a **Backup Import Preview** first so the user can confirm the add/replace impact."
+> **Domain expert:** "No. show a **Backup Import Preview** first so the user can confirm the add/replace impact."
 >
 > **Dev:** "Should Backup Health behave like sync status?"
-> **Domain expert:** "No — **Backup Health** only reflects the last successful local export recovery point."
+> **Domain expert:** "No. **Backup Health** only reflects the last successful local export recovery point."
 >
 > **Dev:** "Should corrupt saved Notes fall back to starter notes or an empty collection?"
-> **Domain expert:** "No — show **Storage Recovery** so the user explicitly restores a **Previous Snapshot**, starts empty, or imports a **Backup**."
+> **Domain expert:** "No. show **Storage Recovery** so the user explicitly restores a **Previous Snapshot**, starts empty, or imports a **Backup**."
 >
 > **Dev:** "Should starting empty discard corrupt saved payloads immediately?"
-> **Domain expert:** "No — use **Corrupt Payload Quarantine** so diagnostics can still explain that recovery happened."
+> **Domain expert:** "No. use **Corrupt Payload Quarantine** so diagnostics can still explain that recovery happened."
 >
 > **Dev:** "Should app version and storage mode live in the Backup footer?"
-> **Domain expert:** "No — put **Product Metadata** and storage details in a **Diagnostics Surface**."
+> **Domain expert:** "No. put **Product Metadata** and storage details in a **Diagnostics Surface**."
 
 ## Flagged ambiguities
 
-- "Markdown workbench" was considered as the product shape — resolved: Nota should be framed as a **Markdown Note App**.
-- "Preview toggle" sounded like a layout control — resolved: preview is a **View Mode** for a **Note**.
-- Split leftover-space allocation — resolved: Split divides the editor area 50/50 of the current viewport, then keeps **Pane Rhythm** inside each pane.
-- Stock GTK alerts for About/help/confirmations — resolved: use paper-neutral product windows.
-- Selecting a Note rebuilt the **Note List** — resolved: keep the selected row in view.
-- "Tag navigation" implied a primary organising model — resolved: a **Tag** is secondary filtering metadata.
-- "No Note Selected" was used for both no selection and no notes — resolved: no notes is an **Empty Collection** with a creation path.
-- "Hover controls" hid secondary operations — resolved: **Note Actions** should be exposed through a stable control.
-- "New note" behaved like a generic creation action — resolved: **Quick Capture** should start a selected Note and focus the Note Title.
-- "Apple Notes clone" was too restrictive as a design target — resolved: use a **Local-First Note Identity**.
-- "Saved" was treated as sidebar metadata — resolved: **Save Status** belongs with the active editing context.
-- "Backup exported" was treated as persistent footer metadata — resolved: transient Backup and import feedback belongs in a floating **Global Notification**.
-- "Toolbar" implied primary app chrome — resolved: **Formatting Tools** are contextual writing affordances.
-- "Version" was treated as primary sidebar content — resolved: **Product Metadata** belongs outside the main note workflow.
-- "Search" could imply global commands — resolved: **Search** is scoped to discovering **Notes**.
-- "Tags input" was placed as a bottom bar — resolved: Tags are **Note Metadata** and belong near the Note header or details surface.
-- "Tags" were visible only while writing — resolved: read-only **Note Metadata** should also appear under the **Note Title** in **Preview** and Split view.
-- "Search syntax" was persistent sidebar content — resolved: use a focus-time **Search Hint**.
-- "Backup dropdown" added extra interaction for a utility feature — resolved: use compact sidebar-footer **Backup Controls**.
-- "Note rows" were drifting toward card-like metadata blocks — resolved: the **Note List** should be dense and scannable.
-- "Dark mode" was treated as inverted light styling — resolved: dark mode is a separately tuned **Theme**.
-- "Collapsed sidebar" looked like a desktop feature — resolved: sidebar behaviour is **Responsive Navigation**.
-- "Delete Note?" was generic — resolved: **Delete Confirmation** should identify the target **Note** and clarify that it moves to **Recently Deleted**.
-- "Deleted" implied immediate permanent loss — resolved: deleted Notes move to **Recently Deleted** until restored or explicitly cleared.
-- "Title" could be confused with the first Markdown heading — resolved: **Note Title** is a distinct Note property.
-- "Folders" and "notebooks" imply a new primary organisation model — resolved: Nota uses a **Flat Collection** for now.
-- "Backup import" could imply destructive replacement — resolved: backup v1 uses **Merge Import** and leaves replace import out of scope until a clear workflow needs it.
-- "Backup import" could feel blind — resolved: use **Backup Import Preview** to confirm add/replace impact before applying a **Merge Import**.
-- "Backup status" could imply cloud sync — resolved: **Backup Health** only tracks last successful local export metadata.
-- "Corrupt startup" could silently reset user data — resolved: use **Storage Recovery** with explicit Restore previous snapshot, Start empty, and Import Backup paths.
-- "Previous notes" could imply full history — resolved: a **Previous Snapshot** is one last-known-good active/Recently Deleted collection pair, not version history.
-- "Start empty" could destroy evidence of the corrupt payload — resolved: use **Corrupt Payload Quarantine** for diagnostics after the user chooses that path.
-- "Diagnostics" could become persistent app chrome — resolved: keep Product Metadata and storage diagnostics in a secondary **Diagnostics Surface**.
-- "Noter" and `noter-leptos-md` were the previous product and repository names — resolved: the product, repository, application ID, crates, CSS prefixes, LocalStorage keys, and binary are **Nota** / `astrazds/nota` / `net.astrazds.Nota` / `nota-*`. Backup v1 still imports `noter.flat_collection`.
+- "Markdown workbench" was considered as the product shape. resolved: Nota should be framed as a **Markdown Note App**.
+- "Preview toggle" sounded like a layout control. resolved: preview is a **View Mode** for a **Note**.
+- Split leftover-space allocation. resolved: Split divides the editor area 50/50 of the current viewport, then keeps **Pane Rhythm** inside each pane.
+- Stock GTK alerts for About/help/confirmations. resolved: use paper-neutral product windows.
+- Selecting a Note rebuilt the **Note List**. resolved: keep the selected row in view.
+- "Tag navigation" implied a primary organising model. resolved: a **Tag** is secondary filtering metadata.
+- "No Note Selected" was used for both no selection and no notes. resolved: no notes is an **Empty Collection** with a creation path.
+- "Hover controls" hid secondary operations. resolved: **Note Actions** should be exposed through a stable control.
+- "New note" behaved like a generic creation action. resolved: **Quick Capture** should start a selected Note and focus the Note Title.
+- "Apple Notes clone" was too restrictive as a design target. resolved: use a **Local-First Note Identity**.
+- "Saved" was treated as sidebar metadata. resolved: **Save Status** belongs with the active editing context.
+- "Backup exported" was treated as persistent footer metadata. resolved: transient Backup and import feedback belongs in a floating **Global Notification**.
+- "Toolbar" implied primary app chrome. resolved: **Formatting Tools** are contextual writing affordances.
+- "Version" was treated as primary sidebar content. resolved: **Product Metadata** belongs outside the main note workflow.
+- "Search" could imply global commands. resolved: **Search** is scoped to discovering **Notes**.
+- "Tags input" was placed as a bottom bar. resolved: Tags are **Note Metadata** and belong near the Note header or details surface.
+- "Tags" were visible only while writing. resolved: read-only **Note Metadata** should also appear under the **Note Title** in **Preview** and Split view.
+- "Search syntax" was persistent sidebar content. resolved: use a focus-time **Search Hint**.
+- "Backup dropdown" added extra interaction for a utility feature. resolved: use compact sidebar-footer **Backup Controls**.
+- "Note rows" were drifting toward card-like metadata blocks. resolved: the **Note List** should be dense and scannable.
+- "Dark mode" was treated as inverted light styling. resolved: dark mode is a separately tuned **Theme**.
+- "Collapsed sidebar" looked like a desktop feature. resolved: sidebar behaviour is **Responsive Navigation**.
+- "Delete Note?" was generic. resolved: **Delete Confirmation** should identify the target **Note** and clarify that it moves to **Recently Deleted**.
+- "Deleted" implied immediate permanent loss. resolved: deleted Notes move to **Recently Deleted** until restored or explicitly cleared.
+- "Title" could be confused with the first Markdown heading. resolved: **Note Title** is a distinct Note property.
+- "Folders" and "notebooks" imply a new primary organisation model. resolved: Nota uses a **Flat Collection** for now.
+- "Backup import" could imply destructive replacement. resolved: backup v1 uses **Merge Import** and leaves replace import out of scope until a clear workflow needs it.
+- "Backup import" could feel blind. resolved: use **Backup Import Preview** to confirm add/replace impact before applying a **Merge Import**.
+- "Backup status" could imply cloud sync. resolved: **Backup Health** only tracks last successful local export metadata.
+- "Corrupt startup" could silently reset user data. resolved: use **Storage Recovery** with explicit Restore previous snapshot, Start empty, and Import Backup paths.
+- "Previous notes" could imply full history. resolved: a **Previous Snapshot** is one last-known-good active/Recently Deleted collection pair, not version history.
+- "Start empty" could destroy evidence of the corrupt payload. resolved: use **Corrupt Payload Quarantine** for diagnostics after the user chooses that path.
+- "Diagnostics" could become persistent app chrome. resolved: keep Product Metadata and storage diagnostics in a secondary **Diagnostics Surface**.
+- "Noter" and `noter-leptos-md` were the previous product and repository names. resolved: the product, repository, application ID, crates, CSS prefixes, and binary are **Nota** / `astrazds/nota` / `net.astrazds.Nota` / `nota-*`. Backup v1 still imports `noter.flat_collection`, and Desktop Transition still imports `noter.desktop_transition`. Legacy browser builds keep their LocalStorage compatibility.

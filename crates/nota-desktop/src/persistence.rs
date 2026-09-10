@@ -12,7 +12,6 @@ enum Command {
         revision: u64,
         collection: CollectionEnvelope,
     },
-    Flush(Sender<Result<u64, StorageError>>),
     Shutdown(Sender<Result<u64, StorageError>>),
 }
 
@@ -23,9 +22,12 @@ pub struct PersistenceWorker {
 }
 
 impl PersistenceWorker {
-    pub fn start(store: NativeStore) -> Self {
+    pub fn start(
+        store: NativeStore,
+        completed: impl Fn(Result<u64, StorageError>) + Send + 'static,
+    ) -> Self {
         let (sender, receiver) = mpsc::channel();
-        let handle = thread::spawn(move || run_worker(store, receiver));
+        let handle = thread::spawn(move || run_worker(store, receiver, completed));
         Self {
             sender,
             handle: Some(handle),
@@ -41,14 +43,6 @@ impl PersistenceWorker {
             .is_ok()
     }
 
-    pub fn flush(&self) -> Result<u64, StorageError> {
-        let (reply_sender, reply_receiver) = mpsc::channel();
-        self.sender
-            .send(Command::Flush(reply_sender))
-            .map_err(|_| worker_stopped())?;
-        reply_receiver.recv().map_err(|_| worker_stopped())?
-    }
-
     pub fn shutdown(mut self) -> Result<u64, StorageError> {
         let (reply_sender, reply_receiver) = mpsc::channel();
         self.sender
@@ -62,7 +56,11 @@ impl PersistenceWorker {
     }
 }
 
-fn run_worker(store: NativeStore, receiver: Receiver<Command>) {
+fn run_worker(
+    store: NativeStore,
+    receiver: Receiver<Command>,
+    completed: impl Fn(Result<u64, StorageError>),
+) {
     let mut persisted_revision = 0;
     let mut pending: Option<(u64, CollectionEnvelope)> = None;
 
@@ -81,17 +79,13 @@ fn run_worker(store: NativeStore, receiver: Receiver<Command>) {
                     pending = Some((revision, collection));
                 }
             }
-            Ok(Command::Flush(reply)) => {
-                let result = flush_pending(&store, &mut pending, &mut persisted_revision);
-                let _send_result = reply.send(result);
-            }
             Ok(Command::Shutdown(reply)) => {
                 let result = flush_pending(&store, &mut pending, &mut persisted_revision);
                 let _send_result = reply.send(result);
                 return;
             }
             Err(RecvTimeoutError::Timeout) if pending.is_some() => {
-                let _save_result = flush_pending(&store, &mut pending, &mut persisted_revision);
+                completed(flush_pending(&store, &mut pending, &mut persisted_revision));
             }
             Err(RecvTimeoutError::Timeout) => {}
             Err(RecvTimeoutError::Disconnected) => {
@@ -134,7 +128,7 @@ mod tests {
     fn close_time_flush_persists_only_the_latest_revision() {
         let temp = tempfile::tempdir().unwrap();
         let store = NativeStore::at(temp.path());
-        let worker = PersistenceWorker::start(store.clone());
+        let worker = PersistenceWorker::start(store.clone(), |_| {});
         let revision_one = CollectionEnvelope::new(
             vec![Note::new("Old".to_string(), String::new())],
             Vec::new(),
@@ -155,6 +149,43 @@ mod tests {
     }
 
     #[test]
+    fn continuous_edits_save_once_after_the_last_edit_is_idle() {
+        let temp = tempfile::tempdir().unwrap();
+        let store = NativeStore::at(temp.path());
+        let (completed, events) = mpsc::channel();
+        let worker = PersistenceWorker::start(store.clone(), move |result| {
+            completed.send(result).unwrap();
+        });
+        for revision in 1..=5 {
+            let collection = CollectionEnvelope::new(
+                vec![nota_core::Note::new(
+                    format!("Revision {revision}"),
+                    String::new(),
+                )],
+                Vec::new(),
+            );
+            assert!(worker.schedule(revision, collection));
+            assert!(matches!(
+                events.recv_timeout(Duration::from_millis(100)),
+                Err(RecvTimeoutError::Timeout)
+            ));
+        }
+        assert_eq!(
+            events
+                .recv_timeout(Duration::from_secs(5))
+                .unwrap()
+                .unwrap(),
+            5
+        );
+        assert!(events.try_recv().is_err());
+        let LoadOutcome::Ready(collection) = store.load_collection().unwrap() else {
+            panic!("the completed save must be readable");
+        };
+        assert_eq!(collection.notes[0].title, "Revision 5");
+        assert_eq!(worker.shutdown().unwrap(), 5);
+    }
+
+    #[test]
     fn native_create_edit_close_and_relaunch_restores_identical_state() {
         let temp = tempfile::tempdir().unwrap();
         let store = NativeStore::at(temp.path());
@@ -167,7 +198,7 @@ mod tests {
         )));
         let expected = app.collection();
 
-        let worker = PersistenceWorker::start(store.clone());
+        let worker = PersistenceWorker::start(store.clone(), |_| {});
         assert!(worker.schedule(app.revision(), expected.clone()));
         assert_eq!(worker.shutdown().unwrap(), app.revision());
 

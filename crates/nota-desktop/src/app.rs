@@ -62,7 +62,6 @@ pub enum AppMsg {
     ToggleNavigation,
     RestorePreviousSnapshot,
     StartEmptyAfterRecovery,
-    FlushPersistence,
     PersistenceComplete(u64),
     PersistenceFailed(String),
     RequestBackupExport,
@@ -212,7 +211,6 @@ impl AppModel {
                 false
             }
             AppMsg::RestorePreviousSnapshot | AppMsg::StartEmptyAfterRecovery => false,
-            AppMsg::FlushPersistence => false,
             AppMsg::PersistenceComplete(revision) => {
                 if revision == self.revision {
                     self.save_status = SaveStatus::Saved;
@@ -426,7 +424,6 @@ impl AppModel {
                 | AppMsg::ConfirmBackupImport
                 | AppMsg::CancelBackupImport
                 | AppMsg::RequestDiagnostics
-                | AppMsg::FlushPersistence
                 | AppMsg::PersistenceComplete(_)
                 | AppMsg::PersistenceFailed(_)
                 | AppMsg::OperationSucceeded(_)

@@ -236,8 +236,9 @@ impl SimpleComponent for DesktopComponent {
                     if let Err(error) = self.store.save_preferences(&self.preferences()) {
                         self.app.apply(AppMsg::OperationFailed(error.to_string()));
                     }
-                    if let Some(health) = self.app.backup_health
-                        && let Err(error) = self.store.save_backup_health(&health)
+                    if let Err(error) = self
+                        .store
+                        .persist_backup_health(self.app.backup_health.as_ref())
                     {
                         self.app.apply(AppMsg::OperationFailed(error.to_string()));
                     }

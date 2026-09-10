@@ -1,5 +1,6 @@
-use nota_core::backup::export_flat_collection_backup;
-use nota_core::transition::{ThemePreference, TransitionError};
+use chrono::{TimeZone, Utc};
+use nota_core::backup::{BackupHealthRecord, export_flat_collection_backup};
+use nota_core::transition::{ThemePreference, TransitionError, export_desktop_transition};
 use nota_desktop::app::{AppModel, AppMsg};
 use nota_desktop::storage::{CollectionEnvelope, LoadOutcome, NativeStore, Preferences};
 
@@ -69,4 +70,41 @@ fn clean_profile_restores_web_transition_once_then_uses_merge_import() {
             .iter()
             .any(|note| note.title == "After migration")
     );
+}
+
+#[test]
+fn transition_without_backup_health_clears_stale_health_on_relaunch() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = NativeStore::at(temp.path());
+    store
+        .save_backup_health(&BackupHealthRecord {
+            last_successful_export_at: Utc.with_ymd_and_hms(2026, 8, 1, 9, 0, 0).unwrap(),
+        })
+        .unwrap();
+    let transferred = nota_core::Note::new("Transferred".to_string(), "Exact state".to_string());
+    let transition = export_desktop_transition(
+        std::slice::from_ref(&transferred),
+        &[],
+        ThemePreference::Light,
+        None,
+    )
+    .unwrap();
+    let mut app = AppModel::new(
+        CollectionEnvelope::empty(),
+        ThemePreference::System,
+        store.load_backup_health(),
+    );
+
+    app.import_transition(&transition).unwrap();
+    store.save_collection(&app.collection()).unwrap();
+    store
+        .persist_backup_health(app.backup_health.as_ref())
+        .unwrap();
+
+    let LoadOutcome::Ready(reloaded) = store.load_collection().unwrap() else {
+        panic!("restored native collection must relaunch without recovery");
+    };
+    let relaunched = AppModel::new(reloaded, ThemePreference::Light, store.load_backup_health());
+    assert_eq!(relaunched.workspace.notes(), &[transferred]);
+    assert!(relaunched.backup_health.is_none());
 }

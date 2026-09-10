@@ -1,5 +1,9 @@
 # Browser audit polish
 
+Status: Historical browser implementation. The native product preserves these interaction goals; current GTK owners are in the architecture guide.
+
+See [the decision index](README.md) and [current architecture](../architecture.md).
+
 The May 2026 browser audit resolved a set of visual and interaction issues across desktop, split, and mobile views.
 
 Accepted decisions:

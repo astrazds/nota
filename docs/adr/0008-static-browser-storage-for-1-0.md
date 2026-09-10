@@ -1,5 +1,9 @@
 # Static browser storage for 1.0
 
+Status: Superseded for the native product by ADR-0009. This record describes the 1.0 browser storage model and migration source.
+
+See [the decision index](README.md) and [current architecture](../architecture.md).
+
 For the 1.0 milestone, Nota remains a static browser app with local browser storage, explicit Backup, Recently Deleted recovery, and user-visible trust improvements around the existing Flat Collection model. SQLite, IndexedDB record-store migration, desktop shells, local services, sync, and server backends are deferred until after 1.0 because a storage-engine migration would introduce the highest data-risk change in the part of the app users most need to trust.
 
 Accepted decisions:

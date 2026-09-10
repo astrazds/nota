@@ -1,5 +1,9 @@
 # Editor-first controls and Clear All recovery
 
+Status: The product decisions remain active. Tailwind utilities and browser test commands below describe the retired browser implementation.
+
+See [the decision index](README.md) and [current architecture](../architecture.md).
+
 Nota should keep the Note content as the primary workspace while still making writing, previewing, and recovery actions quick to reach.
 
 Accepted decisions:

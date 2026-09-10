@@ -1,5 +1,9 @@
 # Local Notebook visual system and typography
 
+Status: The visual direction remains active. Browser asset loading, Tailwind tokens, and local design-tool files below describe the original implementation. DESIGN.md identifies current native owners.
+
+See [the decision index](README.md) and [current architecture](../architecture.md).
+
 Nota now has enough product UI surface area that visual decisions need to be explicit rather than inferred from scattered Tailwind classes.
 
 Accepted decisions:

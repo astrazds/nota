@@ -1,5 +1,9 @@
 # Merge-only backup import
 
+Status: Active for native Backup v1. Merge Import also restores a matching Recently Deleted identity to the active collection.
+
+See [the decision index](README.md) and [current architecture](../architecture.md).
+
 Nota supports local Backup export/import for the Flat Collection.
 
 For the first backup flow, import is merge-only. A Merge Import adds Notes from the Backup and replaces same-identity Notes without destructively clearing the current Flat Collection. Replace import is out of scope for v1.

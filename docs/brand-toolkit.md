@@ -146,19 +146,24 @@ Nota has two color strategies:
 1. **Restrained product UI**: tinted neutrals plus Warm Capture Yellow at low coverage.
 2. **Committed brand moments**: Warm Capture Yellow can carry larger areas in README, website, launch, or screenshot compositions.
 
-Use OKLCH when adding new colors in CSS. Tint all near-white and near-black neutrals toward the Nota palette. Avoid pure `#fff` and `#000`.
+Use the palette roles defined in
+[`nota.css`](../crates/nota-desktop/resources/nota.css). GTK and WebKitGTK
+have different CSS capabilities, so verify each renderer before using a new
+color function. Keep exact values in the implementation instead of copying
+another token table into this guide.
 
-### Core Roles
+### Core roles
 
-| Role | Existing Token | Use |
+| Role | Native token | Use |
 | --- | --- | --- |
-| Warm Capture Yellow | `#FFB340` | primary actions, focus, selection, highlight, progress, brand moments |
-| Paper Neutrals | `#F5F5F7`, `#E8E8ED`, `#D2D2D7` | light theme surfaces, dividers, secondary controls |
-| Dim Desk Surfaces | `#1C1C1E`, `#2C2C2E`, `#3A3A3C` | dark theme root, sidebar, overlays, borders |
-| Graphite Text | `#111827` | primary light-theme text |
-| Muted Text | `#6B7280` | metadata, utility copy, secondary labels |
-| Recovery Red | `#EF4444` | destructive actions, errors, permanent removal |
-| Saved Emerald | `#10B981` | success feedback only |
+| Warm Capture Yellow | `--capture` | primary actions and brand moments |
+| Selection signal | `--signal`, `--selected` | active controls and selected Notes |
+| Paper and desk surfaces | `--frame`, `--surface`, `--sidebar` | separately tuned Light and Dark Themes |
+| Borders | `--border`, `--border-strong` | boundaries between controls and panes |
+| Reading text | `--graphite` | primary text |
+| Secondary text | `--muted`, `--subtle` | metadata and utility copy |
+| Recovery Red | destructive and error selectors | destructive actions and errors |
+| Saved Emerald | success selectors | success feedback |
 
 ### Color Rules
 
@@ -173,10 +178,11 @@ Use OKLCH when adding new colors in CSS. Tint all near-white and near-black neut
 
 Nota's product typography is already decided:
 
-- UI and reading surfaces: Source Sans 3 Variable.
-- Markdown/source editing and syntax examples: Source Code Pro Variable.
+- UI and reading surfaces: Source Sans 3.
+- Markdown/source editing and syntax examples: Source Code Pro.
 - Native fallbacks only after the Source families.
-- Fonts are self-hosted through project assets, not remote font providers.
+- Fonts ship in `assets/fonts/` and the native package. Pango registers the
+  bundled font files. Preserve the upstream font license when updating them.
 
 ### Type Character
 
@@ -320,7 +326,10 @@ Use modals only when interruption protects the user from meaningful impact:
 - Delete Confirmation.
 - Clear All confirmation.
 - Backup Import Preview.
-- Storage Recovery decisions.
+- Tag cleanup confirmation.
+
+Storage Recovery itself is an app state with explicit recovery actions, not a
+startup modal that hides the application shell.
 
 The title or body must name the Note, count, or collection impact.
 

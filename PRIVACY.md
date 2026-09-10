@@ -3,8 +3,7 @@
 Effective date: 2026-09-05
 
 Nota is a local-first Markdown note app. The native Linux app stores Notes on
-the device. The in-tree browser Adapter is a migration source and also stays
-on the device.
+the device. This policy also covers legacy browser builds.
 
 ## Data collection
 
@@ -20,14 +19,15 @@ The native app writes a versioned `collection.json` under
 `~/.local/share/net.astrazds.Nota`). Preferences, Backup Health, a previous
 valid snapshot, and any corrupt-payload quarantine files share that directory.
 
-The browser Adapter stores Notes in LocalStorage under `nota-*` keys on the
-same machine, with a fallback read of legacy `noter-*` keys.
+Legacy browser builds store Notes in LocalStorage under `nota-*` keys in that
+browser profile, with a fallback read of legacy `noter-*` keys.
 
 ## Backup and export
 
 A Backup is a JSON file the user chooses to export. Merge Import reads a file
-the user chose. Desktop-transition export is the same kind of local file for
-moving a collection onto the native app.
+the user chose. A desktop-transition file is a local migration format for
+moving a browser-era collection into the native app. Native Nota keeps this
+import compatible after the source cutover.
 
 Nota does not upload those files. If you copy, email, or otherwise share an
 exported Backup, that sharing is controlled by you and by the destination you
@@ -35,9 +35,11 @@ choose.
 
 ## Network
 
-The native app and the browser Adapter do not require network access to create,
-edit, search, preview, delete, restore, or back up Notes. They do not load
-remote fonts, remote scripts, or analytics pixels.
+The native app does not require network access to create, edit, search,
+preview, delete, restore, or back up Notes. A hosted browser build uses the
+network to load its static app files. Note operations remain in the browser,
+and neither app loads remote fonts, remote scripts, or analytics pixels into
+the Note workflow.
 
 ## Contact
 

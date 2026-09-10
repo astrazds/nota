@@ -19,7 +19,7 @@ Approved product frame:
 
 - **Frame A, Quiet Notebook Frame** is the product UI reference for the main app frame: light paper default, compact restrained sidebar, warm selected Note row, thin editor toolbar, stable editor-area footer, and paper-neutral popup panels.
 - Paper-neutral product windows cover About, Markdown help, Delete Confirmation, Clear All, and Backup Import Preview. They use a notebook header and paper body, not stock GTK alert chrome.
-- The post-1.0 product surface is the Relm4/GTK4 native window. Use browser Adapter screenshots only when the migration Adapter itself is the subject.
+- The product surface is the Relm4/GTK4 native window. Use legacy browser screenshots only when migration history or a hosted browser app is the subject.
 
 ## Brand Promise
 
@@ -250,12 +250,11 @@ Rules:
 Nota now ships a practical app icon set based on the folded-note mark direction. Keep these assets in sync when the mark changes:
 
 - `assets/icons/nota-icon.svg`: full rounded-square app icon source for install and larger surfaces.
-- `assets/icons/nota-maskable.svg`: mask-safe PWA source with generous background coverage.
+- `assets/icons/nota-maskable.svg`: mask-safe source with generous background coverage.
 - `assets/icons/nota-monochrome.svg`: single-color documentation and mask source.
 - `assets/icons/nota-favicon.svg`: favicon-safe note-only source, cropped to the mark with no outer app tile.
 - `assets/icons/nota-16.png`, `nota-32.png`, `nota-48.png`, and `favicon.ico`: browser favicon rasters generated from the favicon-safe source.
 - `assets/icons/apple-touch-icon.png`, `nota-192.png`, `nota-512.png`, `nota-maskable-192.png`, and `nota-maskable-512.png`: platform install rasters generated from the app and maskable sources.
-- `assets/site.webmanifest`: install metadata and icon declarations.
 
 Minimum-size rule: the 16px favicon must use the note mark itself and fill the canvas. Do not put the full rounded-square app icon inside the 16px favicon.
 
@@ -370,7 +369,7 @@ Screenshot guidance:
 - Show readable Note Titles and Tags.
 - Do not expose private or joke data.
 - Include Light and Dark Theme only when comparing theme support.
-- Prefer the native window; keep browser chrome out of frame unless the browser Adapter is the subject.
+- Prefer the native window. Show browser chrome only when migration history or a hosted browser app is the subject.
 - Capture About, Markdown help, and confirmations as paper product windows, not stock GTK alerts.
 
 ## Motion

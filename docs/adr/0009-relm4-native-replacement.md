@@ -26,3 +26,16 @@ Consequences:
 - Native collection files live under the application id, not a short `noter` directory name. Alpha installs that already wrote `$XDG_DATA_HOME/noter` are renamed on first launch when the canonical path is absent.
 - WebKitGTK 6 development headers are a build prerequisite for Preview. AppImage packaging downloads linuxdeploy tools on demand. Flatpak tooling remains optional until that later gate.
 - Browser hosting retirement, publication, tagging, branch creation, and release actions remain separate approvals.
+
+## Native source cutover
+
+On 2026-09-10, native parity, metadata validation, the AppImage launch, and the
+manual clean-profile data-transfer rehearsal passed. The source tree now uses a
+virtual Cargo workspace with `nota-core` and `nota-desktop`. The browser
+frontend and its Node, Trunk, WebAssembly, and Playwright tooling are no longer
+part of the workspace.
+
+Backup v1, merge-only import, legacy `noter.flat_collection` import, and
+desktop-transition import remain permanent compatibility contracts. The crates
+remain at `2.0.0-alpha.1`. This source cutover does not publish a release, tag a
+version, or retire a hosted browser app.

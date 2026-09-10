@@ -1,19 +1,7 @@
-[package]
-name = "nota-web"
-version = "1.0.2"
-edition = "2024"
-rust-version = "1.95"
-authors = ["Andrejs Strazds"]
-description = "Browser migration Adapter for Nota, a local-first Markdown note app."
-license = "MIT"
-repository = "https://github.com/astrazds/nota"
-readme = "README.md"
-keywords = ["notes", "markdown", "leptos", "wasm", "tailwindcss"]
-categories = ["wasm", "web-programming"]
-
 [workspace]
 resolver = "3"
 members = ["crates/nota-core", "crates/nota-desktop"]
+default-members = ["crates/nota-desktop"]
 
 [workspace.package]
 edition = "2024"
@@ -24,14 +12,3 @@ repository = "https://github.com/astrazds/nota"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
-
-[dependencies]
-nota-core = { path = "crates/nota-core" }
-leptos = { version = "0.8.19", features = ["csr"] }
-wasm-bindgen = "0.2.120"
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
-gloo-storage = "0.4.0"
-uuid = { version = "1.23.1", features = ["v4", "js", "serde"] }
-chrono = { version = "0.4.44", features = ["serde"] }
-web-sys = { version = "0.3.97", features = ["HtmlTextAreaElement", "Selection", "Range", "Window", "Document", "Node", "NodeList", "Element", "Event", "EventTarget", "HtmlElement", "HtmlInputElement", "HtmlAnchorElement", "File", "FileList", "FileReader", "ProgressEvent", "MediaQueryList", "console"] }

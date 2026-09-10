@@ -1,5 +1,9 @@
 # Deep core modules and browser visual contracts
 
+Status: The core ownership principles remain active. Browser modules, Trunk, and Playwright commands below are historical and are absent from the native-only workspace.
+
+See [the decision index](README.md) and [current architecture](../architecture.md).
+
 Nota should stay easy to change while keeping the product focused on one thing well: creating, writing, finding, organising, previewing, deleting, and locally backing up Notes.
 
 Accepted decisions:

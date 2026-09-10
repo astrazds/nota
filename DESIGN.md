@@ -1,227 +1,98 @@
----
-name: Nota
-description: Local-first Markdown notes with calm surfaces, warm accents, and task-stable controls.
-colors:
-  warm-capture-yellow: "#FFB340"
-  paper-gray-100: "#F5F5F7"
-  paper-gray-200: "#E8E8ED"
-  paper-gray-300: "#D2D2D7"
-  dim-desk-bg: "#1C1C1E"
-  dim-desk-sidebar: "#2C2C2E"
-  dim-desk-border: "#3A3A3C"
-  graphite-text: "#111827"
-  muted-text: "#6B7280"
-  danger-red: "#EF4444"
-  success-emerald: "#10B981"
-typography:
-  display:
-    fontFamily: "\"Source Sans 3 Variable\", ui-sans-serif, system-ui, sans-serif"
-    fontSize: "1.875rem"
-    fontWeight: 700
-    lineHeight: 1.25
-    letterSpacing: "normal"
-  title:
-    fontFamily: "\"Source Sans 3 Variable\", ui-sans-serif, system-ui, sans-serif"
-    fontSize: "1.25rem"
-    fontWeight: 700
-    lineHeight: 1.3
-    letterSpacing: "normal"
-  body:
-    fontFamily: "\"Source Sans 3 Variable\", ui-sans-serif, system-ui, sans-serif"
-    fontSize: "1rem"
-    fontWeight: 400
-    lineHeight: 1.75
-    letterSpacing: "normal"
-  label:
-    fontFamily: "\"Source Sans 3 Variable\", ui-sans-serif, system-ui, sans-serif"
-    fontSize: "0.6875rem"
-    fontWeight: 500
-    lineHeight: 1rem
-    letterSpacing: "normal"
-  mono:
-    fontFamily: "\"Source Code Pro Variable\", ui-monospace, SFMono-Regular, Menlo, monospace"
-    fontSize: "1rem"
-    fontWeight: 400
-    lineHeight: 1.75
-rounded:
-  sm: "4px"
-  md: "6px"
-  lg: "8px"
-  full: "9999px"
-spacing:
-  xs: "4px"
-  sm: "6px"
-  md: "8px"
-  lg: "12px"
-  xl: "16px"
-  surface-x: "24px"
-  surface-y: "32px"
-  footer-height: "45px"
-components:
-  button-primary:
-    backgroundColor: "{colors.warm-capture-yellow}"
-    textColor: "#FDFDFC"
-    typography: "{typography.label}"
-    rounded: "{rounded.md}"
-    padding: "8px 16px"
-  button-secondary:
-    backgroundColor: "{colors.paper-gray-200}"
-    textColor: "{colors.graphite-text}"
-    typography: "{typography.label}"
-    rounded: "{rounded.md}"
-    padding: "8px 20px"
-  search-input:
-    backgroundColor: "rgba(17, 24, 39, 0.05)"
-    textColor: "{colors.graphite-text}"
-    typography: "{typography.label}"
-    rounded: "{rounded.lg}"
-    padding: "6px 16px 6px 40px"
-  tag-chip:
-    backgroundColor: "rgba(17, 24, 39, 0.05)"
-    textColor: "{colors.muted-text}"
-    typography: "{typography.label}"
-    rounded: "{rounded.full}"
-    padding: "2px 8px"
-  note-row-selected:
-    backgroundColor: "rgba(255, 179, 64, 0.10)"
-    textColor: "{colors.graphite-text}"
-    typography: "{typography.label}"
-    rounded: "{rounded.sm}"
-    padding: "12px 16px"
-  footer-control:
-    backgroundColor: "#FDFDFC"
-    textColor: "{colors.muted-text}"
-    typography: "{typography.label}"
-    rounded: "{rounded.md}"
-    padding: "2px 6px"
----
+# Nota design system
 
-# Design System: Nota
+Nota uses a compact Note List, a clear Writing Surface, warm functional accents,
+and paper-neutral dialogs. The Linux GTK window is the product. Preview is an
+embedded, read-only WebKitGTK view of the same Note.
 
-## 1. Overview
+## Sources of truth
 
-**Creative North Star: "The Local Notebook"**
+Keep design intent here and exact implementation values in their owners:
 
-Nota should feel like a dependable notebook sitting on a quiet desk: immediate, familiar, private, and hard to disrupt. The system is restrained product UI, built around a scannable sidebar, a generous Writing Surface, contextual Markdown tools, compact footers, and warm accent states that appear only when they help the task.
+| Concern | Owner |
+| --- | --- |
+| GTK palette, controls, focus, and Light and Dark Themes | [nota.css](crates/nota-desktop/resources/nota.css) |
+| Window composition and widget behavior | [workspace.rs](crates/nota-desktop/src/ui/workspace.rs) |
+| Shared layout dimensions | [visual_contract.rs](crates/nota-desktop/src/visual_contract.rs) |
+| Pango-based reading measure | [writing_plane.rs](crates/nota-desktop/src/ui/writing_plane.rs) and [style.rs](crates/nota-desktop/src/ui/style.rs) |
+| Preview HTML, typography, and content policy | [preview.rs](crates/nota-desktop/src/preview.rs) |
+| Product dialogs | [dialogs.rs](crates/nota-desktop/src/ui/dialogs.rs) |
+| Bundled fonts | [fonts.rs](crates/nota-desktop/src/fonts.rs) and [assets/fonts](assets/fonts) |
 
-The visual language rejects an Apple Notes clone, a developer Markdown workbench, a folder or notebook-heavy organiser, a command-palette-first productivity shell, and a cloud-sync product. It should not use hover-only actions, permanent status chrome, generic destructive confirmations, or decorative visual noise around the Note.
+Browser-era Tailwind utilities and copied token tables are not native styling
+APIs. Change the source owner and inspect its rendered result.
 
-**Key Characteristics:**
-- Restrained palette with Warm Capture Yellow reserved for action, selection, focus, and progress.
-- Light surfaces read as paper neutrals; Dark Theme reads as Dim Desk Surfaces, not inverted colors.
-- Compact controls and stable 45px footers keep workflow chrome predictable.
-- Markdown affordances support writing without becoming the product frame.
-- Native GTK uses bundled CSS and paper-neutral product windows, not libadwaita or stock alert chrome. GTK Stylesheet rejects `max-width`; the 72ch writing plane is enforced in layout.
+## Color
 
-## 2. Colors
+Use Warm Capture Yellow for primary actions. Use the softer signal color for
+selection, active View Mode controls, and focus. Light Theme uses warm paper
+surfaces; Dark Theme has its own palette. Preserve visible borders and readable
+text in each theme rather than deriving one by inversion.
 
-The palette is a quiet local note system: paper-like neutrals, tuned dark desk surfaces, and one warm capture accent.
+The `.nota-root` and `.nota-root.nota-dark` variables in `nota.css` define the
+current palette. Use the existing roles before introducing another color.
+Reserve red for destructive actions and errors, and green for success feedback.
+Selected Notes must also have a visible border or other non-color cue.
 
-### Primary
-- **Warm Capture Yellow**: The sole accent. Use for primary actions, active segmented controls, selected Note rows, focus rings, text highlights, progress notifications, and empty-state illustration marks.
+## Typography and reading measure
 
-### Neutral
-- **Quiet Paper Neutrals**: Use for Light Theme sidebar, dividers, split Preview background, footer chrome, and low-emphasis hover states.
-- **Dim Desk Surfaces**: Use for Dark Theme root, sidebar, modal panels, and borders. These are separately tuned surfaces, never a simple inversion of Light Theme.
-- **Graphite Text and Muted Text**: Use for primary reading text and secondary metadata. Keep Note content higher contrast than utility labels.
+Use bundled Source Sans 3 for app controls and reading text. Use Source Code
+Pro for Markdown editing and code examples. Register the local fonts through
+Pango for GTK and include their installed files in the AppImage.
 
-### Secondary
-- **Recovery Red**: Use only for delete, clear, destructive confirmation, and error notification states.
-- **Saved Emerald**: Use only for success notifications.
+Keep the Note Title, Tags, body, and footer aligned across Write, Preview, and
+Split. The writing plane is left-aligned and capped at a Pango-measured `72ch`.
+GTK does not support CSS `max-width`, so `WritingPlane` enforces the widget
+allocation. Preview owns its HTML reading measure; the outer GTK layout owns
+its horizontal inset. Avoid adding the inset again inside Preview HTML.
 
-### Named Rules
-**The One Warm Signal Rule.** Warm Capture Yellow is functional, not decorative. If it does not indicate action, selection, focus, highlight, or progress, remove it.
+Use size and weight to establish hierarchy. Keep utility labels secondary to
+the Note and avoid decorative letter spacing or a monospace product identity.
 
-**The Separate Theme Rule.** Light and Dark Themes must be tuned separately for surfaces, borders, selection, Search Hint readability, and selected Note recognition.
+## Layout and controls
 
-## 3. Typography
+The Note List stays visible in wide windows. Compact windows switch between
+the Note List and editor through a normal navigation control. Split divides
+the editor area equally and is available only in wide windows.
 
-**Display Font:** Source Sans 3 Variable with native sans fallbacks.
-**Body Font:** Source Sans 3 Variable with native sans fallbacks.
-**Label/Mono Font:** Source Sans 3 Variable for controls, Source Code Pro Variable only for Markdown body editing and syntax examples.
+Keep View Mode controls in one stable editor footer. Split uses one footer
+across both panes. The sidebar footer holds Backup controls. Exact dimensions
+belong in `NATIVE_VISUAL_CONTRACT`, not in duplicate prose token tables.
 
-**Character:** Humanist, quiet, and legible. The type should feel familiar without copying the platform, with weight and spacing doing more work than ornamental font choices.
+Formatting controls sit between Note Metadata and the Markdown body. They
+appear only when writing is available. Preserve GTK selection and undo history
+when a formatting action changes text.
 
-### Hierarchy
-- **Display** (700, 1.875rem, 1.25): Note Title and Preview title.
-- **Headline** (600, 1.5rem, 1.3): Empty-state and modal section headings.
-- **Title** (700, 1.25rem, 1.3): Sidebar title and confirmation titles.
-- **Body** (400, 1rem, 1.75): Markdown reading and writing body. Keep long prose around 65 to 75ch where constrained reading is possible.
-- **Label** (500, 0.6875rem, 1rem): Footer controls, backup controls, compact segmented buttons, and dense utility text.
+Tag chips remain compact metadata. Native Note List Tags are filter buttons
+and show every matching Tag. Their FlowBox children must not add default
+padding that changes chip spacing. Keep existing row and Tag widgets when
+identities are unchanged so updates preserve focus and scroll position.
 
-### Named Rules
-**The Source Family Rule.** Use the local Source families for product UI and Markdown editing. Do not introduce display fonts, decorative letter spacing, or fluid type.
+Search Hint appears temporarily below Search. Global Notifications provide
+short-lived save, Backup, import, and error feedback without adding permanent
+header chrome. Storage Recovery is an explicit app state with named actions.
 
-## 4. Elevation
+## Dialogs and accessibility
 
-Nota is flat by default. Depth is conveyed mostly through tonal layering, borders, dividers, selected-state rings, and compact spacing. Shadows are reserved for overlays, transient hints, modals, menus, tag suggestions, global notifications, and split Preview inset treatment.
+About, Markdown help, deletion, Clear All, and Backup Import Preview use the
+shared paper dialog. Keep a clear title, readable body, and compact action row.
+Use GTK accessible roles and names. Cancel is the default focus for destructive
+confirmations. Escape and closing a dialog must return the user to the app.
 
-### Shadow Vocabulary
-- **Hint Lift** (`shadow-sm`): Search Hint and action menus that appear temporarily above the Note List without changing layout.
-- **Modal Lift** (`shadow-2xl`): Modal panel only.
-- **Small Lift** (`shadow-sm`): Primary buttons, tag suggestion panels, notifications, and compact mobile sidebar toggle.
-- **Inset Reading Plane** (`shadow-inner`): Selected Note row and Split Preview when depth clarifies the active surface.
+Use visible GTK focus states. GTK-owned titlebar nodes need styling alongside
+the application widgets. Test with keyboard navigation and pointer input in
+both themes. Keep Note actions discoverable without hover.
 
-### Named Rules
-**The Flat Until Floating Rule.** Surfaces at rest do not need shadows. Add lift only when an element floats, interrupts, or temporarily overlays the task.
+## Visual verification
 
-## 5. Components
+Inspect the native window after changing GTK layout or CSS. Check wide and
+compact sizes, Light and Dark Themes, empty and populated collections, and
+Write, Preview, and Split. Include long titles, multiple Tags, Search matches,
+and dialogs when those areas change.
 
-### Buttons
-- **Shape:** Gently curved controls (6px radius).
-- **Primary:** Warm Capture Yellow fill with high-contrast text, compact padding, and semibold label weight.
-- **Hover / Focus:** Yellow darkens on hover; focus uses a 2px Warm Capture Yellow ring with offset.
-- **Secondary / Danger:** Secondary buttons use paper-gray fills. Danger buttons use Recovery Red only for destructive confirmation.
-- **Icon Buttons:** Sidebar utility icons use shared theme-aware neutral foregrounds plus matching hover foreground/background states in Light and Dark Themes. Do not rely on inherited text color for standalone icons.
+Source-level visual contracts protect declared dimensions and relationships.
+They do not prove rendered typography, focus, wrapping, or spacing. Use the
+real AppImage for packaging claims. Browser automation can display GTK through
+Broadway, but a web mockup does not verify native GTK styling.
 
-### Chips
-- **Style:** Rounded pills (9999px radius), soft signal-tinted fill, muted text, compact 2px by 8px padding, 18px height, 10px type.
-- **State:** Filter chips use Warm Capture Yellow fill. Tag chips remain secondary metadata, never primary navigation.
-- **Parity:** Note List Tag pills and Writing Surface Tag pills share that compact chip. Native sidebar Tags are buttons for filtering; they must not pick up default GTK button height.
-
-### Cards / Containers
-- **Corner Style:** Small to medium radius (6px to 8px).
-- **Background:** Root and Writing Surface stay quiet; sidebar, modal chrome, Search Hint, and Split Preview use tonal layers.
-- **Shadow Strategy:** Flat by default. Overlay containers may use Hint Lift or Small Lift.
-- **Border:** Thin full borders and dividers, never colored side stripes.
-- **Internal Padding:** Dense utility containers use 12px to 16px; Writing Surface content uses 24px to 32px.
-
-### Inputs / Fields
-- **Style:** Search uses soft neutral fill and 8px radius. Note Title and content fields are transparent to keep the Note primary.
-- **Focus:** Use clear focus rings or background shifts. Do not rely on color alone.
-- **Error / Disabled:** Use explicit text and semantic color only when the state affects the workflow.
-
-### Navigation
-- **Style:** Sidebar is a persistent Note List on desktop and a full-width responsive panel on compact viewports.
-- **Active State:** Selected Note rows use border, warm fill, and ring together for recognition.
-- **Mobile Treatment:** Compact navigation toggle is a normal top-left control, not a floating mid-page handle.
-
-### Signature Components
-- **Editor-area Footer:** Stable 45px compact footer that owns Write, Preview, Split, and Markdown syntax help.
-- **Search Hint:** Temporary popup below Search, theme-aware and readable in Light and Dark without pushing the Note List down.
-- **Global Notification:** Floating, compact, transient feedback for save, Backup, and import outcomes.
-- **Paper Dialog:** About, Markdown help, Delete Confirmation, Clear All, and Backup Import Preview use a notebook header (title plus optional subtitle, quiet close), paper body, and a compact footer. Close on About/help is Warm Capture Yellow. Destructive accepts use Recovery Red. Cancel stays the default focused confirmation control. Do not use stock GTK `AlertDialog` or an Adwaita headerbar for these surfaces.
-- **Split:** The editor area divides 50/50 of the current viewport. Each pane keeps Pane Rhythm and the 72ch writing plane. One footer spans both panes.
-
-## 6. Do's and Don'ts
-
-### Do:
-- **Do** keep Warm Capture Yellow rare and functional.
-- **Do** keep the Note Title, Note Metadata, Writing Surface, Preview, and View Mode Controls visually connected.
-- **Do** use compact 45px footers for sidebar utilities and editor View Mode Controls.
-- **Do** tune Light and Dark Themes separately for text, borders, selection, and overlay readability.
-- **Do** use full borders, tonal backgrounds, rings, and explicit labels for important states.
-- **Do** keep Note List and Writing Surface Tag pills on the same compact chip.
-- **Do** split the editor area equally in Split.
-- **Do** use paper-neutral product windows for About, Markdown help, and confirmations.
-
-### Don't:
-- **Don't** make Nota feel like an Apple Notes clone.
-- **Don't** make Nota feel like a developer Markdown workbench.
-- **Don't** introduce a folder or notebook-heavy organiser.
-- **Don't** turn Search into a command-palette-first productivity shell.
-- **Don't** imply cloud sync through persistent status chrome.
-- **Don't** hide Note Actions behind hover-only affordances.
-- **Don't** use stock GTK/Adwaita alert chrome for product confirmations or diagnostics.
-- **Don't** rebuild the Note List in a way that steals focus or scroll when the user selects a Note.
-- **Don't** use persistent syntax instruction blocks, generic destructive confirmations, decorative chrome around the Writing Surface, gradient text, glassmorphism, colored side-stripe borders, or identical decorative card grids.
+See [CONTRIBUTING.md](CONTRIBUTING.md#verify-a-change) for commands and
+[the brand toolkit](docs/brand-toolkit.md) for screenshot and external copy rules.

@@ -1,5 +1,9 @@
 # Fast capture and local recovery
 
+Status: Capture and recovery behavior remains active. The LocalStorage implementation below is historical; native storage keeps the active and Recently Deleted pair in one file.
+
+See [the decision index](README.md) and [current architecture](../architecture.md).
+
 Nota should make the common local-first risks explicit: users need to capture a Note quickly, avoid accidental data loss, and know whether they have a recent local recovery point.
 
 Accepted decisions:

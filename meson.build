@@ -16,6 +16,7 @@ nota_binary = custom_target(
     '@OUTPUT@',
   ],
   build_by_default: true,
+  build_always_stale: true,
   install: true,
   install_dir: get_option('bindir'),
 )

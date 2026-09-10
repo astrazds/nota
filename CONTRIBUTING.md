@@ -12,26 +12,25 @@ to review.
 3. Keep the product a Markdown Note App. Search and the Note List remain the
    discovery system; do not introduce folders, notebooks, or a command palette
    as primary navigation.
-4. Do not commit generated AppImages, `dist/`, `target/`, browser reports, local
-   agent files, or editor state.
+4. Do not commit generated AppImages, `dist/`, `target/`, local agent files, or
+   editor state.
 5. Run the complete local check:
 
    ```sh
    mise install
    mise run setup:rust
-   mise run setup:browser
    mise run verify
    ```
 
-   Native GTK work also needs GTK 4.22, libadwaita 1.9, and, for
-   Preview/Split, WebKitGTK 6. GitHub Actions runs that native job in the
+   Native GTK work also needs GTK 4.22, libadwaita 1.9, and WebKitGTK 6.
+   GitHub Actions runs the native job in the
    [gtk4-rs GTK 4 container](https://relm4.org/book/stable/continuous_integration.html)
-   rather than Ubuntu LTS packages. Browser visual and workflow contracts
-   use the Trunk version pinned in `mise.toml`.
+   rather than Ubuntu LTS packages. Run `mise run test:gtk` separately on a
+   live display for GTK widget behavior. CI runs that task under Xvfb.
 
 Read [the architecture map](docs/architecture.md) before moving behavior
-between the core, browser, and native modules. `mise.toml` owns tool versions
-and common tasks. `mise tasks` lists focused checks and development commands.
+between the core and native modules. `mise.toml` owns tool versions and common
+tasks. `mise tasks` lists focused checks and development commands.
 
 ## Pull requests
 

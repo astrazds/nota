@@ -166,6 +166,7 @@ button.nota-note-select:hover, button.nota-note-select:active { background: tran
   font-weight: 500;
   line-height: 1.2;
 }
+.nota-note-tag-list > flowboxchild { padding: 0; }
 button.nota-note-tags:hover {
   background: alpha(var(--signal), 0.32);
 }

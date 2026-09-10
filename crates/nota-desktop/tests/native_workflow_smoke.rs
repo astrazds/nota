@@ -23,6 +23,33 @@ fn merge_import_does_not_apply_before_backup_import_preview_confirmation() {
 }
 
 #[test]
+fn merge_import_recovers_a_deleted_note_and_keeps_the_collection_valid() {
+    let note = nota_core::Note::new("Recovered".to_string(), "From Backup".to_string());
+    let note_id = note.id;
+    let json = export_flat_collection_backup(std::slice::from_ref(&note)).unwrap();
+    let mut app = AppModel::new(
+        CollectionEnvelope::new(vec![note.clone()], Vec::new()),
+        ThemePreference::Light,
+        None,
+    );
+    app.apply(AppMsg::RequestDelete(note_id));
+    assert!(app.apply(AppMsg::ConfirmDelete));
+
+    app.apply(AppMsg::ImportBackupJson(json));
+    let preview = &app.pending_backup_import().unwrap().preview;
+    assert_eq!(preview.notes_to_add, 0);
+    assert_eq!(preview.notes_to_replace, 1);
+    assert!(app.apply(AppMsg::ConfirmBackupImport));
+
+    assert_eq!(app.workspace.notes(), &[note]);
+    assert!(app.workspace.recently_deleted_notes().is_empty());
+    let temp = tempfile::tempdir().unwrap();
+    nota_desktop::storage::NativeStore::at(temp.path())
+        .save_collection(&app.collection())
+        .unwrap();
+}
+
+#[test]
 fn storage_recovery_keeps_import_backup_and_does_not_start_empty_silently() {
     let imported = nota_core::Note::new("Recovered".to_string(), "From Backup".to_string());
     let json = export_flat_collection_backup(std::slice::from_ref(&imported)).unwrap();
@@ -47,6 +74,34 @@ fn filtered_search_does_not_use_empty_collection_copy() {
     app.apply(AppMsg::CommitSearch);
     let model = app.note_list_render_model();
     assert_eq!(model.display_state, NoteListDisplayState::FilteredEmpty);
+}
+
+#[test]
+fn tag_cleanup_message_applies_a_reviewed_plan_as_one_saved_change() {
+    let mut note = nota_core::Note::new("Dirty tags".to_string(), String::new());
+    note.tags = vec![" Work ".to_string(), "work".to_string()];
+    let mut app = AppModel::new(
+        CollectionEnvelope::new(vec![note], Vec::new()),
+        ThemePreference::Light,
+        None,
+    );
+    let plan = app.workspace.tag_cleanup_plan();
+
+    assert!(!app.apply(AppMsg::RequestTagCleanup));
+    assert!(app.notification.is_none());
+    assert!(app.apply(AppMsg::ApplyTagCleanup(plan.clone())));
+
+    assert_eq!(app.workspace.notes()[0].tags, ["Work"]);
+    assert_eq!(app.revision(), 1);
+    assert_eq!(app.save_status, nota_desktop::app::SaveStatus::Saving);
+    assert_eq!(
+        app.notification.as_ref().unwrap().message,
+        "Tags cleaned up"
+    );
+    let notification_generation = app.notification_generation();
+    assert!(!app.apply(AppMsg::ApplyTagCleanup(plan)));
+    assert_eq!(app.revision(), 1);
+    assert_eq!(app.notification_generation(), notification_generation);
 }
 
 #[test]

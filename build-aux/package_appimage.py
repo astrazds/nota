@@ -19,6 +19,8 @@ ICON_FILE = f"usr/share/icons/hicolor/scalable/apps/{APPLICATION_ID}.svg"
 METAINFO_FILE = f"usr/share/metainfo/{APPLICATION_ID}.metainfo.xml"
 FONT_DIR = f"usr/share/{APPLICATION_ID}/fonts"
 WEBKIT_LIBDIR = "usr/lib/webkitgtk-6.0"
+WEBKIT_INJECTED_BUNDLE = "injected-bundle/libwebkitgtkinjectedbundle.so"
+GDK_BACKEND_HOOK_FILE = "apprun-hooks/00-nota-gdk-backend.sh"
 HOOK_FILE = "apprun-hooks/nota-runtime.sh"
 HOST_WEBKIT_LIBDIR = Path("/usr/lib/webkitgtk-6.0")
 
@@ -41,6 +43,8 @@ REQUIRED_RELATIVE_PATHS = (
     METAINFO_FILE,
     *(f"{FONT_DIR}/{name}" for name in FONT_FILES),
     *(f"{WEBKIT_LIBDIR}/{name}" for name in WEBKIT_HELPERS),
+    f"{WEBKIT_LIBDIR}/{WEBKIT_INJECTED_BUNDLE}",
+    GDK_BACKEND_HOOK_FILE,
     HOOK_FILE,
 )
 
@@ -48,10 +52,26 @@ LINUXDEPLOY = "https://github.com/linuxdeploy/linuxdeploy/releases/download/cont
 LINUXDEPLOY_GTK = "https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh"
 LINUXDEPLOY_APPIMAGE = "https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-x86_64.AppImage"
 
+GDK_BACKEND_CAPTURE_HOOK = """\
+# Preserve the caller's backend across linuxdeploy's GTK runtime hook.
+if [ "${GDK_BACKEND+x}" = x ]; then
+  NOTA_SAVED_GDK_BACKEND_SET=1
+  NOTA_SAVED_GDK_BACKEND="$GDK_BACKEND"
+else
+  NOTA_SAVED_GDK_BACKEND_SET=0
+  NOTA_SAVED_GDK_BACKEND=
+fi
+"""
+
 RUNTIME_HOOK = """\
 # Nota AppImage runtime: bundled fonts, WebKit helpers, and Wayland.
 APPDIR="${APPDIR:-"$(dirname "$(readlink -f "$0")")"}"
-unset GDK_BACKEND
+if [ "$NOTA_SAVED_GDK_BACKEND_SET" = 1 ]; then
+  export GDK_BACKEND="$NOTA_SAVED_GDK_BACKEND"
+else
+  unset GDK_BACKEND
+fi
+unset NOTA_SAVED_GDK_BACKEND NOTA_SAVED_GDK_BACKEND_SET
 export NOTA_FONT_DIR="$APPDIR/usr/share/net.astrazds.Nota/fonts"
 export NOTER_FONT_DIR="$NOTA_FONT_DIR"
 export WEBKIT_EXEC_PATH="$APPDIR/usr/lib/webkitgtk-6.0"
@@ -109,8 +129,21 @@ def prepare_appdir(root: Path, webkit_libdir: Path = HOST_WEBKIT_LIBDIR) -> None
         shutil.copy2(source, target)
         target.chmod(target.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
+    bundle_source = webkit_libdir / WEBKIT_INJECTED_BUNDLE
+    if not bundle_source.is_file():
+        raise AppDirError(f"WebKit injected bundle not found: {bundle_source}")
+    bundle_target = helper_dir / WEBKIT_INJECTED_BUNDLE
+    bundle_target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(bundle_source, bundle_target)
+
+    backend_hook = root / GDK_BACKEND_HOOK_FILE
+    backend_hook.parent.mkdir(parents=True, exist_ok=True)
+    backend_hook.write_text(GDK_BACKEND_CAPTURE_HOOK)
+    backend_hook.chmod(
+        backend_hook.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+    )
+
     hook = root / HOOK_FILE
-    hook.parent.mkdir(parents=True, exist_ok=True)
     hook.write_text(RUNTIME_HOOK)
     hook.chmod(hook.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
     verify_appdir(root)

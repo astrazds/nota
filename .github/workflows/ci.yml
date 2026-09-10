@@ -38,9 +38,6 @@ jobs:
       - name: Test nota-core
         run: mise run test:core
 
-      - name: Check wasm Adapter
-        run: mise run check:web
-
       - name: Verify AppDir contract
         run: mise run test:package
 
@@ -75,5 +72,8 @@ jobs:
 
       - name: Test workspace
         run: xvfb-run --auto-servernum mise run test
+
+      - name: Test GTK editing workflow
+        run: xvfb-run --auto-servernum mise run test:gtk
 
       - uses: bcomnes/cleanup-xvfb@v1.0.9

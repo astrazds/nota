@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,6 +18,7 @@ from package_appimage import (
 )
 
 
+WEBKIT_INJECTED_BUNDLE = "injected-bundle/libwebkitgtkinjectedbundle.so"
 REQUIRED_RELATIVE_PATHS = (
     "usr/bin/nota-desktop",
     "usr/share/applications/net.astrazds.Nota.desktop",
@@ -28,6 +31,8 @@ REQUIRED_RELATIVE_PATHS = (
     "usr/lib/webkitgtk-6.0/WebKitWebProcess",
     "usr/lib/webkitgtk-6.0/WebKitNetworkProcess",
     "usr/lib/webkitgtk-6.0/WebKitGPUProcess",
+    f"usr/lib/webkitgtk-6.0/{WEBKIT_INJECTED_BUNDLE}",
+    "apprun-hooks/00-nota-gdk-backend.sh",
     "apprun-hooks/nota-runtime.sh",
 )
 
@@ -89,6 +94,17 @@ class VerifyAppdirTests(unittest.TestCase):
             complete_appdir(root)
             verify_appdir(root)
 
+    def test_appdir_without_webkit_injected_bundle_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            complete_appdir(root)
+            (root / "usr/lib/webkitgtk-6.0" / WEBKIT_INJECTED_BUNDLE).unlink()
+
+            with self.assertRaises(AppDirError) as raised:
+                verify_appdir(root)
+
+            self.assertIn(WEBKIT_INJECTED_BUNDLE, str(raised.exception))
+
     def test_desktop_file_must_launch_nota_desktop_by_name(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
@@ -134,6 +150,7 @@ class PrepareAppdirTests(unittest.TestCase):
                 "WebKitGPUProcess",
             ):
                 write_file(webkit, helper, "helper")
+            write_file(webkit, WEBKIT_INJECTED_BUNDLE, "bundle")
             meson_paths = [
                 path
                 for path in REQUIRED_RELATIVE_PATHS
@@ -159,12 +176,65 @@ class PrepareAppdirTests(unittest.TestCase):
                     write_file(root, relative)
             prepare_appdir(root, webkit)
             verify_appdir(root)
+            self.assertEqual(
+                (root / "usr/lib/webkitgtk-6.0" / WEBKIT_INJECTED_BUNDLE).read_text(),
+                "bundle",
+            )
             hook = (root / "apprun-hooks/nota-runtime.sh").read_text()
             self.assertIn("NOTA_FONT_DIR", hook)
             self.assertIn("WEBKIT_EXEC_PATH", hook)
-            self.assertIn("unset GDK_BACKEND", hook)
             self.assertIn("bwrap", hook)
             self.assertIn("/usr/lib/webkitgtk-6.0", hook)
+
+    def test_runtime_hooks_preserve_backend_choice_across_overlay_reentry(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw) / "AppDir"
+            webkit = Path(raw) / "webkit"
+            webkit.mkdir()
+            for helper in (
+                "WebKitWebProcess",
+                "WebKitNetworkProcess",
+                "WebKitGPUProcess",
+            ):
+                write_file(webkit, helper, "helper")
+            write_file(webkit, WEBKIT_INJECTED_BUNDLE, "bundle")
+            complete_appdir(root)
+            prepare_appdir(root, webkit)
+            write_file(
+                root,
+                "apprun-hooks/linuxdeploy-plugin-gtk.sh",
+                "export GDK_BACKEND=x11\n",
+            )
+
+            for backend, expected in (("broadway", "broadway\n"), (None, "unset\n")):
+                with self.subTest(backend=backend):
+                    env = {
+                        **os.environ,
+                        "APPDIR": str(root),
+                        "NOTA_WEBKIT_OVERLAY": "1",
+                    }
+                    if backend is None:
+                        env.pop("GDK_BACKEND", None)
+                    else:
+                        env["GDK_BACKEND"] = backend
+                    completed = subprocess.run(
+                        [
+                            "/bin/sh",
+                            "-c",
+                            'for pass in 1 2; do '
+                            'for hook in "$APPDIR"/apprun-hooks/*; do '
+                            '. "$hook"; '
+                            "done; "
+                            "done; "
+                            'printf "%s\\n" "${GDK_BACKEND-unset}"',
+                        ],
+                        check=True,
+                        capture_output=True,
+                        text=True,
+                        env=env,
+                    )
+
+                    self.assertEqual(completed.stdout, expected)
 
     def test_prepare_rejects_a_webkit_libdir_without_helpers(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
@@ -212,5 +282,3 @@ class CustomApprunTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-

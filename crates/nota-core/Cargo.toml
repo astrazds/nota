@@ -13,7 +13,7 @@ chrono = { version = "0.4.44", features = ["serde"] }
 pulldown-cmark = "0.13.3"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
-uuid = { version = "1.23.1", features = ["v4", "js", "serde"] }
+uuid = { version = "1.23.1", features = ["v4", "serde"] }
 
 [lints]
 workspace = true

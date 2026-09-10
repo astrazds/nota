@@ -1,6 +1,8 @@
 use chrono::{TimeZone, Utc};
 use nota_core::backup::*;
 use nota_core::model::Note;
+use nota_core::note_workspace::NoteWorkspace;
+use nota_core::transition::{ThemePreference, export_desktop_transition};
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -130,6 +132,38 @@ fn merge_import_replaces_same_identity_notes_without_creating_duplicates() {
 
     assert_eq!(imported.selected_id, Some(replacement_note.id));
     assert_eq!(notes, vec![replacement_note, existing_only, imported_only]);
+}
+
+#[test]
+fn merge_import_recovers_a_same_identity_note_from_recently_deleted() {
+    let note = note_with_fields();
+    let note_id = note.id;
+    let backup_json = export_flat_collection_backup(std::slice::from_ref(&note)).unwrap();
+    let mut workspace = NoteWorkspace::new(vec![note.clone()]);
+    assert!(workspace.request_delete(note_id));
+    assert!(workspace.confirm_delete());
+
+    let pending = workspace
+        .prepare_backup_import(backup_json.clone())
+        .unwrap();
+    assert_eq!(pending.preview.notes_to_add, 0);
+    assert_eq!(pending.preview.notes_to_replace, 1);
+
+    workspace
+        .import_flat_collection_backup(&backup_json)
+        .unwrap();
+
+    assert_eq!(workspace.notes(), &[note]);
+    assert!(workspace.recently_deleted_notes().is_empty());
+    assert!(
+        export_desktop_transition(
+            workspace.notes(),
+            workspace.recently_deleted_notes(),
+            ThemePreference::System,
+            None,
+        )
+        .is_ok()
+    );
 }
 
 #[test]

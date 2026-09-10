@@ -37,27 +37,28 @@ struct DesktopComponent {
     note_lists: NoteLists,
     title: gtk::Entry,
     tags: gtk::Entry,
+    scheduled_notification_generation: Option<u64>,
 }
 
 impl DesktopComponent {
-    fn schedule_notification_dismiss(&self, sender: &ComponentSender<Self>) {
+    fn schedule_notification_dismiss(&mut self, sender: &ComponentSender<Self>) {
         if self.app.notification.is_none() {
             return;
         }
         let generation = self.app.notification_generation();
+        if self.scheduled_notification_generation == Some(generation) {
+            return;
+        }
+        self.scheduled_notification_generation = Some(generation);
         let sender = sender.input_sender().clone();
         gtk::glib::timeout_add_local_once(std::time::Duration::from_secs(3), move || {
             let _send_result = sender.send(AppMsg::DismissNotification(generation));
         });
     }
 
-    fn schedule_save(&self, sender: &ComponentSender<Self>) {
+    fn schedule_save(&self) {
         if let Some(worker) = &self.worker {
             let _scheduled = worker.schedule(self.app.revision(), self.app.collection());
-            let sender = sender.input_sender().clone();
-            gtk::glib::timeout_add_local_once(std::time::Duration::from_millis(325), move || {
-                let _send_result = sender.send(AppMsg::FlushPersistence);
-            });
         }
     }
 
@@ -112,15 +113,24 @@ impl SimpleComponent for DesktopComponent {
             recovery.as_ref(),
             sender.input_sender(),
         );
+        let completion_sender = sender.input_sender().clone();
+        let worker = PersistenceWorker::start(store.clone(), move |result| {
+            let message = match result {
+                Ok(revision) => AppMsg::PersistenceComplete(revision),
+                Err(error) => AppMsg::PersistenceFailed(error.to_string()),
+            };
+            let _send_result = completion_sender.send(message);
+        });
         let model = DesktopComponent {
             app,
             window,
             store: store.clone(),
             recovery,
-            worker: Some(PersistenceWorker::start(store)),
+            worker: Some(worker),
             note_lists,
             title: widgets.title_input(),
             tags: widgets.tags_input(),
+            scheduled_notification_generation: None,
         };
         let _send_result = sender.input_sender().send(AppMsg::Resize(width as f64));
         ComponentParts { model, widgets }
@@ -149,6 +159,36 @@ impl SimpleComponent for DesktopComponent {
                 &backup,
                 quarantine,
             );
+            return;
+        }
+        if matches!(message, AppMsg::RequestTagCleanup) {
+            let plan = self.app.workspace.tag_cleanup_plan();
+            if !plan.is_empty() {
+                let detail = plan
+                    .changes
+                    .iter()
+                    .map(|change| {
+                        format!(
+                            "{} -> {}",
+                            change.before.join(", "),
+                            change.after.join(", ")
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                show_confirmation(
+                    &self.window,
+                    ConfirmationRequest {
+                        title: "Clean up Tags?",
+                        detail,
+                        accept_label: "Apply cleanup",
+                        accepted: AppMsg::ApplyTagCleanup(plan),
+                        cancelled: AppMsg::FinishEditTags,
+                        destructive: false,
+                    },
+                    sender.input_sender(),
+                );
+            }
             return;
         }
         if matches!(message, AppMsg::RequestBackupExport) {
@@ -232,12 +272,13 @@ impl SimpleComponent for DesktopComponent {
         if let AppMsg::ImportTransitionJson(json) = &message {
             match self.app.import_transition(json) {
                 Ok(()) => {
-                    self.schedule_save(&sender);
+                    self.schedule_save();
                     if let Err(error) = self.store.save_preferences(&self.preferences()) {
                         self.app.apply(AppMsg::OperationFailed(error.to_string()));
                     }
-                    if let Some(health) = self.app.backup_health
-                        && let Err(error) = self.store.save_backup_health(&health)
+                    if let Err(error) = self
+                        .store
+                        .persist_backup_health(self.app.backup_health.as_ref())
                     {
                         self.app.apply(AppMsg::OperationFailed(error.to_string()));
                     }
@@ -246,6 +287,7 @@ impl SimpleComponent for DesktopComponent {
                     self.app.apply(AppMsg::OperationFailed(error.to_string()));
                 }
             }
+            self.schedule_notification_dismiss(&sender);
             self.note_lists.refresh(&self.app);
             return;
         }
@@ -281,19 +323,6 @@ impl SimpleComponent for DesktopComponent {
             }
             return;
         }
-        if matches!(message, AppMsg::FlushPersistence) {
-            if let Some(worker) = &self.worker {
-                match worker.flush() {
-                    Ok(revision) => {
-                        self.app.apply(AppMsg::PersistenceComplete(revision));
-                    }
-                    Err(error) => {
-                        self.app.apply(AppMsg::PersistenceFailed(error.to_string()));
-                    }
-                }
-            }
-            return;
-        }
         let requested_delete = matches!(&message, AppMsg::RequestDelete(_));
         let requested_clear_all = matches!(&message, AppMsg::RequestClearAll);
         let toggled_theme = matches!(&message, AppMsg::ToggleTheme);
@@ -303,7 +332,7 @@ impl SimpleComponent for DesktopComponent {
         let captured = matches!(&message, AppMsg::QuickCapture);
         let started_edit_tags = matches!(&message, AppMsg::StartEditTags);
         if self.app.apply(message) {
-            self.schedule_save(&sender);
+            self.schedule_save();
             if confirmed_backup_import {
                 self.recovery = None;
             }

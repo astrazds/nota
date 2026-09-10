@@ -2,13 +2,13 @@ use chrono::{DateTime, Utc};
 use nota_core::NoteWorkspace;
 use nota_core::backup::{
     BackupHealth, BackupHealthRecord, PendingBackupImport, assess_backup_health,
-    import_flat_collection_backup, prepare_backup_import,
 };
 use nota_core::editor_view::EditorViewMode;
-use nota_core::markdown_editing::{ByteSelection, MarkdownCommand, apply_markdown_command};
 use nota_core::note_list_interaction::{NoteListInteraction, NoteListRenderModel};
 use nota_core::responsive_navigation::{ViewportClass, normalize_view_mode};
-use nota_core::tag_rules::{TagSuggestion, parse_tags_input, suggest_existing_tags};
+use nota_core::tag_rules::{
+    TagCleanupPlan, TagSuggestion, parse_tags_input, suggest_existing_tags,
+};
 use nota_core::transition::{ThemePreference, TransitionError, import_desktop_transition};
 use uuid::Uuid;
 
@@ -41,10 +41,8 @@ pub enum AppMsg {
     UpdateTitle(String),
     UpdateContent(String),
     UpdateTags(String),
-    ApplyFormatting {
-        selection: ByteSelection,
-        command: MarkdownCommand,
-    },
+    RequestTagCleanup,
+    ApplyTagCleanup(TagCleanupPlan),
     EditSearch(String),
     CommitSearch,
     SelectTag(String),
@@ -63,7 +61,6 @@ pub enum AppMsg {
     ToggleNavigation,
     RestorePreviousSnapshot,
     StartEmptyAfterRecovery,
-    FlushPersistence,
     PersistenceComplete(u64),
     PersistenceFailed(String),
     RequestBackupExport,
@@ -151,12 +148,13 @@ impl AppModel {
             AppMsg::UpdateTags(tags) => {
                 self.workspace.update_selected_tags(parse_tags_input(&tags))
             }
-            AppMsg::ApplyFormatting { selection, command } => {
-                let Some(note) = self.workspace.selected_note() else {
-                    return false;
-                };
-                let formatted = apply_markdown_command(&note.content, selection, command);
-                self.workspace.update_selected_content(formatted.content)
+            AppMsg::RequestTagCleanup => false,
+            AppMsg::ApplyTagCleanup(plan) => {
+                let changed = self.workspace.apply_tag_cleanup(&plan);
+                if changed {
+                    self.set_notification("Tags cleaned up", NotificationTone::Success);
+                }
+                changed
             }
             AppMsg::EditSearch(search) => {
                 self.note_list.edit_search(search);
@@ -213,7 +211,6 @@ impl AppModel {
                 false
             }
             AppMsg::RestorePreviousSnapshot | AppMsg::StartEmptyAfterRecovery => false,
-            AppMsg::FlushPersistence => false,
             AppMsg::PersistenceComplete(revision) => {
                 if revision == self.revision {
                     self.save_status = SaveStatus::Saved;
@@ -269,7 +266,7 @@ impl AppModel {
                     .update_selected_tags(parse_tags_input(&suggestion.completed_input))
             }
             AppMsg::ImportBackupJson(json) => {
-                match prepare_backup_import(self.workspace.notes(), json) {
+                match self.workspace.prepare_backup_import(json) {
                     Ok(pending) => {
                         self.pending_backup_import = Some(pending);
                         self.set_notification("Backup ready", NotificationTone::Success);
@@ -393,10 +390,7 @@ impl AppModel {
     }
 
     pub fn import_backup(&mut self, json: &str) -> Result<(), nota_core::backup::BackupError> {
-        let mut notes = self.workspace.notes().to_vec();
-        let deleted = self.workspace.recently_deleted_notes().to_vec();
-        let imported = import_flat_collection_backup(&mut notes, json)?;
-        self.workspace = NoteWorkspace::new_with_recently_deleted(notes, deleted);
+        let imported = self.workspace.import_flat_collection_backup(json)?;
         if let Some(id) = imported.selected_id {
             self.workspace.select_note(id);
         }
@@ -430,7 +424,6 @@ impl AppModel {
                 | AppMsg::ConfirmBackupImport
                 | AppMsg::CancelBackupImport
                 | AppMsg::RequestDiagnostics
-                | AppMsg::FlushPersistence
                 | AppMsg::PersistenceComplete(_)
                 | AppMsg::PersistenceFailed(_)
                 | AppMsg::OperationSucceeded(_)

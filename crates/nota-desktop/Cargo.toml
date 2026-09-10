@@ -9,7 +9,7 @@ repository.workspace = true
 description = "Linux-first Relm4/GTK4 desktop application for Nota"
 
 [features]
-default = ["gui"]
+default = ["preview-webkit"]
 gui = ["dep:pango", "dep:relm4"]
 preview-webkit = ["gui", "dep:webkit6"]
 

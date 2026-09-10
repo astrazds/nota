@@ -117,26 +117,25 @@ impl NativeStore {
                     .map(|home| home.join(".local/share"))
             })
             .ok_or(StorageError::DataDirectoryUnavailable)?;
-        Ok(Self::discover_in(data_home))
+        Self::discover_in(data_home)
     }
 
-    fn discover_in(data_home: impl AsRef<Path>) -> Self {
+    fn discover_in(data_home: impl AsRef<Path>) -> Result<Self, StorageError> {
         let data_home = data_home.as_ref();
         let canonical = data_home.join(crate::APPLICATION_ID);
         if canonical.exists() {
-            return Self::at(canonical);
+            return Ok(Self::at(canonical));
         }
         for predecessor in [PREVIOUS_APPLICATION_ID, LEGACY_DATA_DIR_NAME] {
             let source = data_home.join(predecessor);
             if !source.exists() {
                 continue;
             }
-            return match fs::rename(&source, &canonical) {
-                Ok(()) => Self::at(canonical),
-                Err(_) => Self::at(source),
-            };
+            fs::rename(&source, &canonical)
+                .map_err(|source| io_error(canonical.clone(), source))?;
+            return Ok(Self::at(canonical));
         }
-        Self::at(canonical)
+        Ok(Self::at(canonical))
     }
 
     pub fn at(data_dir: impl Into<PathBuf>) -> Self {
@@ -244,6 +243,23 @@ impl NativeStore {
     }
 
     pub fn save_backup_health(&self, health: &BackupHealthRecord) -> Result<(), StorageError> {
+        self.persist_backup_health(Some(health))
+    }
+
+    pub fn persist_backup_health(
+        &self,
+        health: Option<&BackupHealthRecord>,
+    ) -> Result<(), StorageError> {
+        let Some(health) = health else {
+            let path = self.backup_health_path();
+            return match fs::remove_file(&path) {
+                Ok(()) => File::open(&self.data_dir)
+                    .and_then(|directory| directory.sync_all())
+                    .map_err(|source| io_error(self.data_dir.clone(), source)),
+                Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+                Err(source) => Err(io_error(path, source)),
+            };
+        };
         let raw = serde_json::to_vec_pretty(health).map_err(StorageError::Serialize)?;
         write_atomic(&self.backup_health_path(), &raw)
     }
@@ -457,7 +473,7 @@ mod tests {
     #[test]
     fn discover_uses_the_application_id_directory_under_xdg_data_home() {
         let temp = tempfile::tempdir().unwrap();
-        let store = NativeStore::discover_in(temp.path());
+        let store = NativeStore::discover_in(temp.path()).unwrap();
 
         assert_eq!(store.data_dir(), temp.path().join(crate::APPLICATION_ID));
     }
@@ -473,7 +489,7 @@ mod tests {
         )
         .unwrap();
 
-        let store = NativeStore::discover_in(temp.path());
+        let store = NativeStore::discover_in(temp.path()).unwrap();
 
         assert_eq!(store.data_dir(), temp.path().join(crate::APPLICATION_ID));
         assert!(store.data_dir().join("collection.json").exists());
@@ -490,7 +506,7 @@ mod tests {
         fs::write(canonical.join("collection.json"), b"canonical").unwrap();
         fs::write(legacy.join("collection.json"), b"legacy").unwrap();
 
-        let store = NativeStore::discover_in(temp.path());
+        let store = NativeStore::discover_in(temp.path()).unwrap();
 
         assert_eq!(store.data_dir(), canonical);
         assert_eq!(
@@ -514,11 +530,41 @@ mod tests {
         )
         .unwrap();
 
-        let store = NativeStore::discover_in(temp.path());
+        let store = NativeStore::discover_in(temp.path()).unwrap();
 
         assert_eq!(store.data_dir(), temp.path().join(crate::APPLICATION_ID));
         assert!(store.data_dir().join("collection.json").exists());
         assert!(!previous.exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn discover_reports_a_failed_predecessor_migration_without_abandoning_its_data() {
+        let temp = tempfile::tempdir().unwrap();
+        let canonical = temp.path().join(crate::APPLICATION_ID);
+        let previous = temp.path().join(PREVIOUS_APPLICATION_ID);
+        fs::create_dir_all(&previous).unwrap();
+        fs::write(
+            previous.join("collection.json"),
+            b"{\"version\":1,\"notes\":[],\"recently_deleted_notes\":[]}",
+        )
+        .unwrap();
+        std::os::unix::fs::symlink(temp.path().join("missing-target"), &canonical).unwrap();
+
+        let result = NativeStore::discover_in(temp.path());
+
+        assert!(matches!(
+            result,
+            Err(StorageError::Io { path, .. }) if path == canonical
+        ));
+        assert!(previous.join("collection.json").exists());
+        assert!(
+            canonical
+                .symlink_metadata()
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
     }
 
     #[test]
@@ -531,7 +577,7 @@ mod tests {
         fs::write(canonical.join("collection.json"), b"canonical").unwrap();
         fs::write(previous.join("collection.json"), b"previous").unwrap();
 
-        let store = NativeStore::discover_in(temp.path());
+        let store = NativeStore::discover_in(temp.path()).unwrap();
 
         assert_eq!(store.data_dir(), canonical);
         assert_eq!(

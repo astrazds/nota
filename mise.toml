@@ -1,15 +1,9 @@
 [tools]
-node = "22.23.2"
 rust = "1.98.1"
-"github:trunk-rs/trunk" = "0.21.14"
 
 [tasks."setup:rust"]
-description = "Install Rust verification components and the browser target"
-run = ["rustup component add rustfmt clippy", "rustup target add wasm32-unknown-unknown"]
-
-[tasks."setup:browser"]
-description = "Install locked browser dependencies and Chromium"
-run = ["npm ci", "node node_modules/@playwright/test/cli.js install chromium"]
+description = "Install Rust verification components"
+run = "rustup component add rustfmt clippy"
 
 [tasks."clippy:core"]
 description = "Lint the toolkit-independent core"
@@ -35,14 +29,6 @@ run = "cargo clippy --workspace --all-targets --all-features --locked -- -D warn
 description = "Run workspace behavior and compatibility tests"
 run = "cargo test --workspace --all-features --locked"
 
-[tasks."check:web"]
-description = "Check the browser WebAssembly adapter"
-run = "cargo check -p nota-web --target wasm32-unknown-unknown --all-features --locked"
-
-[tasks."test:browser"]
-description = "Run browser workflow and visual contracts"
-run = "npm run test:browser --"
-
 [tasks."test:package"]
 description = "Verify the AppImage directory contract"
 run = "python3 build-aux/test_package_appimage.py"
@@ -55,17 +41,33 @@ run = "cargo doc --workspace --all-features --no-deps --locked"
 description = "Run repository checks in order without competing Cargo builds"
 run = [
   "mise run fmt",
+  "mise run check",
   "mise run clippy",
   "mise run test",
-  "mise run check:web",
   "mise run test:package",
-  "mise run test:browser",
 ]
-
-[tasks."dev:web"]
-description = "Run the browser migration app"
-run = "npm run dev"
 
 [tasks."dev:desktop"]
 description = "Run the desktop app with WebKit preview"
 run = "cargo run -p nota-desktop --features preview-webkit --locked"
+
+[tasks.dev]
+description = "Run the native Nota app"
+run = "mise run dev:desktop"
+
+[tasks."build:desktop"]
+description = "Build the native app with Preview and Split"
+run = "cargo build -p nota-desktop --release --locked"
+
+[tasks."package:appimage"]
+description = "Build, install, and package the current native app"
+run = [
+  "meson setup build --reconfigure --prefix=/usr --buildtype=release",
+  "meson compile -C build",
+  'DESTDIR="$PWD/build/AppDir" meson install -C build',
+  "python3 build-aux/package_appimage.py package build/AppDir --output dist/Nota-x86_64.AppImage",
+]
+
+[tasks."test:gtk"]
+description = "Run GTK widget behavior tests on the current display"
+run = "cargo test -p nota-desktop --bin nota-desktop --locked gtk_toolbar_formatting -- --ignored --test-threads=1"

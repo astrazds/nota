@@ -18,9 +18,10 @@ Nota is a Linux Markdown Note App. Create a Note quickly, stay oriented in a
 Flat Collection, write without chrome getting in the way, preview Markdown when
 you need it, recover accidental deletes, and export a Backup you own.
 
-The post-1.0 product is the Relm4/GTK4 native window (`2.0.0-alpha.1`). This is
-not a 2.0.0 release. The 1.0.2 Leptos browser app remains in-tree as a
-migration Adapter until native cutover.
+The Relm4/GTK4 native window is the only frontend in this source tree. The
+native cutover is complete, but the crates remain at `2.0.0-alpha.1` until a
+separate release. This source cutover does not publish a release or retire a
+hosted browser app.
 
 <p align="center">
   <img src="docs/assets/readme/nota-main-window.png" alt="Nota native window showing the Note List, a selected Note, and the Writing Surface">
@@ -38,19 +39,19 @@ changes the current collection.
 
 ## Install
 
-Nota currently ships as source and as an x86_64 AppImage packager. The native
-app needs [Rust](https://www.rust-lang.org/tools/install) 1.95 or newer and
-GTK 4.22 or newer. Preview and Split also need the `webkitgtk-6.0` development
-package.
+Nota builds from source and can produce an x86_64 AppImage. The app needs
+[Rust](https://www.rust-lang.org/tools/install) 1.95 or newer and GTK 4.22 or
+newer. Preview and Split also need the `webkitgtk-6.0` development package.
 
 ```sh
 git clone https://github.com/astrazds/nota.git
 cd nota
-cargo run -p nota-desktop
+mise run dev
 ```
 
-Enable Preview and Split with `--features preview-webkit`. Default
-`cargo run -p nota-desktop` does not.
+Preview and Split are included by default. A write-only development build is
+available with `--no-default-features --features gui`. Project tool versions
+and common commands are defined in `mise.toml`.
 
 Collection data lives at `$XDG_DATA_HOME/net.astrazds.Nota` (typically
 `~/.local/share/net.astrazds.Nota`). A first launch migrates
@@ -62,10 +63,7 @@ absent.
 The first native distribution path wraps the Meson prefix (ADR-0010):
 
 ```sh
-meson setup build --prefix=/usr --buildtype=release
-meson compile -C build
-DESTDIR="$PWD/build/AppDir" meson install -C build
-python3 build-aux/package_appimage.py package build/AppDir --output dist/Nota-x86_64.AppImage
+mise run package:appimage
 ```
 
 That packager downloads linuxdeploy tools on demand, bundles WebKitGTK 6
@@ -99,18 +97,19 @@ the device unless you export a Backup and choose to share that file.
 | Location | Purpose |
 | --- | --- |
 | `$XDG_DATA_HOME/net.astrazds.Nota` | Native Notes, Recently Deleted, preferences, Backup Health |
-| Browser LocalStorage (`nota-*`) | Migration Adapter only, on this machine |
-| Backup JSON | User-owned local export / Merge Import |
+| Browser LocalStorage (`nota-*`) | Legacy browser builds, local to that browser profile |
+| Backup JSON | User-owned local export and Merge Import |
 
 See [PRIVACY.md](PRIVACY.md) for the complete data boundary.
 
 ## Limitations
 
 - The native app is Linux-only. This is `2.0.0-alpha.1`, not a 2.0.0 release.
-- Preview and Split need WebKitGTK 6. Default `cargo run` is Write-only.
+- Preview and Split need WebKitGTK 6. Use `--no-default-features --features
+  gui` for a write-only development build.
 - The first packaged artifact is an x86_64 AppImage. Flathub and other stores
   are not part of this repository yet.
-- The Leptos browser Adapter is a migration source, not the product surface.
+- This source cutover does not retire a hosted browser app.
 
 ## Project structure
 
@@ -118,10 +117,9 @@ See [PRIVACY.md](PRIVACY.md) for the complete data boundary.
 | --- | --- |
 | `crates/nota-core/` | Notes, Search, Tags, Backup v1, Storage Recovery, Markdown |
 | `crates/nota-desktop/` | Relm4/GTK4 native app, XDG store, AppImage payload |
-| `src/` | Leptos browser Adapter until native cutover |
 | `build-aux/` | Meson cargo wrapper and AppImage packager |
+| `data/` | Desktop entry and AppStream metadata |
 | `docs/` | Product, design, brand toolkit, and ADRs |
-| `tests/` | Browser Playwright contracts and workflows |
 
 Product language lives in [`CONTEXT.md`](CONTEXT.md). The register, visual
 system, and brand rules are [`PRODUCT.md`](PRODUCT.md), [`DESIGN.md`](DESIGN.md),
@@ -133,16 +131,14 @@ Module ownership and workflow traces live in [the architecture map](docs/archite
 ```sh
 mise install
 mise run setup:rust
-mise run setup:browser
 mise run verify
 ```
 
-CI on `main` is the [CI workflow](https://github.com/astrazds/nota/actions/workflows/ci.yml).
-It runs formatting, `nota-core` tests, a wasm check, and the AppDir contract,
-then a native job in the [gtk4-rs GTK 4 container](https://relm4.org/book/stable/continuous_integration.html)
-so Relm4's `gnome_50` stack (GTK 4.22 and libadwaita 1.9) is not tied to Ubuntu
-LTS packages. Browser Playwright coverage (`mise run test:browser`) stays a local gate
-because Trunk has to emit load-bearing CSS during startup.
+`mise run verify` runs formatting, Cargo checks, Clippy, workspace tests, and
+the AppImage directory contract. Run `mise run test:gtk` separately on a live
+display for GTK widget behavior. The [CI workflow](https://github.com/astrazds/nota/actions/workflows/ci.yml)
+runs native tests and the GTK task under Xvfb in the
+[gtk4-rs GTK 4 container](https://relm4.org/book/stable/continuous_integration.html).
 
 Contributions are welcome; read [CONTRIBUTING.md](CONTRIBUTING.md) before
 opening a pull request. Nota is licensed under [MIT](LICENSE).

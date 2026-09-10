@@ -5,8 +5,7 @@
 <h1 align="center">Nota</h1>
 
 <p align="center">
-  A local-first Markdown note app for quick capture, focused writing,
-  Search-led discovery, and user-owned Backup.
+  A local-first Markdown note app for Linux.
 </p>
 
 <p align="center">
@@ -14,131 +13,83 @@
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 </p>
 
-Nota is a Linux Markdown Note App. Create a Note quickly, stay oriented in a
-Flat Collection, write without chrome getting in the way, preview Markdown when
-you need it, recover accidental deletes, and export a Backup you own.
-
-The Relm4/GTK4 native window is the only frontend in this source tree. The
-native cutover is complete, but the crates remain at `2.0.0-alpha.1` until a
-separate release. This source cutover does not publish a release or retire a
-hosted browser app.
+Capture a Note, write Markdown, and find it again through Search and Tags.
+Nota keeps one Flat Collection on your device, with Recently Deleted for
+recovery and local Backup files you control. It has no accounts, telemetry,
+backend, or sync service.
 
 <p align="center">
   <img src="docs/assets/readme/nota-main-window.png" alt="Nota native window showing the Note List, a selected Note, and the Writing Surface">
 </p>
 
-## Why Nota?
+The Relm4/GTK4 app is the only frontend in this source tree. The current version
+is `2.0.0-alpha.1`. Native source migration is complete; a stable release and
+retirement of any hosted browser build are separate steps.
 
-A note app should feel like the Note was already waiting on your machine.
-Nota keeps Notes in one Flat Collection and finds them with Search, the Note
-List, and lightweight Tags. There are no folders, notebooks, or cloud sync.
+## Build and run
 
-Delete moves a Note to Recently Deleted so it can be restored. Backup is a
-versioned local export. A Merge Import previews add/replace impact before it
-changes the current collection.
-
-## Install
-
-Nota builds from source and can produce an x86_64 AppImage. The app needs
-[Rust](https://www.rust-lang.org/tools/install) 1.95 or newer and GTK 4.22 or
-newer. Preview and Split also need the `webkitgtk-6.0` development package.
+Install [mise](https://mise.jdx.dev/) and the native dependencies listed in
+[CONTRIBUTING.md](CONTRIBUTING.md#prerequisites), then run:
 
 ```sh
 git clone https://github.com/astrazds/nota.git
 cd nota
+mise install
 mise run dev
 ```
 
-Preview and Split are included by default. A write-only development build is
-available with `--no-default-features --features gui`. Project tool versions
-and common commands are defined in `mise.toml`.
+Preview and Split are included by default. The project pins Rust through
+`mise.toml`; Cargo declares Rust 1.95 as the minimum version.
 
-Collection data lives at `$XDG_DATA_HOME/net.astrazds.Nota` (typically
-`~/.local/share/net.astrazds.Nota`). A first launch migrates
-`net.astrazds.Noter` or a legacy `noter` directory when the canonical path is
-absent.
-
-### AppImage (alpha)
-
-The first native distribution path wraps the Meson prefix (ADR-0010):
+To build the x86_64 AppImage with the additional packaging prerequisites:
 
 ```sh
 mise run package:appimage
+./dist/Nota-x86_64.AppImage
 ```
 
-That packager downloads linuxdeploy tools on demand, bundles WebKitGTK 6
-helpers, and verifies the AppDir contract. It is `2.0.0-alpha.1`, not a 2.0.0
-release.
+The packager downloads linuxdeploy tools and bundles the native app, fonts,
+and WebKitGTK helpers. See [the AppImage rehearsal](docs/agents/appimage-rehearsal.md)
+for a clean-profile check.
 
-## Use
+## Use Nota
 
-1. Create a Note from the sidebar, empty state, or `Ctrl+N`. Compact viewports
-   return to the Writing Surface with the Note Title focused.
-2. Write Markdown. Switch Write, Preview, or Split from the editor-area footer.
-3. Find Notes with Search (`title:`, `tag:`, `is:pinned`, and quoted phrases
-   are optional). Tags stay metadata, not primary navigation.
-4. Export a Backup from the sidebar footer. Import shows add/replace impact
-   before a Merge Import applies.
+- Create a Note with **New Note** or `Ctrl+N`.
+- Write Markdown and use **Write**, **Preview**, or **Split** in the editor
+  footer. Split is available in wide windows.
+- Focus Search with `Ctrl+F`. Search supports words, quoted phrases, `title:`,
+  `tag:`, and `is:pinned`.
+- Use Note actions to pin or delete a Note. Deleted Notes remain in
+  **Recently Deleted** until you restore or permanently remove them.
+- Use **Export** for a Backup and **Import** for a Merge Import. Review the
+  add and replace counts before applying an import.
 
-```mermaid
-flowchart LR
-  Q[Quick Capture] --> W[Writing Surface]
-  W --> L[Note List]
-  S[Search] --> L
-  L --> W
-  W --> B[Local Backup]
-```
+[The user guide](docs/usage.md) covers Tags, saving, Backup, recovery, and
+migration from browser-era exports. Remote images and active content are
+blocked in Preview. Links you activate open through the system handler.
 
-## Privacy
+## Data and compatibility
 
-Nota has no backend, analytics, advertising, telemetry, or sync. Notes stay on
-the device unless you export a Backup and choose to share that file.
+The app stores data under `$XDG_DATA_HOME/net.astrazds.Nota`, normally
+`~/.local/share/net.astrazds.Nota`. Notes and Backup files are not encrypted by
+Nota. See [PRIVACY.md](PRIVACY.md) for storage and network details, and
+[SECURITY.md](SECURITY.md) to report a vulnerability.
 
-| Location | Purpose |
-| --- | --- |
-| `$XDG_DATA_HOME/net.astrazds.Nota` | Native Notes, Recently Deleted, preferences, Backup Health |
-| Browser LocalStorage (`nota-*`) | Legacy browser builds, local to that browser profile |
-| Backup JSON | User-owned local export and Merge Import |
+Backup v1 and desktop-transition v1 remain supported, including legacy
+`noter.*` format identifiers. A native build cannot read another browser's
+LocalStorage directly. Use a previously exported Backup or desktop-transition
+file to move that collection into Nota.
 
-See [PRIVACY.md](PRIVACY.md) for the complete data boundary.
-
-## Limitations
-
-- The native app is Linux-only. This is `2.0.0-alpha.1`, not a 2.0.0 release.
-- Preview and Split need WebKitGTK 6. Use `--no-default-features --features
-  gui` for a write-only development build.
-- The first packaged artifact is an x86_64 AppImage. Flathub and other stores
-  are not part of this repository yet.
-- This source cutover does not retire a hosted browser app.
-
-## Project structure
-
-| Path | Purpose |
-| --- | --- |
-| `crates/nota-core/` | Notes, Search, Tags, Backup v1, Storage Recovery, Markdown |
-| `crates/nota-desktop/` | Relm4/GTK4 native app, XDG store, AppImage payload |
-| `build-aux/` | Meson cargo wrapper and AppImage packager |
-| `data/` | Desktop entry and AppStream metadata |
-| `docs/` | Product, design, brand toolkit, and ADRs |
-
-Product language lives in [`CONTEXT.md`](CONTEXT.md). The register, visual
-system, and brand rules are [`PRODUCT.md`](PRODUCT.md), [`DESIGN.md`](DESIGN.md),
-and [`docs/brand-toolkit.md`](docs/brand-toolkit.md).
-Module ownership and workflow traces live in [the architecture map](docs/architecture.md).
-
-## Development
+## Contribute
 
 ```sh
-mise install
 mise run setup:rust
 mise run verify
 ```
 
-`mise run verify` runs formatting, Cargo checks, Clippy, workspace tests, and
-the AppImage directory contract. Run `mise run test:gtk` separately on a live
-display for GTK widget behavior. The [CI workflow](https://github.com/astrazds/nota/actions/workflows/ci.yml)
-runs native tests and the GTK task under Xvfb in the
-[gtk4-rs GTK 4 container](https://relm4.org/book/stable/continuous_integration.html).
+The GTK widget regression requires a display and runs separately with
+`mise run test:gtk`. [CONTRIBUTING.md](CONTRIBUTING.md) describes the toolchain,
+feature checks, packaging, and evidence expected in a pull request.
 
-Contributions are welcome; read [CONTRIBUTING.md](CONTRIBUTING.md) before
-opening a pull request. Nota is licensed under [MIT](LICENSE).
+[Documentation](docs/README.md) links the architecture, domain, design, and
+decision records. Nota is licensed under [MIT](LICENSE).

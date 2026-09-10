@@ -1,39 +1,115 @@
-# Contributing to Nota
+# Contribute to Nota
 
-Thanks for taking an interest in Nota. Small, focused changes are easiest
-to review.
+Use small, focused changes with behavior and verification that a reviewer can
+follow. Discuss substantial behavior changes in a GitHub issue before you
+implement them.
 
-## Before opening a pull request
+## Prerequisites
 
-1. Open an issue for behavior changes or substantial new work so the scope can
-   be agreed first.
-2. Preserve Nota's local-first boundary. Changes must not add telemetry, cloud
-   sync, remote note storage, or analytics.
-3. Keep the product a Markdown Note App. Search and the Note List remain the
-   discovery system; do not introduce folders, notebooks, or a command palette
-   as primary navigation.
-4. Do not commit generated AppImages, `dist/`, `target/`, local agent files, or
-   editor state.
-5. Run the complete local check:
+Use [mise](https://mise.jdx.dev/) for the Rust version and repository tasks.
+`mise.toml` pins the development toolchain. The workspace declares its minimum
+Rust version in `Cargo.toml`.
 
-   ```sh
-   mise install
-   mise run setup:rust
-   mise run verify
-   ```
+A default native build needs a C toolchain, `pkg-config`, and development
+headers for GTK 4.22 or newer, libadwaita 1.9 or newer, Pango 1.56 or newer, and
+WebKitGTK 6. Install these through your Linux distribution. Package names and
+availability vary by distribution.
 
-   Native GTK work also needs GTK 4.22, libadwaita 1.9, and WebKitGTK 6.
-   GitHub Actions runs the native job in the
-   [gtk4-rs GTK 4 container](https://relm4.org/book/stable/continuous_integration.html)
-   rather than Ubuntu LTS packages. Run `mise run test:gtk` separately on a
-   live display for GTK widget behavior. CI runs that task under Xvfb.
+AppImage packaging also needs Meson, Ninja, Python 3, and network access for
+the linuxdeploy downloads. The runtime uses Bubblewrap when available to map
+the bundled WebKitGTK helpers into the path expected by WebKitGTK.
+
+## Set up and run
+
+From the repository root:
+
+```sh
+mise install
+mise run setup:rust
+mise run dev
+```
+
+`mise run dev` starts the GTK app with Preview and Split. It uses the normal
+application data directory. Use the [isolated profile procedure](docs/agents/appimage-rehearsal.md#3-launch-with-an-isolated-profile)
+when you need a disposable collection.
+
+To compile a release binary:
+
+```sh
+mise run build:desktop
+```
+
+The binary is `target/release/nota-desktop`. A write-only development build
+can omit WebKitGTK:
+
+```sh
+mise exec -- cargo run -p nota-desktop --no-default-features --features gui --locked
+```
+
+A headless core or desktop-library check does not need GTK:
+
+```sh
+mise run test:core
+mise exec -- cargo check -p nota-desktop --no-default-features --locked
+```
+
+## Verify a change
+
+```sh
+mise run verify
+mise run doc
+```
+
+`verify` runs formatting, Cargo checks, Clippy, workspace tests, and the
+AppImage directory contract tests. It does not build an AppImage or run the
+ignored GTK widget test.
+
+On a working GTK display, run:
+
+```sh
+mise run test:gtk
+```
+
+The [CI workflow](.github/workflows/ci.yml) runs core checks separately from
+native checks. Its native job uses the gtk4-rs container, installs WebKitGTK,
+and runs workspace and GTK tests under Xvfb.
+
+For a GTK UI change, inspect the real app in Light and Dark Themes and at
+wide and compact window sizes. Check focus, selection, scroll position, and
+keyboard behavior. Source-level visual contracts and browser automation alone
+do not prove native rendering.
+
+For an AppImage or migration change:
+
+```sh
+mise run package:appimage
+```
+
+Complete [the AppImage rehearsal](docs/agents/appimage-rehearsal.md) and record
+which automated and human checks passed. Packaging produces
+`dist/Nota-x86_64.AppImage` from the current sources.
+
+## Preserve the product and data contracts
 
 Read [the architecture map](docs/architecture.md) before moving behavior
-between the core and native modules. `mise.toml` owns tool versions and common
-tasks. `mise tasks` lists focused checks and development commands.
+between `nota-core` and `nota-desktop`. Use the domain language in
+[CONTEXT.md](CONTEXT.md) and the design rules in [DESIGN.md](DESIGN.md).
 
-## Pull requests
+Keep Search and the Note List as the primary discovery tools. Preserve stable
+Note identities, merge-only Backup import, explicit Storage Recovery, and
+legacy format compatibility. Keep Notes local and avoid telemetry, cloud sync,
+remote Note storage, or analytics.
 
-Explain the problem, the chosen approach, and how you verified it. Add or
-update a behavior-focused test for domain changes. By contributing, you agree
-that your contribution is licensed under the repository's MIT license.
+Keep generated AppImages, `build/`, `dist/`, `target/`, local agent files, and
+editor state out of commits. Preserve font and icon licenses when changing
+bundled assets.
+
+## Open a pull request
+
+Explain the user-visible problem, the final change, and the checks you ran.
+Separate automated results from manual observations and list missing tools or
+unverified behavior. Add a focused behavior test when it protects a real
+regression. Keep commits ordered and independently reviewable.
+
+By contributing, you agree that your contribution is licensed under the
+repository's MIT license.

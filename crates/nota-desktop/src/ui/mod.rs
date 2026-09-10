@@ -161,6 +161,36 @@ impl SimpleComponent for DesktopComponent {
             );
             return;
         }
+        if matches!(message, AppMsg::RequestTagCleanup) {
+            let plan = self.app.workspace.tag_cleanup_plan();
+            if !plan.is_empty() {
+                let detail = plan
+                    .changes
+                    .iter()
+                    .map(|change| {
+                        format!(
+                            "{} -> {}",
+                            change.before.join(", "),
+                            change.after.join(", ")
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                show_confirmation(
+                    &self.window,
+                    ConfirmationRequest {
+                        title: "Clean up Tags?",
+                        detail,
+                        accept_label: "Apply cleanup",
+                        accepted: AppMsg::ApplyTagCleanup(plan),
+                        cancelled: AppMsg::FinishEditTags,
+                        destructive: false,
+                    },
+                    sender.input_sender(),
+                );
+            }
+            return;
+        }
         if matches!(message, AppMsg::RequestBackupExport) {
             match export_flat_collection_backup(self.app.workspace.notes()) {
                 Ok(json) => save_json_file(

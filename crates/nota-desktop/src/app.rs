@@ -4,10 +4,11 @@ use nota_core::backup::{
     BackupHealth, BackupHealthRecord, PendingBackupImport, assess_backup_health,
 };
 use nota_core::editor_view::EditorViewMode;
-use nota_core::markdown_editing::{ByteSelection, MarkdownCommand, apply_markdown_command};
 use nota_core::note_list_interaction::{NoteListInteraction, NoteListRenderModel};
 use nota_core::responsive_navigation::{ViewportClass, normalize_view_mode};
-use nota_core::tag_rules::{TagSuggestion, parse_tags_input, suggest_existing_tags};
+use nota_core::tag_rules::{
+    TagCleanupPlan, TagSuggestion, parse_tags_input, suggest_existing_tags,
+};
 use nota_core::transition::{ThemePreference, TransitionError, import_desktop_transition};
 use uuid::Uuid;
 
@@ -40,10 +41,8 @@ pub enum AppMsg {
     UpdateTitle(String),
     UpdateContent(String),
     UpdateTags(String),
-    ApplyFormatting {
-        selection: ByteSelection,
-        command: MarkdownCommand,
-    },
+    RequestTagCleanup,
+    ApplyTagCleanup(TagCleanupPlan),
     EditSearch(String),
     CommitSearch,
     SelectTag(String),
@@ -149,12 +148,13 @@ impl AppModel {
             AppMsg::UpdateTags(tags) => {
                 self.workspace.update_selected_tags(parse_tags_input(&tags))
             }
-            AppMsg::ApplyFormatting { selection, command } => {
-                let Some(note) = self.workspace.selected_note() else {
-                    return false;
-                };
-                let formatted = apply_markdown_command(&note.content, selection, command);
-                self.workspace.update_selected_content(formatted.content)
+            AppMsg::RequestTagCleanup => false,
+            AppMsg::ApplyTagCleanup(plan) => {
+                let changed = self.workspace.apply_tag_cleanup(&plan);
+                if changed {
+                    self.set_notification("Tags cleaned up", NotificationTone::Success);
+                }
+                changed
             }
             AppMsg::EditSearch(search) => {
                 self.note_list.edit_search(search);

@@ -282,7 +282,13 @@ pub(super) fn show_confirmation(
     footer.append(&spacer);
     footer.append(&cancel);
     footer.append(&accept);
-    root.append(&body);
+    let scroll = gtk::ScrolledWindow::builder()
+        .hscrollbar_policy(gtk::PolicyType::Never)
+        .propagate_natural_height(true)
+        .max_content_height(360)
+        .child(&body)
+        .build();
+    root.append(&scroll);
     root.append(&footer);
     dialog.set_child(Some(&root));
     dialog.set_default_widget(Some(&cancel));

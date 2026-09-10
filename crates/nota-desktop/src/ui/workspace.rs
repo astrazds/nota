@@ -4,7 +4,8 @@ use super::style::{install_css, install_workspace_fonts, measure_ch_width_px};
 use super::writing_plane::WritingPlane;
 use nota_core::backup::BackupHealth;
 use nota_core::editor_view::EditorViewMode;
-use nota_core::markdown_editing::MarkdownCommand;
+use nota_core::markdown_editing::{MarkdownCommand, apply_markdown_command};
+use nota_core::note_discovery::SelectedNoteVisibility;
 use nota_core::note_list_interaction::NoteListDisplayState;
 use nota_desktop::app::{AppModel, AppMsg, NotificationTone, SaveStatus};
 use nota_desktop::selection::gtk_character_range_to_byte_selection;
@@ -45,6 +46,8 @@ pub(super) struct DesktopWidgets {
     tags_pills: gtk::Box,
     tag_suggestions: gtk::Box,
     edit_tags: gtk::Button,
+    cleanup_tags: gtk::Button,
+    hidden_selection: gtk::Label,
     filter_row: gtk::Box,
     filter_chip: gtk::Button,
     clear_all: gtk::Button,
@@ -58,6 +61,8 @@ pub(super) struct DesktopWidgets {
     preview_fallback: gtk::Box,
     tag_suggestion_count: Rc<Cell<usize>>,
     mode_buttons: Vec<(EditorViewMode, gtk::Button)>,
+    refreshing: Rc<Cell<bool>>,
+    rendered_note: Cell<Option<uuid::Uuid>>,
 }
 
 impl DesktopWidgets {
@@ -267,7 +272,14 @@ impl DesktopWidgets {
         let header_inner = gtk::Box::new(gtk::Orientation::Vertical, 4);
         header_inner.set_hexpand(true);
         header_inner.set_halign(gtk::Align::Fill);
+        let hidden_selection = gtk::Label::new(Some(
+            "This note is outside the current Search or Tag filter. Clear the filter in the Note List to show it there again.",
+        ));
+        hidden_selection.set_wrap(true);
+        hidden_selection.set_xalign(0.0);
+        hidden_selection.set_css_classes(&["nota-note-preview"]);
         header_inner.append(&title);
+        header_inner.append(&hidden_selection);
         let tags_pills = gtk::Box::new(gtk::Orientation::Horizontal, 4);
         tags_pills.set_css_classes(&["nota-tag-pills"]);
         let edit_tags = gtk::Button::with_label("Edit tags");
@@ -275,6 +287,14 @@ impl DesktopWidgets {
         header_inner.append(&tags_pills);
         header_inner.append(&edit_tags);
         header_inner.append(&tags);
+        let cleanup_tags = gtk::Button::with_label("Review Tag cleanup");
+        cleanup_tags.set_halign(gtk::Align::Start);
+        cleanup_tags.set_css_classes(&["nota-footer-button"]);
+        let cleanup_sender = sender.clone();
+        cleanup_tags.connect_clicked(move |_| {
+            let _send_result = cleanup_sender.send(AppMsg::RequestTagCleanup);
+        });
+        header_inner.append(&cleanup_tags);
         let tag_suggestions = gtk::Box::new(gtk::Orientation::Vertical, 0);
         tag_suggestions.set_css_classes(&["nota-tag-suggestions"]);
         tag_suggestions.set_halign(gtk::Align::Fill);
@@ -394,12 +414,15 @@ impl DesktopWidgets {
         surface_row.append(&writing);
         #[cfg(feature = "preview-webkit")]
         let preview = {
-            let preview = SecurePreview::new(|target| {
+            let link_sender = sender.clone();
+            let preview = SecurePreview::new(move |target| {
                 if let Err(error) = gtk::gio::AppInfo::launch_default_for_uri(
                     target.as_str(),
                     None::<&gtk::gio::AppLaunchContext>,
                 ) {
-                    eprintln!("Nota could not open external link: {error}");
+                    let _send_result = link_sender.send(AppMsg::OperationFailed(format!(
+                        "Could not open link: {error}"
+                    )));
                 }
             });
             // Same-origin left-aligned 72ch plane as Write body (HTML also caps at 72ch).
@@ -563,17 +586,20 @@ impl DesktopWidgets {
         filter_chip.connect_clicked(move |_| {
             let _send_result = filter_sender.send(AppMsg::ClearTag);
         });
+        let refreshing = Rc::new(Cell::new(false));
+        let title_refreshing = refreshing.clone();
         let title_sender = sender.clone();
         title.connect_changed(move |entry| {
             // GTK4 Entry puts keyboard focus on an inner GtkText, so has_focus() is
             // false while typing. FOCUS_WITHIN lets title edits reach the model.
-            if entry_has_input_focus(entry) {
+            if !title_refreshing.get() && entry_has_input_focus(entry) {
                 let _send_result = title_sender.send(AppMsg::UpdateTitle(entry.text().to_string()));
             }
         });
+        let tags_refreshing = refreshing.clone();
         let tags_sender = sender.clone();
         tags.connect_changed(move |entry| {
-            if entry_has_input_focus(entry) {
+            if !tags_refreshing.get() && entry_has_input_focus(entry) {
                 let _send_result = tags_sender.send(AppMsg::UpdateTags(entry.text().to_string()));
             }
         });
@@ -601,19 +627,50 @@ impl DesktopWidgets {
             }
         });
         tags.add_controller(tags_key);
+        let content_refreshing = refreshing.clone();
         let content_sender = sender.clone();
         let content_view = content.clone();
-        content.buffer().connect_changed(move |buffer| {
-            if content_view.has_focus() {
+        let content_changed = Rc::new(content.buffer().connect_changed(move |buffer| {
+            if !content_refreshing.get() && content_view.has_focus() {
                 let text = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false);
                 let _send_result = content_sender.send(AppMsg::UpdateContent(text.to_string()));
             }
-        });
-        connect_formatting_button(&bold, &content, MarkdownCommand::Bold, sender);
-        connect_formatting_button(&italic, &content, MarkdownCommand::Italic, sender);
-        connect_formatting_button(&strike, &content, MarkdownCommand::Strikethrough, sender);
-        connect_formatting_button(&task, &content, MarkdownCommand::TaskList, sender);
-        connect_formatting_button(&table, &content, MarkdownCommand::Table, sender);
+        }));
+        connect_formatting_button(
+            &bold,
+            &content,
+            MarkdownCommand::Bold,
+            sender,
+            &content_changed,
+        );
+        connect_formatting_button(
+            &italic,
+            &content,
+            MarkdownCommand::Italic,
+            sender,
+            &content_changed,
+        );
+        connect_formatting_button(
+            &strike,
+            &content,
+            MarkdownCommand::Strikethrough,
+            sender,
+            &content_changed,
+        );
+        connect_formatting_button(
+            &task,
+            &content,
+            MarkdownCommand::TaskList,
+            sender,
+            &content_changed,
+        );
+        connect_formatting_button(
+            &table,
+            &content,
+            MarkdownCommand::Table,
+            sender,
+            &content_changed,
+        );
 
         let shortcuts = gtk::ShortcutController::new();
         let quick_capture_sender = sender.clone();
@@ -671,6 +728,8 @@ impl DesktopWidgets {
             tags_pills,
             tag_suggestions,
             edit_tags,
+            cleanup_tags,
+            hidden_selection,
             filter_row,
             filter_chip,
             clear_all,
@@ -683,6 +742,8 @@ impl DesktopWidgets {
             preview_fallback,
             tag_suggestion_count,
             mode_buttons,
+            refreshing,
+            rendered_note: Cell::new(None),
         }
     }
 
@@ -700,6 +761,9 @@ impl DesktopWidgets {
         recovery: Option<&NativeRecovery>,
         sender: &relm4::Sender<AppMsg>,
     ) {
+        self.refreshing.set(true);
+        let selected = app.workspace.selected_id();
+        let selection_changed = self.rendered_note.replace(selected) != selected;
         let dark = matches!(app.theme, nota_core::transition::ThemePreference::Dark);
         if dark {
             self.root.add_css_class("nota-dark");
@@ -740,6 +804,12 @@ impl DesktopWidgets {
         self.clear_all
             .set_visible(!app.workspace.recently_deleted_notes().is_empty());
         let list = app.note_list_render_model();
+        self.hidden_selection.set_visible(
+            list.projection.selected_note_visibility == SelectedNoteVisibility::HiddenByFilter,
+        );
+        self.cleanup_tags.set_visible(
+            !recovering && app.is_editing_tags() && !app.workspace.tag_cleanup_plan().is_empty(),
+        );
         let rendered_notes = list.projection.rows.len();
         self.notes_count.set_text(&rendered_notes.to_string());
         if let Some(status) = &list.result_status {
@@ -783,11 +853,15 @@ impl DesktopWidgets {
             self.content.set_sensitive(false);
             self.edit_tags.set_sensitive(false);
         } else if let Some(note) = app.workspace.selected_note() {
-            if self.title.text().as_str() != note.title {
+            if (selection_changed || !entry_has_input_focus(&self.title))
+                && self.title.text().as_str() != note.title
+            {
                 self.title.set_text(&note.title);
             }
             let tags = note.tags.join(", ");
-            if self.tags.text().as_str() != tags {
+            if (selection_changed || !entry_has_input_focus(&self.tags))
+                && self.tags.text().as_str() != tags
+            {
                 self.tags.set_text(&tags);
             }
             for tag in &note.tags {
@@ -798,7 +872,8 @@ impl DesktopWidgets {
             self.edit_tags.set_sensitive(true);
             let buffer = self.content.buffer();
             let current = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false);
-            if current.as_str() != note.content {
+            if selection_changed || (!self.content.has_focus() && current.as_str() != note.content)
+            {
                 buffer.set_text(&note.content);
             }
             self.title.set_sensitive(true);
@@ -910,6 +985,7 @@ impl DesktopWidgets {
         {
             self.preview_fallback.set_visible(surfaces.preview);
         }
+        self.refreshing.set(false);
     }
 }
 
@@ -954,12 +1030,15 @@ fn connect_formatting_button(
     content: &gtk::TextView,
     command: MarkdownCommand,
     sender: &relm4::Sender<AppMsg>,
+    content_changed: &Rc<gtk::glib::SignalHandlerId>,
 ) {
     let content = content.clone();
     let sender = sender.clone();
+    let content_changed = content_changed.clone();
+    button.set_focus_on_click(false);
     button.connect_clicked(move |_| {
         let buffer = content.buffer();
-        let (start, end) = buffer.selection_bounds().unwrap_or_else(|| {
+        let (mut start, mut end) = buffer.selection_bounds().unwrap_or_else(|| {
             let cursor = buffer.iter_at_offset(buffer.cursor_position());
             (cursor, cursor)
         });
@@ -971,6 +1050,53 @@ fn connect_formatting_button(
         ) else {
             return;
         };
-        let _send_result = sender.send(AppMsg::ApplyFormatting { selection, command });
+        let (selection_start_byte, _) = selection.ordered();
+        let formatted = apply_markdown_command(&text, selection, command);
+        let replacement = &formatted.content[selection_start_byte..formatted.caret_byte];
+        buffer.block_signal(&content_changed);
+        buffer.begin_user_action();
+        buffer.delete(&mut start, &mut end);
+        buffer.insert(&mut start, replacement);
+        let caret = formatted.content[..formatted.caret_byte].chars().count() as i32;
+        buffer.place_cursor(&buffer.iter_at_offset(caret));
+        buffer.end_user_action();
+        buffer.unblock_signal(&content_changed);
+        content.grab_focus();
+        let _send_result = sender.send(AppMsg::UpdateContent(formatted.content));
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "requires a GTK display; run mise run test:gtk"]
+    fn gtk_toolbar_formatting_preserves_unicode_caret_and_undo() {
+        gtk::init().expect("the GTK workflow test requires a display");
+        let view = gtk::TextView::new();
+        let buffer = view.buffer();
+        buffer.set_text("A😀B");
+        buffer.select_range(&buffer.iter_at_offset(1), &buffer.iter_at_offset(2));
+        let changed = Rc::new(buffer.connect_changed(|_| {}));
+        let (sender, _receiver) = relm4::channel();
+        let bold = formatting_button("B", "Bold");
+        connect_formatting_button(&bold, &view, MarkdownCommand::Bold, &sender, &changed);
+        bold.emit_clicked();
+        let text = || {
+            buffer
+                .text(&buffer.start_iter(), &buffer.end_iter(), false)
+                .to_string()
+        };
+        assert_eq!(text(), "A**😀**B");
+        assert_eq!(buffer.cursor_position(), 6);
+        assert!(buffer.can_undo());
+        buffer.undo();
+        assert_eq!(text(), "A😀B");
+        assert!(buffer.can_redo());
+        buffer.redo();
+        assert_eq!(text(), "A**😀**B");
+        buffer.insert_at_cursor("!");
+        assert_eq!(text(), "A**😀**!B");
+    }
 }

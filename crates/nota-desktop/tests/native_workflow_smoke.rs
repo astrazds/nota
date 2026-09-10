@@ -77,6 +77,34 @@ fn filtered_search_does_not_use_empty_collection_copy() {
 }
 
 #[test]
+fn tag_cleanup_message_applies_a_reviewed_plan_as_one_saved_change() {
+    let mut note = nota_core::Note::new("Dirty tags".to_string(), String::new());
+    note.tags = vec![" Work ".to_string(), "work".to_string()];
+    let mut app = AppModel::new(
+        CollectionEnvelope::new(vec![note], Vec::new()),
+        ThemePreference::Light,
+        None,
+    );
+    let plan = app.workspace.tag_cleanup_plan();
+
+    assert!(!app.apply(AppMsg::RequestTagCleanup));
+    assert!(app.notification.is_none());
+    assert!(app.apply(AppMsg::ApplyTagCleanup(plan.clone())));
+
+    assert_eq!(app.workspace.notes()[0].tags, ["Work"]);
+    assert_eq!(app.revision(), 1);
+    assert_eq!(app.save_status, nota_desktop::app::SaveStatus::Saving);
+    assert_eq!(
+        app.notification.as_ref().unwrap().message,
+        "Tags cleaned up"
+    );
+    let notification_generation = app.notification_generation();
+    assert!(!app.apply(AppMsg::ApplyTagCleanup(plan)));
+    assert_eq!(app.revision(), 1);
+    assert_eq!(app.notification_generation(), notification_generation);
+}
+
+#[test]
 fn quick_capture_requests_note_title_focus() {
     let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::Light, None);
     assert!(app.apply(AppMsg::QuickCapture));

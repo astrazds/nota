@@ -18,6 +18,7 @@ Concept artifact:
 Approved product frame:
 
 - **Frame A, Quiet Notebook Frame** is the product UI reference for the main app frame: light paper default, compact restrained sidebar, warm selected Note row, thin editor toolbar, stable editor-area footer, and paper-neutral popup panels.
+- Recently Deleted has a contrasting neutral header across the sidebar width and separated recovery rows below the active Note List. Follow [the section design](../DESIGN.md#recently-deleted) in both themes.
 - Paper-neutral product windows cover About, Markdown help, Delete Confirmation, Clear All, and Backup Import Preview. They use a notebook header and paper body, not stock GTK alert chrome.
 - The product surface is the Relm4/GTK4 native window. Use legacy browser screenshots only when migration history or a hosted browser app is the subject.
 
@@ -68,14 +69,12 @@ Avoid these frames:
 
 Nota copy is plain, operational, and specific. It should name the thing that will happen, especially when recovery or data movement is involved.
 
-Use:
+Use the visible control labels when writing instructions:
 
-- "Create Note"
-- "Restore Note"
-- "Move to Recently Deleted"
-- "Export Backup"
-- "Import Backup"
-- "This Backup will add 3 Notes and replace 1 Note."
+- "New Note" in the sidebar and "Create a Note" in the empty Writing Surface.
+- "Restore" beside a Recently Deleted Note.
+- "Move" in the "Move to Recently Deleted?" confirmation.
+- "Export" and "Import" in Backup Controls.
 
 Avoid:
 
@@ -275,6 +274,7 @@ The product layout is a working notebook, not a marketing dashboard.
 - In Split, divide the editor area 50/50 of the current viewport.
 - Keep View Mode Controls in the editor-area footer, not in a persistent app header.
 - Keep the sidebar dense enough to scan several Notes.
+- Separate Recently Deleted with its full-width header and recovery rows.
 - Keep Note List and Writing Surface Tag pills on the same compact chip.
 - Keep Search as the primary discovery control.
 - Keep Backup Controls compact and secondary.
@@ -294,11 +294,11 @@ External brand layouts may be more spacious and expressive, but they should stil
 
 ### Buttons
 
-Primary buttons use Warm Capture Yellow for clear action. Secondary buttons use paper neutrals. Danger buttons use Recovery Red only when a destructive action is actually being confirmed.
+Primary buttons use Warm Capture Yellow for clear action. Secondary buttons use paper neutrals. Recovery Red marks destructive controls and destructive confirmations, including immediate Delete and Clear All in Recently Deleted. Restore remains neutral.
 
 Labels should name outcomes:
 
-- "Create Note"
+- "New Note"
 - "Restore"
 - "Clear All"
 - "Export"

@@ -10,7 +10,13 @@ Users should not need to think in terms of files, folders, cloud sync, command s
 
 Nota exists to make local note-taking feel dependable and low-friction on the user's own machine. Success means a user can create a Note quickly, stay oriented in a Flat Collection, edit the Writing Surface without chrome getting in the way, preview Markdown when needed, recover accidental deletes, and export/import a local Backup without risking the current collection.
 
-The product is the Linux Relm4/GTK4 window. The native cutover is complete, and the browser frontend is no longer part of the source tree. Backup v1 and desktop-transition import remain compatible with browser-era exports. The primary product frame is a Markdown Note App, not a Markdown workbench. Markdown powers the content, but the main product experience is creating, recognising, finding, organising, and safely preserving Notes.
+The product is the Linux Relm4/GTK4 window. Native source migration is complete,
+and the browser frontend is no longer part of the source tree. The current
+version is `2.0.0-alpha.1`; stable release acceptance and retirement of any
+hosted browser build remain separate steps. Backup v1 and desktop-transition
+import remain compatible with browser-era exports. The primary product frame
+is a Markdown Note App. Markdown powers the content, but the main product
+experience is creating, recognising, finding, organising, and preserving Notes.
 
 ## Brand personality
 
@@ -31,7 +37,7 @@ Avoid hover-only actions, persistent syntax instruction blocks, permanent utilit
 ## Design principles
 
 1. Keep the Note primary. The Note Title, Note Metadata, Writing Surface, Preview, and View Mode Controls should always feel like parts of the same Note workflow.
-2. Optimise for fast capture and recovery. Creating a Note, confirming deletion, restoring Recently Deleted Notes, and exporting/importing Backups must be direct, explicit, and hard to misread.
+2. Optimise for fast capture and recovery. Keep recoverable Notes visibly separate from active Notes. Creating a Note, confirming deletion, restoring Recently Deleted Notes, and exporting or importing Backups must be direct, explicit, and hard to misread.
 3. Make discovery scannable. Search and the Note List are the primary discovery system, with Tags as lightweight filters rather than a competing hierarchy.
 4. Keep Markdown contextual. Formatting Tools, Preview, Split, and Markdown help should support writing without turning the product into an editor showcase.
 5. Preserve quiet local confidence. Use familiar note-app structure, warm accents, readable Light/Dark Themes, stable controls, and transient feedback instead of decorative chrome.

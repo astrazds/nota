@@ -18,7 +18,7 @@ Read this index before driving a feature. This is a starter map of the native GT
 | Capture and save | [Writing](writing.md) | Title and body survive native restart with the same identity |
 | Find and organise | [Search and tags](search.md) | Queries and tag filters explain results; pin state persists |
 | Read Markdown | [View modes](view-modes.md) | Write, Preview, and Split show the same Note |
-| Recover deletion | [Recently Deleted](deletion.md) | Named confirmation, holding area, and restoration |
+| Recover deletion | [Recently Deleted](deletion.md) | Named confirmation, distinct recovery section in both themes, and restoration |
 | Keep recovery copies | [Backup and recovery](backup.md) | Export contents, previewed merge, and explicit recovery decisions |
 
 ## Coverage limits

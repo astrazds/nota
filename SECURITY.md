@@ -2,17 +2,18 @@
 
 ## Supported versions
 
-Security fixes are applied to the latest version on the `main` branch.
+Security fixes target the native app on the `main` branch.
 
 | Version | Supported |
 | --- | --- |
 | 2.0.0-alpha.x | Yes |
-| 1.0.2 legacy browser build | Yes |
+| 1.0.2 legacy browser build | No; migration support only |
 | Earlier versions | No |
 
 The native-only source tree retains Backup and desktop-transition import
-compatibility. Browser migration support does not mean that this checkout
-contains a browser frontend or can rebuild a legacy deployment.
+compatibility. The legacy browser build receives no security fixes. Migration
+support covers moving its data into the native app through the
+[browser export restore procedure](docs/usage.md#restore-a-browser-era-collection).
 
 ## Security boundaries
 

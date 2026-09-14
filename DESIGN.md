@@ -71,6 +71,23 @@ Search Hint appears temporarily below Search. Global Notifications provide
 short-lived save, Backup, import, and error feedback without adding permanent
 header chrome. Storage Recovery is an explicit app state with named actions.
 
+### Recently Deleted
+
+Keep Recently Deleted visibly separate from the active Note List. Its header
+spans the sidebar width on a contrasting neutral band. The deleted rows use
+the theme's surface background, with a fine separator between rows. Leave
+space above the section so the boundary remains clear without relying on color.
+
+Use a stronger heading and readable utility text while keeping the Writing
+Surface primary. Place **Restore** and **Delete** beside each deleted Note,
+and **Clear All** in the section header. Restore is neutral; destructive
+actions use the theme's red. Preserve these distinctions in both themes.
+
+The header remains visible when Recently Deleted is empty; Clear All appears
+only when it contains Notes. The section remains part of the sidebar's scroll
+content rather than a separate navigation destination. Exact values belong
+to the `.nota-deleted-*` rules in `nota.css`.
+
 ## Dialogs and accessibility
 
 About, Markdown help, deletion, Clear All, and Backup Import Preview use the
@@ -96,3 +113,5 @@ Broadway, but a web mockup does not verify native GTK styling.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md#verify-a-change) for commands and
 [the brand toolkit](docs/brand-toolkit.md) for screenshot and external copy rules.
+The [Recently Deleted verification record](docs/recently-deleted-verification.md)
+contains native light and dark captures and the exercised recovery paths.

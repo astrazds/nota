@@ -19,7 +19,7 @@ recovery and local Backup files you control. It has no accounts, telemetry,
 backend, or sync service.
 
 <p align="center">
-  <img src="docs/assets/readme/nota-main-window.png" alt="Nota native window showing the Note List, a selected Note, and the Writing Surface">
+  <img src="docs/assets/readme/nota-main-window.jpg" alt="Nota native window showing active Notes, the distinct Recently Deleted section, and the Writing Surface">
 </p>
 
 The Relm4/GTK4 app is the only frontend in this source tree. The current version
@@ -60,7 +60,8 @@ for a clean-profile check.
 - Focus Search with `Ctrl+F`. Search supports words, quoted phrases, `title:`,
   `tag:`, and `is:pinned`.
 - Use Note actions to pin or delete a Note. Deleted Notes remain in
-  **Recently Deleted** until you restore or permanently remove them.
+  the separate **Recently Deleted** section below the active Note List until
+  you restore or permanently remove them.
 - Use **Export** for a Backup and **Import** for a Merge Import. Review the
   add and replace counts before applying an import.
 

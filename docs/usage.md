@@ -30,10 +30,22 @@ Nota saves edits automatically after a short idle period and flushes pending
 edits during orderly shutdown. Check the editor's Save Status before you
 close the app if it reports a save error.
 
-To undo a deletion, choose **Restore** beside the Note in Recently Deleted.
-**Delete** permanently removes that Note immediately, without another
-confirmation. **Clear All** asks for confirmation before it permanently clears
-Recently Deleted.
+Choose **Delete** from a Note's actions menu to open a confirmation that names
+the Note. **Move** sends it to Recently Deleted; **Cancel** keeps it active.
+
+Recently Deleted is a separate section below the active Note List. Its
+full-width header and distinct background separate recoverable Notes from
+active Notes in both themes. Scroll the sidebar if the section is below the
+visible list.
+
+Choose **Restore** beside a deleted Note to return it to the active collection.
+The adjacent **Delete** permanently removes that Note immediately, without
+another confirmation. **Clear All** in the section header asks for confirmation
+before permanently clearing every deleted Note. Cancel leaves them in place.
+Clear All is hidden when the section is empty.
+
+The **Restore** control in the sidebar footer imports a
+[browser-era desktop-transition file](#restore-a-browser-era-collection).
 
 ## Export and import a Backup
 

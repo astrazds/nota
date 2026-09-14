@@ -65,7 +65,7 @@ A note-specific confirmation that names the Note before it moves to Recently Del
 _Avoid_: Generic destructive modal
 
 **Recently Deleted**:
-A recoverable holding area for Notes deleted from the Flat Collection, with explicit Restore and Clear actions.
+A recoverable holding area for Notes deleted from the Flat Collection, with Restore and permanent Delete beside each Note, and Clear All in the section header.
 _Avoid_: Hidden undo state, Trash as primary navigation
 
 **Clear All**:
@@ -179,7 +179,7 @@ _Avoid_: Browser LocalStorage, individual Markdown files
 - A **Note** should be named in its **Delete Confirmation**.
 - A **Note** can move to **Recently Deleted** before it is explicitly cleared.
 - **Clear All** permanently removes every Note in **Recently Deleted** and should confirm the count before applying.
-- **Clear All** should be visible in the **Recently Deleted** summary row when recoverable Notes exist.
+- **Clear All** should be visible in the **Recently Deleted** section header when recoverable Notes exist.
 - A **Note** shows **Note Metadata** near its header or details surface.
 - A **Preview** shows the **Note Title**, then read-only **Note Metadata**, then the Markdown body so Preview and Split view match the Writing Surface header order.
 - **Pane Rhythm** keeps the **Writing Surface**, full **Preview**, and Split panes aligned to the same content origin and readable measure.
@@ -189,6 +189,7 @@ _Avoid_: Browser LocalStorage, individual Markdown files
 - A **Markdown Note App** prioritises creating, writing, finding, and organising **Notes** over exposing Markdown tooling.
 - **Quick Capture** creates a **Note** and returns the user to the **Writing Surface**.
 - A **Flat Collection** contains all **Notes** without folders or notebooks.
+- **Recently Deleted** is a visually distinct section below the active **Note List**, with a full-width header and separated rows. It shares the sidebar's scroll content.
 - A **Local-First Note Identity** can borrow familiar note-app structure without copying Apple Notes exactly.
 - A **Writing Surface** is the default **View Mode** for a **Note**.
 - **View Mode Controls** belong in a consistent editor-area footer and should keep a stable height across Write, Preview, and Split.

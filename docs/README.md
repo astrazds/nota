@@ -14,6 +14,8 @@ Start with the guide that matches your task:
 | Prepare screenshots, icons, or external copy | [Brand toolkit](brand-toolkit.md) |
 | Find the reason for an architectural choice | [Decision records](adr/README.md) |
 | Check a packaged app and migration compatibility | [AppImage rehearsal](agents/appimage-rehearsal.md) |
+| Inspect native writing and restart evidence | [Writing verification record](agents/verification-evidence.md) |
+| Inspect Recently Deleted styling and recovery evidence | [Recently Deleted verification record](recently-deleted-verification.md) |
 | Understand local storage and network behavior | [Privacy](../PRIVACY.md) |
 | Report a vulnerability | [Security](../SECURITY.md) |
 
@@ -25,3 +27,6 @@ Current documentation describes the native-only Cargo workspace. Older ADRs
 retain the browser implementation and its rationale as history; their status
 notes point to the current owners. Generated API documentation comes from
 `mise run doc` and is not edited by hand.
+
+Verification records describe named runs and their coverage limits. They are
+evidence for those paths, not whole-app or release acceptance.

@@ -76,8 +76,10 @@ and runs workspace and GTK tests under Xvfb.
 
 For a GTK UI change, inspect the real app in Light and Dark Themes and at
 wide and compact window sizes. Check focus, selection, scroll position, and
-keyboard behavior. Source-level visual contracts and browser automation alone
-do not prove native rendering.
+keyboard behavior. Follow the [native verification procedure](.agents/skills/verify-nota/SKILL.md)
+for isolated profiles, screenshots, and persistence proof. Broadway can expose
+the real GTK app to a browser driver. Source-level contracts and web mockups
+alone do not prove native rendering.
 
 For an AppImage or migration change:
 
@@ -100,9 +102,10 @@ Note identities, merge-only Backup import, explicit Storage Recovery, and
 legacy format compatibility. Keep Notes local and avoid telemetry, cloud sync,
 remote Note storage, or analytics.
 
-Keep generated AppImages, `build/`, `dist/`, `target/`, local agent files, and
-editor state out of commits. Preserve font and icon licenses when changing
-bundled assets.
+Keep generated AppImages, `build/`, `dist/`, `target/`, local agent settings, and
+editor state out of commits. The tracked `.agents/skills/verify-nota/` procedure
+is maintained repository documentation. Preserve font and icon licenses when
+changing bundled assets.
 
 ## Open a pull request
 

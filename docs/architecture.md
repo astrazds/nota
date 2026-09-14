@@ -15,14 +15,15 @@ storage.
 
 | Change | Owner | Behavior checks |
 | --- | --- | --- |
-| Note mutation, selection, deletion, and recovery | `crates/nota-core/src/note_workspace.rs` and `note_collection.rs` | Core workspace tests |
+| Note mutation, selection, recoverable deletion, and restoration | `crates/nota-core/src/note_workspace.rs` and `note_collection.rs` | Core workspace tests |
 | Search results, snippets, and Tags | `crates/nota-core/src/note_discovery.rs`, `note_list_interaction.rs`, and `tag_rules.rs` | Core discovery tests and native workflow tests |
 | Backup and desktop-transition formats | `crates/nota-core/src/backup.rs` and `transition.rs` | Backup workflows and compatibility fixtures |
 | Markdown parsing and formatting | `crates/nota-core/src/markdown_preview.rs` and `markdown_editing.rs` | Core Markdown tests and native visual contracts |
 | Desktop state transitions | `crates/nota-desktop/src/app.rs` | Native workflow tests |
-| Desktop effects and shutdown | `crates/nota-desktop/src/ui/mod.rs` | Persistence tests and native workflow tests |
+| Desktop effects, startup Storage Recovery, and shutdown | `crates/nota-desktop/src/ui/mod.rs` | Persistence tests and native workflow tests |
 | Desktop widgets and input conversion | `crates/nota-desktop/src/ui/workspace.rs` and `selection.rs` | Native visual contracts and live GTK verification |
 | Desktop row identity and synchronization | `crates/nota-desktop/src/ui/note_list.rs` | Row identity tests and live GTK selection |
+| Native styling and layout | `crates/nota-desktop/resources/nota.css`, `src/visual_contract.rs`, `src/ui/style.rs`, and `src/ui/writing_plane.rs` within the desktop crate | Native visual contract tests and live GTK verification |
 | Desktop dialogs and JSON file selection | `crates/nota-desktop/src/ui/dialogs.rs` and `files.rs` | Native import workflows and live GTK dialogs |
 | Atomic native storage | `crates/nota-desktop/src/storage.rs` and `persistence.rs` | Native storage, shutdown, and transition tests |
 | Preview HTML and navigation policy | `crates/nota-desktop/src/preview.rs` and `webkit_preview.rs` | Preview tests and native workflow tests |
@@ -89,6 +90,10 @@ GTK widget behavior. CI runs both workspace and GTK tests under Xvfb.
 
 Use `mise run test:core` for the toolkit-independent core. Use `mise run test`
 for all workspace behavior and compatibility tests.
+
+Use the [native verification procedure](../.agents/skills/verify-nota/SKILL.md)
+for isolated UI runs and persistence proof. The [documentation index](README.md)
+links dated verification records and their coverage limits.
 
 Development prerequisites and installation commands are in
 [CONTRIBUTING.md](../CONTRIBUTING.md).

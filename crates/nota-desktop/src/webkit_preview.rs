@@ -3,7 +3,7 @@ use webkit6::glib::prelude::Cast;
 use webkit6::prelude::{PolicyDecisionExt, WebViewExt};
 use webkit6::{NavigationPolicyDecision, PolicyDecisionType, Settings, WebView};
 
-use crate::preview::{PREVIEW_CSP, external_navigation_target, preview_document};
+use nota_app::preview::{PREVIEW_CSP, external_navigation_target, preview_document};
 
 #[derive(Clone)]
 pub struct SecurePreview {

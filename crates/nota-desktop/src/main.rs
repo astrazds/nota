@@ -1,5 +1,5 @@
 mod ui;
 
-fn main() {
-    ui::run();
+fn main() -> relm4::gtk::glib::ExitCode {
+    ui::run()
 }

@@ -1,5 +1,5 @@
+use nota_app::app::AppMsg;
 use nota_core::markdown_editing::MARKDOWN_CHEATSHEET_SECTIONS;
-use nota_desktop::app::AppMsg;
 use relm4::gtk;
 use relm4::gtk::prelude::*;
 use std::cell::Cell;

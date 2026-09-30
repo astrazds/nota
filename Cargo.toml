@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/nota-core", "crates/nota-desktop"]
+members = ["crates/nota-core", "crates/nota-app", "crates/nota-ffi", "crates/nota-desktop"]
 default-members = ["crates/nota-desktop"]
 
 [workspace.package]

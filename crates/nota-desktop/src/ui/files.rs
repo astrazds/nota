@@ -1,4 +1,4 @@
-use nota_desktop::app::AppMsg;
+use nota_app::app::AppMsg;
 use relm4::gtk;
 use relm4::gtk::prelude::*;
 

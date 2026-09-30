@@ -1,8 +1,8 @@
 use chrono::{TimeZone, Utc};
+use nota_app::app::{AppModel, AppMsg};
+use nota_app::storage::{CollectionEnvelope, LoadOutcome, NativeStore, Preferences};
 use nota_core::backup::{BackupHealthRecord, export_flat_collection_backup};
 use nota_core::transition::{ThemePreference, TransitionError, export_desktop_transition};
-use nota_desktop::app::{AppModel, AppMsg};
-use nota_desktop::storage::{CollectionEnvelope, LoadOutcome, NativeStore, Preferences};
 
 const WEB_TRANSITION_V1: &str =
     include_str!("../../nota-core/tests/fixtures/desktop-transition-v1.json");

@@ -1,9 +1,10 @@
 use std::error::Error;
 use std::fmt;
-use std::fs::{self, File, OpenOptions};
+use std::fs;
+#[cfg(unix)]
+use std::fs::File;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use chrono::{DateTime, Utc};
 use nota_core::Note;
@@ -14,7 +15,6 @@ use serde::{Deserialize, Serialize};
 const COLLECTION_VERSION: u32 = 1;
 const PREVIOUS_APPLICATION_ID: &str = "net.astrazds.Noter";
 const LEGACY_DATA_DIR_NAME: &str = "noter";
-static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CollectionEnvelope {
@@ -79,7 +79,7 @@ impl fmt::Display for StorageError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::DataDirectoryUnavailable => {
-                write!(formatter, "XDG data directory is unavailable")
+                write!(formatter, "platform data directory is unavailable")
             }
             Self::Io { path, source } => write!(
                 formatter,
@@ -109,6 +109,11 @@ pub struct NativeStore {
 
 impl NativeStore {
     pub fn discover() -> Result<Self, StorageError> {
+        #[cfg(windows)]
+        let data_home = std::env::var_os("LOCALAPPDATA")
+            .map(PathBuf::from)
+            .ok_or(StorageError::DataDirectoryUnavailable)?;
+        #[cfg(not(windows))]
         let data_home = std::env::var_os("XDG_DATA_HOME")
             .map(PathBuf::from)
             .or_else(|| {
@@ -202,6 +207,7 @@ impl NativeStore {
         let previous = recovery.previous_snapshot.clone().ok_or_else(|| {
             StorageError::InvalidCollection("no previous snapshot is available".to_string())
         })?;
+        self.preserve_corrupt(recovery, Utc::now())?;
         self.save_collection(&previous)?;
         Ok(previous)
     }
@@ -211,19 +217,30 @@ impl NativeStore {
         recovery: &NativeRecovery,
         now: DateTime<Utc>,
     ) -> Result<(CollectionEnvelope, PathBuf), StorageError> {
-        fs::create_dir_all(&self.data_dir)
-            .map_err(|source| io_error(self.data_dir.clone(), source))?;
-        let quarantine = self.data_dir.join(format!(
-            "collection.corrupt-{}.json",
-            now.format("%Y%m%dT%H%M%SZ")
-        ));
-        fs::rename(&recovery.corrupt_collection_path, &quarantine)
-            .map_err(|source| io_error(recovery.corrupt_collection_path.clone(), source))?;
+        let quarantine = self.preserve_corrupt(recovery, now)?;
         let empty = CollectionEnvelope::empty();
         self.save_collection(&empty)?;
         Ok((empty, quarantine))
     }
 
+    pub fn preserve_corrupt(
+        &self,
+        recovery: &NativeRecovery,
+        now: DateTime<Utc>,
+    ) -> Result<PathBuf, StorageError> {
+        fs::create_dir_all(&self.data_dir)
+            .map_err(|source| io_error(self.data_dir.clone(), source))?;
+        let quarantine = self.data_dir.join(format!(
+            "collection.corrupt-{}-{}.json",
+            now.format("%Y%m%dT%H%M%SZ"),
+            uuid::Uuid::new_v4()
+        ));
+        // Copy first so a failed recovery write leaves the recovery gate intact on relaunch.
+        let bytes = fs::read(&recovery.corrupt_collection_path)
+            .map_err(|source| io_error(recovery.corrupt_collection_path.clone(), source))?;
+        write_atomic(&quarantine, &bytes)?;
+        Ok(quarantine)
+    }
     pub fn load_preferences(&self) -> Preferences {
         fs::read(self.preferences_path())
             .ok()
@@ -253,9 +270,7 @@ impl NativeStore {
         let Some(health) = health else {
             let path = self.backup_health_path();
             return match fs::remove_file(&path) {
-                Ok(()) => File::open(&self.data_dir)
-                    .and_then(|directory| directory.sync_all())
-                    .map_err(|source| io_error(self.data_dir.clone(), source)),
+                Ok(()) => sync_directory(&self.data_dir),
                 Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
                 Err(source) => Err(io_error(path, source)),
             };
@@ -325,45 +340,33 @@ fn validate_collection(collection: &CollectionEnvelope) -> Result<(), StorageErr
     Ok(())
 }
 
-fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), StorageError> {
+pub fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), StorageError> {
     let parent = path.parent().ok_or_else(|| {
         StorageError::InvalidCollection("storage path has no parent directory".to_string())
     })?;
     fs::create_dir_all(parent).map_err(|source| io_error(parent.to_path_buf(), source))?;
-    let file_name = path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .ok_or_else(|| {
-            StorageError::InvalidCollection("storage path has no UTF-8 file name".to_string())
-        })?;
-    let sequence = TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-    let temp_path = parent.join(format!(
-        ".{file_name}.tmp-{}-{sequence}",
-        std::process::id()
-    ));
-
-    let write_result = (|| {
-        let mut temp = OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .open(&temp_path)
-            .map_err(|source| io_error(temp_path.clone(), source))?;
-        temp.write_all(bytes)
-            .map_err(|source| io_error(temp_path.clone(), source))?;
-        temp.sync_all()
-            .map_err(|source| io_error(temp_path.clone(), source))?;
-        fs::rename(&temp_path, path).map_err(|source| io_error(path.to_path_buf(), source))?;
-        File::open(parent)
-            .and_then(|directory| directory.sync_all())
-            .map_err(|source| io_error(parent.to_path_buf(), source))
-    })();
-
-    if write_result.is_err() {
-        let _cleanup_result = fs::remove_file(&temp_path);
-    }
-    write_result
+    let mut temp = tempfile::NamedTempFile::new_in(parent)
+        .map_err(|source| io_error(parent.to_path_buf(), source))?;
+    temp.write_all(bytes)
+        .map_err(|source| io_error(path.to_path_buf(), source))?;
+    temp.as_file()
+        .sync_all()
+        .map_err(|source| io_error(path.to_path_buf(), source))?;
+    // tempfile uses the platform replacement primitive, including MoveFileExW on Windows.
+    temp.persist(path)
+        .map_err(|error| io_error(path.to_path_buf(), error.error))?;
+    sync_directory(parent)
 }
 
+fn sync_directory(path: &Path) -> Result<(), StorageError> {
+    #[cfg(unix)]
+    File::open(path)
+        .and_then(|directory| directory.sync_all())
+        .map_err(|source| io_error(path.to_path_buf(), source))?;
+    #[cfg(not(unix))]
+    let _ = path;
+    Ok(())
+}
 fn io_error(path: PathBuf, source: io::Error) -> StorageError {
     StorageError::Io { path, source }
 }

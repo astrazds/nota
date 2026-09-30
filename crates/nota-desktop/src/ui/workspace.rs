@@ -2,14 +2,14 @@ use super::dialogs::show_markdown_help;
 use super::note_list::NoteLists;
 use super::style::{install_css, install_workspace_fonts, measure_ch_width_px};
 use super::writing_plane::WritingPlane;
+use nota_app::app::{AppModel, AppMsg, NotificationTone, SaveStatus};
+use nota_app::storage::NativeRecovery;
 use nota_core::backup::BackupHealth;
 use nota_core::editor_view::EditorViewMode;
 use nota_core::markdown_editing::{MarkdownCommand, apply_markdown_command};
 use nota_core::note_discovery::SelectedNoteVisibility;
 use nota_core::note_list_interaction::NoteListDisplayState;
-use nota_desktop::app::{AppModel, AppMsg, NotificationTone, SaveStatus};
 use nota_desktop::selection::gtk_character_range_to_byte_selection;
-use nota_desktop::storage::NativeRecovery;
 use nota_desktop::visual_contract::{NATIVE_VISUAL_CONTRACT, writing_plane_max_width_px};
 #[cfg(feature = "preview-webkit")]
 use nota_desktop::webkit_preview::SecurePreview;

@@ -20,7 +20,7 @@ Approved product frame:
 - **Frame A, Quiet Notebook Frame** is the product UI reference for the main app frame: light paper default, compact restrained sidebar, warm selected Note row, thin editor toolbar, stable editor-area footer, and paper-neutral popup panels.
 - Recently Deleted has a contrasting neutral header across the sidebar width and separated recovery rows below the active Note List. Follow [the section design](../DESIGN.md#recently-deleted) in both themes.
 - Paper-neutral product windows cover About, Markdown help, Delete Confirmation, Clear All, and Backup Import Preview. They use a notebook header and paper body, not stock GTK alert chrome.
-- The product surface is the Relm4/GTK4 native window. Use legacy browser screenshots only when migration history or a hosted browser app is the subject.
+- Product screenshots use the native Relm4/GTK4 or WinUI 3 window. Identify the platform when it matters. Use legacy browser screenshots only when migration history or a hosted browser app is the subject.
 
 ## Brand Promise
 

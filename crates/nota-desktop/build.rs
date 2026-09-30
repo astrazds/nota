@@ -2,6 +2,9 @@ use std::path::PathBuf;
 use std::process::Command;
 
 fn main() {
+    if std::env::var_os("CARGO_FEATURE_GUI").is_none() {
+        return;
+    }
     println!("cargo:rerun-if-changed=resources/nota.gresource.xml");
     println!("cargo:rerun-if-changed=resources/nota.css");
     println!("cargo:rerun-if-changed=resources/nota-icon.svg");

@@ -18,6 +18,7 @@ and [CONTRIBUTING.md](../../CONTRIBUTING.md) for commands.
 | [0009: Native replacement](0009-relm4-native-replacement.md) | Implemented. Its source-cutover section records completion; format compatibility remains active. |
 | [0010: AppImage distribution](0010-appimage-first-native-distribution.md) | Active packaging decision. The original manual transfer gate passed; repeat the rehearsal for relevant changes. |
 | [0011: Nota identifiers](0011-product-name-nota.md) | Active. Legacy identifiers remain accepted for migration. |
+| [0012: Windows frontend](0012-windows-native-frontend.md) | Accepted. WinUI and GTK share the Rust application and storage rules. |
 
 Source cutover, a stable release, and hosted browser retirement are separate
 milestones. Completion of a local rehearsal does not itself publish or retire

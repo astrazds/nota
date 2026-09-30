@@ -1,5 +1,5 @@
+use nota_app::app::{AppModel, AppMsg};
 use nota_core::note_discovery::HighlightSegment;
-use nota_desktop::app::{AppModel, AppMsg};
 use relm4::factory::{DynamicIndex, FactoryComponent, FactorySender, FactoryVecDeque};
 use relm4::gtk::prelude::*;
 use relm4::{RelmWidgetExt, gtk};

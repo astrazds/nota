@@ -1,5 +1,10 @@
 [tools]
+dotnet = { version = "10.0.401", os = ["windows"] }
 rust = "1.98.1"
+
+[env]
+DOTNET_CLI_TELEMETRY_OPTOUT = "1"
+DOTNET_NOLOGO = "1"
 
 [tasks."setup:rust"]
 description = "Install Rust verification components"
@@ -20,14 +25,17 @@ run = "cargo fmt --check"
 [tasks.check]
 description = "Check all Rust targets and features"
 run = "cargo check --workspace --all-targets --all-features --locked"
+run_windows = "cargo check -p nota-core -p nota-app -p nota-ffi --all-targets --locked"
 
 [tasks.clippy]
 description = "Lint all Rust targets and features"
 run = "cargo clippy --workspace --all-targets --all-features --locked -- -D warnings"
+run_windows = "cargo clippy -p nota-core -p nota-app -p nota-ffi --all-targets --locked -- -D warnings"
 
 [tasks.test]
 description = "Run workspace behavior and compatibility tests"
 run = "cargo test --workspace --all-features --locked"
+run_windows = "cargo test -p nota-core -p nota-app -p nota-ffi --locked"
 
 [tasks."test:package"]
 description = "Verify the AppImage directory contract"
@@ -36,6 +44,7 @@ run = "python3 build-aux/test_package_appimage.py"
 [tasks.doc]
 description = "Build Rust API documentation"
 run = "cargo doc --workspace --all-features --no-deps --locked"
+run_windows = "cargo doc -p nota-core -p nota-app -p nota-ffi --no-deps --locked"
 
 [tasks.verify]
 description = "Run repository checks in order without competing Cargo builds"
@@ -46,6 +55,14 @@ run = [
   "mise run test",
   "mise run test:package",
 ]
+run_windows = [
+  "mise run fmt",
+  "mise run check",
+  "mise run clippy",
+  "mise run test",
+  "mise run build:windows",
+  "mise run test:windows",
+]
 
 [tasks."dev:desktop"]
 description = "Run the desktop app with WebKit preview"
@@ -54,6 +71,7 @@ run = "cargo run -p nota-desktop --features preview-webkit --locked"
 [tasks.dev]
 description = "Run the native Nota app"
 run = "mise run dev:desktop"
+run_windows = "mise run dev:windows"
 
 [tasks."build:desktop"]
 description = "Build the native app with Preview and Split"
@@ -71,3 +89,30 @@ run = [
 [tasks."test:gtk"]
 description = "Run GTK widget behavior tests on the current display"
 run = "cargo test -p nota-desktop --bin nota-desktop --locked gtk_toolbar_formatting -- --ignored --test-threads=1"
+
+[tasks."build:windows"]
+description = "Build the WinUI app and shared Rust DLL on Windows"
+run = [
+  "cargo build -p nota-ffi --locked",
+  "dotnet build windows/Nota.Windows/Nota.Windows.csproj -p:Platform=x64 -p:RestoreLockedMode=true",
+]
+
+[tasks."dev:windows"]
+description = "Run the WinUI app on Windows"
+depends = ["build:windows"]
+run = "dotnet run --project windows/Nota.Windows/Nota.Windows.csproj -p:Platform=x64 --no-build"
+
+[tasks."test:windows"]
+description = "Test C# bindings against the actual Rust DLL"
+run = [
+  "cargo build -p nota-ffi --locked",
+  "dotnet run --project windows/Nota.InteropTests -p:RestoreLockedMode=true",
+]
+
+[tasks."package:windows"]
+description = "Publish and zip a self-contained Windows x64 app"
+run = [
+  "cargo build -p nota-ffi --release --locked",
+  "dotnet publish windows/Nota.Windows/Nota.Windows.csproj -c Release -p:Platform=x64 -p:RestoreLockedMode=true -o dist/Nota-windows-x64",
+  "powershell -NoProfile -ExecutionPolicy Bypass -File build-aux/package-windows.ps1",
+]

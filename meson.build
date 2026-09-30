@@ -40,6 +40,8 @@ install_data(
     'assets/fonts/source-sans-3-latin-wght-italic.woff2',
     'assets/fonts/source-code-pro-latin-wght-normal.woff2',
     'assets/fonts/source-code-pro-latin-wght-italic.woff2',
+    'assets/fonts/SourceSans3-LICENSE.md',
+    'assets/fonts/SourceCodePro-LICENSE.md',
   ],
   install_dir: get_option('datadir') / 'net.astrazds.Nota/fonts',
 )

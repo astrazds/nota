@@ -841,6 +841,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "nota-app"
+version = "2.0.0-alpha.1"
+dependencies = [
+ "chrono",
+ "nota-core",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "url",
+ "uuid",
+]
+
+[[package]]
 name = "nota-core"
 version = "2.0.0-alpha.1"
 dependencies = [
@@ -856,15 +869,23 @@ name = "nota-desktop"
 version = "2.0.0-alpha.1"
 dependencies = [
  "chrono",
+ "nota-app",
  "nota-core",
  "pango",
  "relm4",
- "serde",
- "serde_json",
  "tempfile",
  "url",
  "uuid",
  "webkit6",
+]
+
+[[package]]
+name = "nota-ffi"
+version = "2.0.0-alpha.1"
+dependencies = [
+ "nota-app",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

@@ -1,5 +1,5 @@
+use nota_app::storage::Preferences;
 use nota_core::responsive_navigation::WIDE_VIEWPORT_MIN_WIDTH;
-use nota_desktop::storage::Preferences;
 use relm4::gtk;
 use relm4::gtk::prelude::*;
 

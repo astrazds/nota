@@ -12,7 +12,8 @@ enum Command {
         revision: u64,
         collection: CollectionEnvelope,
     },
-    Shutdown(Sender<Result<u64, StorageError>>),
+    Flush(Sender<Result<u64, StorageError>>),
+    Shutdown,
 }
 
 #[derive(Debug)]
@@ -43,19 +44,28 @@ impl PersistenceWorker {
             .is_ok()
     }
 
-    pub fn shutdown(mut self) -> Result<u64, StorageError> {
+    /// Saves pending data without consuming the worker. A failure can be retried.
+    pub fn flush(&self) -> Result<u64, StorageError> {
         let (reply_sender, reply_receiver) = mpsc::channel();
         self.sender
-            .send(Command::Shutdown(reply_sender))
+            .send(Command::Flush(reply_sender))
             .map_err(|_| worker_stopped())?;
-        let result = reply_receiver.recv().map_err(|_| worker_stopped())?;
+        reply_receiver.recv().map_err(|_| worker_stopped())?
+    }
+
+    fn stop(&mut self) {
+        let _ = self.sender.send(Command::Shutdown);
         if let Some(handle) = self.handle.take() {
-            handle.join().map_err(|_| worker_stopped())?;
+            let _ = handle.join();
         }
-        result
     }
 }
 
+impl Drop for PersistenceWorker {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
 fn run_worker(
     store: NativeStore,
     receiver: Receiver<Command>,
@@ -79,10 +89,10 @@ fn run_worker(
                     pending = Some((revision, collection));
                 }
             }
-            Ok(Command::Shutdown(reply)) => {
+            Ok(Command::Shutdown) => return,
+            Ok(Command::Flush(reply)) => {
                 let result = flush_pending(&store, &mut pending, &mut persisted_revision);
                 let _send_result = reply.send(result);
-                return;
             }
             Err(RecvTimeoutError::Timeout) if pending.is_some() => {
                 completed(flush_pending(&store, &mut pending, &mut persisted_revision));
@@ -141,7 +151,7 @@ mod tests {
         assert!(worker.schedule(1, revision_one));
         assert!(worker.schedule(2, revision_two.clone()));
         assert!(worker.schedule(1, CollectionEnvelope::empty()));
-        assert_eq!(worker.shutdown().unwrap(), 2);
+        assert_eq!(worker.flush().unwrap(), 2);
         assert_eq!(
             store.load_collection().unwrap(),
             LoadOutcome::Ready(revision_two)
@@ -182,7 +192,7 @@ mod tests {
             panic!("the completed save must be readable");
         };
         assert_eq!(collection.notes[0].title, "Revision 5");
-        assert_eq!(worker.shutdown().unwrap(), 5);
+        assert_eq!(worker.flush().unwrap(), 5);
     }
 
     #[test]
@@ -200,7 +210,7 @@ mod tests {
 
         let worker = PersistenceWorker::start(store.clone(), |_| {});
         assert!(worker.schedule(app.revision(), expected.clone()));
-        assert_eq!(worker.shutdown().unwrap(), app.revision());
+        assert_eq!(worker.flush().unwrap(), app.revision());
 
         let LoadOutcome::Ready(reloaded) = store.load_collection().unwrap() else {
             panic!("a valid native collection must relaunch without recovery");

@@ -1,10 +1,10 @@
+use nota_app::app::{AppModel, AppMsg};
+use nota_app::storage::CollectionEnvelope;
 use nota_core::backup::export_flat_collection_backup;
 use nota_core::editor_view::EditorViewMode;
 use nota_core::note_list_interaction::NoteListDisplayState;
 use nota_core::note_workspace::FocusIntent;
 use nota_core::transition::ThemePreference;
-use nota_desktop::app::{AppModel, AppMsg};
-use nota_desktop::storage::CollectionEnvelope;
 
 #[test]
 fn merge_import_does_not_apply_before_backup_import_preview_confirmation() {
@@ -44,7 +44,7 @@ fn merge_import_recovers_a_deleted_note_and_keeps_the_collection_valid() {
     assert_eq!(app.workspace.notes(), &[note]);
     assert!(app.workspace.recently_deleted_notes().is_empty());
     let temp = tempfile::tempdir().unwrap();
-    nota_desktop::storage::NativeStore::at(temp.path())
+    nota_app::storage::NativeStore::at(temp.path())
         .save_collection(&app.collection())
         .unwrap();
 }
@@ -93,7 +93,7 @@ fn tag_cleanup_message_applies_a_reviewed_plan_as_one_saved_change() {
 
     assert_eq!(app.workspace.notes()[0].tags, ["Work"]);
     assert_eq!(app.revision(), 1);
-    assert_eq!(app.save_status, nota_desktop::app::SaveStatus::Saving);
+    assert_eq!(app.save_status, nota_app::app::SaveStatus::Saving);
     assert_eq!(
         app.notification.as_ref().unwrap().message,
         "Tags cleaned up"

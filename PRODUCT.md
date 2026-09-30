@@ -47,4 +47,8 @@ Avoid hover-only actions, persistent syntax instruction blocks, permanent utilit
 
 Target WCAG AA for contrast and interaction states. Interactive controls should be discoverable by keyboard, pointer, and touch users, with stable Note Actions rather than hover-only affordances. Light and Dark Themes should be tuned separately for text, borders, selection states, Search Hint readability, and selected Note recognition.
 
-Support reduced-motion-safe interactions, avoid relying on color alone for destructive or selected states, preserve readable wrapping and truncation on compact viewports, and keep confirmations specific enough that users can verify the Note or collection impact before destructive actions. Nota uses GTK accessible roles and names. Selecting a Note in the Note List should keep that row in view.
+Support reduced-motion-safe interactions, avoid relying on color alone for destructive or selected states, preserve readable wrapping and truncation on compact viewports, and keep confirmations specific enough that users can verify the Note or collection impact before destructive actions. Nota uses GTK accessible roles and names on Linux and native WinUI controls with automation names on Windows. Selecting a Note in the Note List should keep that row in view.
+
+These are product requirements, not a claim that either frontend has passed
+a full accessibility audit. The [Windows verification record](docs/windows-verification.md#limits)
+lists the current screen-reader and input-method coverage gaps.

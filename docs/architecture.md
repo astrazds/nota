@@ -22,10 +22,10 @@ Each frontend owns widgets, input, native file selection, and webview hosting.
 | Markdown parsing and formatting | `crates/nota-core/src/markdown_preview.rs` and `markdown_editing.rs` | Core Markdown tests and native visual contracts |
 | Application state transitions | `crates/nota-app/src/app.rs` | Shared application tests |
 | Storage Recovery and save lifecycle | `crates/nota-app` | Persistence and session behavior tests |
-| Desktop widgets and input conversion | `crates/nota-desktop/src/ui/workspace.rs` and `selection.rs` | Native visual contracts and live GTK verification |
-| Desktop row identity and synchronization | `crates/nota-desktop/src/ui/note_list.rs` | Row identity tests and live GTK selection |
-| Native styling and layout | `crates/nota-desktop/resources/nota.css`, `src/visual_contract.rs`, `src/ui/style.rs`, and `src/ui/writing_plane.rs` within the desktop crate | Native visual contract tests and live GTK verification |
-| Desktop dialogs and JSON file selection | `crates/nota-desktop/src/ui/dialogs.rs` and `files.rs` | Native import workflows and live GTK dialogs |
+| GTK widgets and input conversion | `crates/nota-desktop/src/ui/workspace.rs` and `selection.rs` | Native visual contracts and live GTK verification |
+| GTK row identity and synchronization | `crates/nota-desktop/src/ui/note_list.rs` | Row identity tests and live GTK selection |
+| GTK styling and layout | `crates/nota-desktop/resources/nota.css`, `src/visual_contract.rs`, `src/ui/style.rs`, and `src/ui/writing_plane.rs` within the desktop crate | Native visual contract tests and live GTK verification |
+| GTK dialogs and JSON file selection | `crates/nota-desktop/src/ui/dialogs.rs` and `files.rs` | Native import workflows and live GTK dialogs |
 | Atomic native storage | `crates/nota-app/src/storage.rs` and `persistence.rs` | Native storage, shutdown, and transition tests |
 | Preview HTML and navigation policy | `crates/nota-app/src/preview.rs` | Preview tests and native workflow tests |
 | Windows ABI and buffer ownership | `crates/nota-ffi` | ABI tests and C# integration checks |
@@ -33,15 +33,20 @@ Each frontend owns widgets, input, native file selection, and webview hosting.
 
 ## Follow a change through the app
 
-User actions enter through `AppMsg` in `crates/nota-app/src/app.rs`.
-`AppModel` delegates Note mutations to `NoteWorkspace` and increments its save
-revision after a persistent change. The desktop shell schedules
-`PersistenceWorker`, which coalesces edits, writes through `NativeStore`, and
-reports completion back as an `AppMsg`. The GTK thread does not wait for a
-normal save. Orderly shutdown flushes the latest pending revision.
+`Session` in `crates/nota-app/src/session.rs` owns `AppModel`, `NativeStore`,
+the profile lock, and `PersistenceWorker`. GTK sends `AppMsg` values through
+`Session::apply_message`. Windows sends JSON `Request` values through the ABI
+to `Session::execute` and receives a snapshot or an error.
 
-Search uses `NoteListInteraction` to produce a render-ready projection. The
-desktop `NoteLists` owns its factories and updates existing row widgets when
+`AppModel` delegates Note mutations to `NoteWorkspace` and increments its save
+revision after a persistent change. `Session` schedules `PersistenceWorker`,
+which coalesces edits and writes through `NativeStore`. GTK receives completion
+notifications as `AppMsg::PollPersistence`; Windows polls snapshots while a
+save is pending. Normal saves run off the UI thread. A failed close-time flush
+keeps either frontend open for retry.
+
+Search uses `NoteListInteraction` to produce a render-ready projection. GTK's
+`NoteLists` owns its factories and updates existing row widgets when
 UUID order is unchanged. Dialogs and file selection emit `AppMsg` through a
 channel. They do not depend on the root Relm4 component type.
 
@@ -67,6 +72,10 @@ successful flush before releasing the session, so a failed save can be retried.
 WebView2 displays shared generated HTML with restricted scripts, resource
 requests, and navigation.
 
+GTK's `GtkApplication` creates the component and opens `Session` only in the
+primary process. A second launch activates that process. Windows opens a
+window per launch, but the shared profile lock rejects a second writer.
+
 ## Boundaries worth preserving
 
 Keep `NoteWorkspace` and `NoteListInteraction` as the domain behavior
@@ -90,6 +99,16 @@ as the last valid pair. Preferences and Backup Health have separate files.
 Unreadable collection data enters `LoadOutcome::Recovery`; it is never
 silently replaced with starter Notes.
 
+`Session` holds an exclusive OS file lock on `profile.lock` for its lifetime.
+The lock file can remain after exit; its presence alone does not mean that a
+session is running. The OS lock controls access.
+
+Linux discovers its profile under `XDG_DATA_HOME`, falling back to
+`~/.local/share`, and migrates predecessor directory names there. Windows
+passes `%LOCALAPPDATA%\net.astrazds.Nota` or an absolute `--data-dir` path
+explicitly. WebView2 stores browser runtime data in `preview-cache/` under
+that profile. The exported formats exclude this cache and the profile lock.
+
 Merge Import operates through `NoteWorkspace`, including identities currently
 in Recently Deleted. Desktop-transition restore requires both collections to
 be empty and transfers optional Backup Health exactly. These formats have
@@ -99,7 +118,7 @@ See [the user guide](usage.md) for the user-facing recovery choices.
 
 ## Verification entrypoints
 
-`mise.toml` defines tool versions and common tasks. `mise run verify` runs
+`mise.toml` defines tool versions and common tasks. On Linux, `mise run verify` runs
 formatting, Cargo checks, Clippy, workspace tests, and the AppImage directory
 contract in order. Run `mise run test:gtk` separately on a live display for
 GTK widget behavior. CI runs both workspace and GTK tests under Xvfb.
@@ -109,10 +128,12 @@ and runs `mise run test:windows` against the real DLL. `mise run package:windows
 publishes a self-contained x64 folder and ZIP. Native UI verification remains
 separate from those automated checks; follow [the Windows guide](windows.md).
 
-Use `mise run test:core` for the toolkit-independent core. Use `mise run test`
-for all workspace behavior and compatibility tests.
+Use `mise run test:core` for the toolkit-independent core. `mise run test`
+covers all Rust workspace crates on Linux and the three portable crates on
+Windows. C# checks run separately through `mise run test:windows` and are
+included in Windows `verify`.
 
-Use the [native verification procedure](../.agents/skills/verify-nota/SKILL.md)
+Use the [GTK verification procedure](../.agents/skills/verify-nota/SKILL.md)
 for isolated UI runs and persistence proof. The [documentation index](README.md)
 links dated verification records and their coverage limits.
 

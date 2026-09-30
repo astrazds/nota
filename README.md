@@ -22,6 +22,11 @@ backend, or sync service.
   <img src="docs/assets/readme/nota-main-window.jpg" alt="Nota native window showing active Notes, the distinct Recently Deleted section, and the Writing Surface">
 </p>
 
+The Linux GTK window is shown above. The Windows WinUI window in Dark Split
+view is shown below. Both captures use synthetic Notes.
+
+![Nota on Windows in Dark Split view](docs/assets/verification/windows-split-dark.jpg)
+
 The Linux frontend uses Relm4/GTK4. The Windows frontend uses WinUI 3 and shares
 the Rust application logic and data formats. The current version is
 `2.0.0-alpha.1`. A stable release and retirement of any hosted browser build
@@ -40,13 +45,14 @@ mise run dev
 ```
 
 Preview and Split are included by default. The project pins Rust through
-`mise.toml`; Cargo declares Rust 1.95 as the minimum version.
+`mise.toml`; Cargo declares Rust 1.95 as the minimum version. Windows also uses
+the .NET SDK pinned in `mise.toml`.
 
 On Windows, `mise run dev` starts the WinUI app. See the
 [Windows guide](docs/windows.md) for system prerequisites, isolated profiles,
 and `mise run package:windows`, which produces an x64 ZIP.
 
-To build the x86_64 AppImage with the additional packaging prerequisites:
+On Linux, build the x86_64 AppImage with the additional packaging prerequisites:
 
 ```sh
 mise run package:appimage
@@ -68,11 +74,14 @@ for a clean-profile check.
   the separate **Recently Deleted** section below the active Note List until
   you restore or permanently remove them.
 - Use **Export** for a Backup and **Import** for a Merge Import. Review the
-  add and replace counts before applying an import.
+  add and replace counts before applying an import. On Windows, choose
+  **Export notes backup…** for this workflow.
 
 [The user guide](docs/usage.md) covers Tags, saving, Backup, recovery, and
 migration from browser-era exports. Remote images and active content are
 blocked in Preview. Links you activate open through the system handler.
+The guide also covers Windows **Export complete notebook state…**, which
+includes Recently Deleted and restores into an empty notebook on either platform.
 
 ## Data and compatibility
 
@@ -94,9 +103,10 @@ mise run setup:rust
 mise run verify
 ```
 
-The GTK widget regression requires a display and runs separately with
+On Linux, the GTK widget regression requires a display and runs separately with
 `mise run test:gtk`. [CONTRIBUTING.md](CONTRIBUTING.md) describes the toolchain,
 feature checks, packaging, and evidence expected in a pull request.
+Windows `verify` includes the WinUI build and C# checks against the Rust DLL.
 
 [Documentation](docs/README.md) links the architecture, domain, design, and
 decision records. Nota is licensed under [MIT](LICENSE).

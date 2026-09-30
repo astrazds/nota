@@ -29,7 +29,9 @@ Please report suspected vulnerabilities privately through
 Include the affected version, impact, reproduction steps, and any suggested
 mitigation. Please do not open a public issue for an undisclosed vulnerability.
 
-Include the package type and desktop environment for native issues. Use a
+Include the operating system, package type, and affected frontend. For Linux,
+include the desktop environment; for Windows Preview, include the WebView2
+Runtime version if available. Use a
 minimal synthetic Note or export to reproduce the problem. Do not attach your
 live collection, private Backups, or corrupt-payload quarantine files to a
 public report.

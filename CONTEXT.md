@@ -2,6 +2,10 @@
 
 Nota is a local-first Markdown note app focused on writing, finding, and organising personal notes. Markdown powers note content, but the primary product experience is a note app rather than a Markdown workbench.
 
+This vocabulary defines product concepts and interaction goals. Linux and
+Windows share the domain model but differ in some controls. The
+[user guide](docs/usage.md) describes those current differences.
+
 ## Language
 
 **Note**:
@@ -129,7 +133,7 @@ Lightweight metadata about the last successful Backup export, used to show wheth
 _Avoid_: Sync status
 
 **Storage Recovery**:
-The startup state shown when saved Notes or Recently Deleted payloads cannot be parsed, requiring the user to choose Restore previous snapshot, Start empty, or Import Backup before normal editing resumes.
+The startup state shown when the saved collection cannot be read or validated. Normal editing remains blocked until an explicit recovery action succeeds. Linux offers Backup import within recovery; Windows resolves recovery before opening Import.
 _Avoid_: Silent reset, automatic data loss
 
 **Previous Snapshot**:
@@ -137,7 +141,7 @@ The last valid active Notes and Recently Deleted collection pair preserved befor
 _Avoid_: Undo history, version history
 
 **Corrupt Payload Quarantine**:
-The preserved copy of corrupt saved payloads after the user chooses to start empty, used for diagnostics rather than normal app loading.
+The preserved copy of unreadable saved data made before recovery replaces the current collection, used for diagnostics rather than normal app loading.
 _Avoid_: Backup, recovery point
 
 **Diagnostics Surface**:
@@ -145,8 +149,8 @@ A secondary support surface for Product Metadata, storage mode, Backup Health, a
 _Avoid_: Sidebar footer metadata, primary navigation
 
 **Backup Controls**:
-Compact Export and Import actions for Backup, placed in the sidebar footer as a secondary utility row.
-_Avoid_: Backup dropdown
+Compact Export, Import, and Restore actions in the sidebar footer. Windows Export distinguishes a notes Backup from a complete notebook export.
+_Avoid_: Sync controls
 
 **Backup Import Preview**:
 A confirmation step that validates a Backup and shows how many Notes a Merge Import will add or replace before applying it.
@@ -227,9 +231,9 @@ _Avoid_: Browser LocalStorage, individual Markdown files
 - Missing or stale **Backup Health** should be actionable in **Backup Controls** without becoming a warning banner.
 - **Storage Recovery** should block normal editing until the user chooses an explicit recovery path.
 - A **Previous Snapshot** covers active Notes and **Recently Deleted** together.
-- **Corrupt Payload Quarantine** preserves broken saved payloads only after the user chooses to start empty.
+- **Corrupt Payload Quarantine** preserves unreadable saved data before an explicit recovery action replaces the collection.
 - **Diagnostics Surface** owns **Product Metadata** and storage diagnostics outside the primary note workflow.
-- **Storage Recovery** should keep **Backup Import Preview** and **Merge Import** available because Backup remains the explicit user-owned recovery mechanism.
+- **Storage Recovery** keeps a path to **Backup Import Preview** and **Merge Import**. Windows resolves recovery before opening Import; use **Start empty** when recovering solely from a Backup. Linux also offers Import within recovery.
 - **Backup Controls** belong in the sidebar footer as secondary utilities, not in primary navigation.
 - A **Backup Import Preview** should appear before a **Merge Import** changes the **Flat Collection**.
 - A **Merge Import** restores Notes from a **Backup** without destructively replacing the current **Flat Collection**.

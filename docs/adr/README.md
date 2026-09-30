@@ -11,14 +11,14 @@ and [CONTRIBUTING.md](../../CONTRIBUTING.md) for commands.
 | [0002: Merge-only Backup import](0002-merge-only-backup-import.md) | Active. Native Merge Import also recovers matching Recently Deleted identities. |
 | [0003: Browser audit polish](0003-browser-audit-polish.md) | Historical browser implementation. Product behavior carries into native Nota. |
 | [0004: Capture and recovery](0004-fast-capture-and-local-recovery.md) | Product rules remain active. Native persistence replaces the LocalStorage implementation. |
-| [0005: Editor controls and Clear All](0005-editor-first-controls-and-clear-all.md) | Product rules remain active. GTK replaces the browser implementation. |
+| [0005: Editor controls and Clear All](0005-editor-first-controls-and-clear-all.md) | Product rules remain active. GTK and WinUI replace the browser implementation. |
 | [0006: Core modules and browser tests](0006-deep-core-modules-and-browser-visual-contracts.md) | Domain ownership principles remain. Browser modules and Playwright tooling were removed. |
-| [0007: Visual system](0007-local-notebook-visual-system.md) | Visual intent remains. Native CSS, Pango, and packaged fonts replace Tailwind and Trunk. |
+| [0007: Visual system](0007-local-notebook-visual-system.md) | Visual intent remains. GTK CSS, Pango, WinUI resources, and packaged fonts replace Tailwind and Trunk. |
 | [0008: Browser storage for 1.0](0008-static-browser-storage-for-1-0.md) | Superseded for the native product by ADR-0009. Describes the browser migration source. |
-| [0009: Native replacement](0009-relm4-native-replacement.md) | Implemented. Its source-cutover section records completion; format compatibility remains active. |
-| [0010: AppImage distribution](0010-appimage-first-native-distribution.md) | Active packaging decision. The original manual transfer gate passed; repeat the rehearsal for relevant changes. |
+| [0009: Native replacement](0009-relm4-native-replacement.md) | Implemented for Linux. ADR-0012 adds Windows and moves application logic into shared Rust crates. Format compatibility remains active. |
+| [0010: AppImage distribution](0010-appimage-first-native-distribution.md) | Active Linux packaging decision. Windows uses the ZIP described in ADR-0012. Repeat the AppImage rehearsal for relevant Linux changes. |
 | [0011: Nota identifiers](0011-product-name-nota.md) | Active. Legacy identifiers remain accepted for migration. |
-| [0012: Windows frontend](0012-windows-native-frontend.md) | Accepted. WinUI and GTK share the Rust application and storage rules. |
+| [0012: Windows frontend](0012-windows-native-frontend.md) | Implemented. WinUI and GTK share the Rust application and storage rules. Distribution starts with an unsigned Windows x64 ZIP. |
 
 Source cutover, a stable release, and hosted browser retirement are separate
 milestones. Completion of a local rehearsal does not itself publish or retire

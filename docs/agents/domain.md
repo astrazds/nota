@@ -5,7 +5,7 @@ terms for Notes, Tags, Backup, Desktop Transition, and Storage Recovery.
 
 Read additional guidance when the task reaches that area:
 
-- [Architecture](../architecture.md) maps behavior to the core or desktop owner.
+- [Architecture](../architecture.md) maps behavior to the shared crates or platform frontend.
 - [Product](../../PRODUCT.md) defines users and product scope.
 - [Design](../../DESIGN.md) identifies native styling and layout owners.
 - [Brand toolkit](../brand-toolkit.md) covers icons, screenshots, and public copy.
@@ -15,8 +15,12 @@ Read additional guidance when the task reaches that area:
   commands through `mise.toml`.
 
 This repository has one domain context. `nota-core` owns toolkit-independent
-behavior and compatibility formats. `nota-desktop` owns GTK, WebKitGTK, native
-persistence, and the app's effects. The browser frontend is no longer in tree.
+behavior and compatibility formats. `nota-app` owns application state,
+persistence, recovery, and Preview HTML. `nota-desktop` owns GTK and WebKitGTK.
+`nota-ffi` exposes the shared Session to `windows/Nota.Windows`, which owns
+WinUI controls, file pickers, and WebView2. The browser frontend is no longer
+in tree. Shared data formats do not imply identical frontend controls; check
+[the user guide](../usage.md) for platform differences.
 
 When a task exposes missing or ambiguous terminology, record the question and
 resolve it in the existing domain document. When a decision changes, add or

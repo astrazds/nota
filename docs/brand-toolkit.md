@@ -1,4 +1,4 @@
-# Nota Brand Toolkit
+# Nota brand toolkit
 
 This toolkit turns Nota's product, design, and domain language into practical brand guidance for contributors, agents, screenshots, project pages, README updates, release notes, and future marketing surfaces.
 
@@ -19,7 +19,7 @@ Approved product frame:
 
 - **Frame A, Quiet Notebook Frame** is the product UI reference for the main app frame: light paper default, compact restrained sidebar, warm selected Note row, thin editor toolbar, stable editor-area footer, and paper-neutral popup panels.
 - Recently Deleted has a contrasting neutral header across the sidebar width and separated recovery rows below the active Note List. Follow [the section design](../DESIGN.md#recently-deleted) in both themes.
-- Paper-neutral product windows cover About, Markdown help, Delete Confirmation, Clear All, and Backup Import Preview. They use a notebook header and paper body, not stock GTK alert chrome.
+- GTK paper product windows cover About, Markdown help, Delete Confirmation, Clear All, and Backup Import Preview. Windows uses themed WinUI ContentDialogs for these actions. Keep screenshots faithful to the platform being described.
 - Product screenshots use the native Relm4/GTK4 or WinUI 3 window. Identify the platform when it matters. Use legacy browser screenshots only when migration history or a hosted browser app is the subject.
 
 ## Brand Promise
@@ -73,8 +73,12 @@ Use the visible control labels when writing instructions:
 
 - "New Note" in the sidebar and "Create a Note" in the empty Writing Surface.
 - "Restore" beside a Recently Deleted Note.
-- "Move" in the "Move to Recently Deleted?" confirmation.
+- "Move" in the GTK deletion confirmation and "Move note" on Windows.
 - "Export" and "Import" in Backup Controls.
+
+Windows Export opens a menu with **Export notes backup…** and
+**Export complete notebook state…**. Use the exact action label in instructions.
+The [user guide](usage.md) records other platform differences.
 
 Avoid:
 
@@ -145,15 +149,16 @@ Nota has two color strategies:
 1. **Restrained product UI**: tinted neutrals plus Warm Capture Yellow at low coverage.
 2. **Committed brand moments**: Warm Capture Yellow can carry larger areas in README, website, launch, or screenshot compositions.
 
-Use the palette roles defined in
-[`nota.css`](../crates/nota-desktop/resources/nota.css). GTK and WebKitGTK
+Use the GTK palette roles defined in
+[`nota.css`](../crates/nota-desktop/resources/nota.css) and the Windows brushes
+in [`App.xaml`](../windows/Nota.Windows/App.xaml). GTK and WebKitGTK
 have different CSS capabilities, so verify each renderer before using a new
 color function. Keep exact values in the implementation instead of copying
 another token table into this guide.
 
 ### Core roles
 
-| Role | Native token | Use |
+| Role | GTK token | Use |
 | --- | --- | --- |
 | Warm Capture Yellow | `--capture` | primary actions and brand moments |
 | Selection signal | `--signal`, `--selected` | active controls and selected Notes |
@@ -180,8 +185,9 @@ Nota's product typography is already decided:
 - UI and reading surfaces: Source Sans 3.
 - Markdown/source editing and syntax examples: Source Code Pro.
 - Native fallbacks only after the Source families.
-- Fonts ship in `assets/fonts/` and the native package. Pango registers the
-  bundled font files. Preserve the upstream font license when updating them.
+- Fonts ship in `assets/fonts/` and the native packages. Pango registers the
+  Linux fonts; WinUI uses bundled TrueType fonts. Windows Preview embeds the
+  WOFF2 files. Preserve the upstream font licenses when updating them.
 
 ### Type Character
 
@@ -294,7 +300,7 @@ External brand layouts may be more spacious and expressive, but they should stil
 
 ### Buttons
 
-Primary buttons use Warm Capture Yellow for clear action. Secondary buttons use paper neutrals. Recovery Red marks destructive controls and destructive confirmations, including immediate Delete and Clear All in Recently Deleted. Restore remains neutral.
+Primary buttons use Warm Capture Yellow for clear action. Secondary buttons use paper neutrals. Recovery Red marks destructive controls and confirmations in Recently Deleted. Linux applies individual permanent Delete immediately; Windows confirms it. Restore remains neutral.
 
 Labels should name outcomes:
 
@@ -328,8 +334,9 @@ Use modals only when interruption protects the user from meaningful impact:
 - Backup Import Preview.
 - Tag cleanup confirmation.
 
-Storage Recovery itself is an app state with explicit recovery actions, not a
-startup modal that hides the application shell.
+Storage Recovery is an app state with explicit recovery actions. GTK presents
+it in the workspace. Windows presents a dialog over the disabled workspace.
+Neither allows ordinary editing until recovery succeeds.
 
 The title or body must name the Note, count, or collection impact.
 
@@ -379,7 +386,8 @@ Screenshot guidance:
 - Do not expose private or joke data.
 - Include Light and Dark Theme only when comparing theme support.
 - Prefer the native window. Show browser chrome only when migration history or a hosted browser app is the subject.
-- Capture About, Markdown help, and confirmations as paper product windows, not stock GTK alerts.
+- Capture About, Markdown help, and confirmations from the actual frontend.
+  GTK uses paper product windows; Windows uses themed native dialogs.
 
 ## Motion
 

@@ -1,6 +1,6 @@
 # Browser audit polish
 
-Status: Historical browser implementation. The native product preserves these interaction goals; current GTK owners are in the architecture guide.
+Status: Historical browser implementation. The native product preserves these interaction goals; current platform owners are in the architecture guide.
 
 See [the decision index](README.md) and [current architecture](../architecture.md).
 

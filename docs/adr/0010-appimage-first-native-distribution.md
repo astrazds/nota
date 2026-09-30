@@ -2,6 +2,9 @@
 
 Status: Active. The original clean-profile transfer gate passed at native source cutover. Repeat the current AppImage rehearsal for packaging or migration changes; stable release and publication remain separate.
 
+This decision covers Linux. [ADR-0012](0012-windows-native-frontend.md) adds
+an unsigned, self-contained x64 ZIP for Windows.
+
 See [the decision index](README.md) and [current architecture](../architecture.md).
 
 ADR-0009 originally packaged native Nota with Meson plus a GNOME 50 Flatpak, and withheld 2.0.0 until Flatpak build/install/run. Flatpak tooling is not the first local gate, and the first shippable artifact needs to be something this repository can actually build and run. Native Nota wraps the existing Meson prefix in an x86_64 AppImage (GTK4 plus bundled WebKitGTK 6 helpers) as the first distribution path. `cargo run -p nota-desktop` stays the development path. The Devel Flatpak manifest remains in tree for later and is not retired. 2.0.0 stays a prerelease until that AppImage runs a clean-profile web-to-desktop rehearsal.

@@ -1,0 +1,13 @@
+ts	phase	decision	why	evidence	result
+2026-09-30T14:26:12.6852192+10:00	design	Select in-process DLL with serialized background calls and edit identity	Smaller lifetime model; retain UI responsiveness and prevent stale edits	.scratch/windows/contract.md	design reviewed
+2026-09-30T14:30:00.7540930+10:00	baseline	Run existing core behavior tests on Windows	Establish the domain baseline before integration	mise run test:core	116 tests passed
+2026-09-30T14:34:41.8323497+10:00	baseline	Compile unchanged GTK frontend under WSL	Linux dependencies match existing gnome_50 features	/tmp/nota-windows-port-check.log	passed
+2026-09-30T15:11:55.9429442+10:00	verification	Fix native resource scope after XAML startup failure	Application resources must exist before root properties load	Native launch and exception trace	App opens
+2026-09-30T15:11:55.9585047+10:00	verification	Normalize native CR and CRLF at the editor boundary	Real Enter persisted CR and counted one line	Saved synthetic JSON; formatting and undo in live UI	LF persisted and counts correct
+2026-09-30T15:11:55.9653384+10:00	verification	Publish the application PRI explicitly	Unpackaged dotnet publish omitted it and crashed at startup	WindowsAppSDK issue6720; extracted ZIP launch	Self-contained app opens
+2026-09-30T15:11:55.9713437+10:00	verification	Allow only the exact generated data document in WebView2	WinRT NavigateToString emitted data HTML instead of aboutblank	Navigation trace and live Split view	Preview renders; arbitrary navigation still rejected
+2026-09-30T15:11:55.9776656+10:00	verification	Keep restore accepted when metadata save needs retry	A rejected import had already changed collection state	Public Session tests for failed preferences and Backup Health writes	Snapshot remains current and flush retries
+2026-09-30T15:11:55.9839542+10:00	verification	Use GtkApplication lifecycle with retained Relm4 controller	RelmApp blocked after secondary launches with no component	Private DBus and Xvfb; baseline124 versus fixed0	Five secondary launches and normal primary close passed
+2026-09-30T15:11:55.9914326+10:00	verification	Ignore delayed native notifications whose fields match the snapshot	Reopen changed last_modified without an edit	Exact pre/post reopen JSON comparison	Fix under verification
+2026-09-30T15:14:18.7570065+10:00	verification	Compare exact notebook JSON after restart and recover corrupt synthetic profile	Prove storage invariants through real UI	Extracted ZIP, file comparison, native recovery dialog	passed
+2026-09-30T15:17:11.3720667+10:00	shipping	Use GitHub CLI for astrazds/nota	Origin CLI unavailable; base identity verified with gh repo view	git remote and gh repo view	validated

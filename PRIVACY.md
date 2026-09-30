@@ -1,8 +1,8 @@
 # Privacy
 
-Effective date: 2026-09-10
+Effective date: 2026-09-30
 
-Nota is a local-first Markdown note app. The native Linux app stores Notes on
+Nota is a local-first Markdown note app. The native Linux and Windows apps store Notes on
 the device. This policy also covers legacy browser builds.
 
 ## Data collection
@@ -14,11 +14,16 @@ There is no account, no backend, and no sync service.
 
 ## Where Notes live
 
-The native app writes a versioned `collection.json` under
+The Linux app writes a versioned `collection.json` under
 `$XDG_DATA_HOME/net.astrazds.Nota` (typically
 `~/.local/share/net.astrazds.Nota`). Preferences, Backup Health, a previous
 valid snapshot, and any corrupt-payload quarantine files share that directory.
 These are local JSON files. Nota does not encrypt them or exported Backups.
+
+The Windows app uses `%LOCALAPPDATA%\net.astrazds.Nota` for the same files.
+An explicit `--data-dir` argument selects a different local profile.
+WebView2 runtime files are separate from Nota's collection files. Microsoft's
+runtime installation and update services have their own network behavior.
 
 Legacy browser builds store Notes in LocalStorage under `nota-*` keys in that
 browser profile, with a fallback read of legacy `noter-*` keys.

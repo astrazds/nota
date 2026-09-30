@@ -5,6 +5,8 @@ Start with the guide that matches your task:
 | Task | Guide |
 | --- | --- |
 | Run Nota and understand its current release status | [README](../README.md) |
+| Build, package, or verify the Windows frontend | [Windows guide](windows.md) |
+| Inspect Windows package, editing, and recovery evidence | [Windows verification record](windows-verification.md) |
 | Write, search, back up, migrate, or recover Notes | [User guide](usage.md) |
 | Set up a development environment or verify a change | [Contributing](../CONTRIBUTING.md) |
 | Find the owner of a behavior or data contract | [Architecture](architecture.md) |

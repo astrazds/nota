@@ -5,7 +5,7 @@
 <h1 align="center">Nota</h1>
 
 <p align="center">
-  A local-first Markdown note app for Linux.
+  A local-first Markdown note app for Linux and Windows.
 </p>
 
 <p align="center">
@@ -22,9 +22,10 @@ backend, or sync service.
   <img src="docs/assets/readme/nota-main-window.jpg" alt="Nota native window showing active Notes, the distinct Recently Deleted section, and the Writing Surface">
 </p>
 
-The Relm4/GTK4 app is the only frontend in this source tree. The current version
-is `2.0.0-alpha.1`. Native source migration is complete; a stable release and
-retirement of any hosted browser build are separate steps.
+The Linux frontend uses Relm4/GTK4. The Windows frontend uses WinUI 3 and shares
+the Rust application logic and data formats. The current version is
+`2.0.0-alpha.1`. A stable release and retirement of any hosted browser build
+are separate steps.
 
 ## Build and run
 
@@ -40,6 +41,10 @@ mise run dev
 
 Preview and Split are included by default. The project pins Rust through
 `mise.toml`; Cargo declares Rust 1.95 as the minimum version.
+
+On Windows, `mise run dev` starts the WinUI app. See the
+[Windows guide](docs/windows.md) for system prerequisites, isolated profiles,
+and `mise run package:windows`, which produces an x64 ZIP.
 
 To build the x86_64 AppImage with the additional packaging prerequisites:
 
@@ -71,8 +76,9 @@ blocked in Preview. Links you activate open through the system handler.
 
 ## Data and compatibility
 
-The app stores data under `$XDG_DATA_HOME/net.astrazds.Nota`, normally
-`~/.local/share/net.astrazds.Nota`. Notes and Backup files are not encrypted by
+The Linux app stores data under `$XDG_DATA_HOME/net.astrazds.Nota`, normally
+`~/.local/share/net.astrazds.Nota`. Windows uses
+`%LOCALAPPDATA%\net.astrazds.Nota`. Notes and Backup files are not encrypted by
 Nota. See [PRIVACY.md](PRIVACY.md) for storage and network details, and
 [SECURITY.md](SECURITY.md) to report a vulnerability.
 

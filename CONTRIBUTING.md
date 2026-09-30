@@ -15,6 +15,10 @@ headers for GTK 4.22 or newer, libadwaita 1.9 or newer, Pango 1.56 or newer, and
 WebKitGTK 6. Install these through your Linux distribution. Package names and
 availability vary by distribution.
 
+For Windows, follow the [Windows build guide](docs/windows.md). WinUI uses
+the pinned .NET SDK and a Rust DLL, without GTK or WebKitGTK. Visual Studio
+Build Tools and the Windows SDK remain machine prerequisites.
+
 AppImage packaging also needs Meson, Ninja, Python 3, and network access for
 the linuxdeploy downloads. The runtime uses Bubblewrap when available to map
 the bundled WebKitGTK helpers into the path expected by WebKitGTK.
@@ -29,7 +33,7 @@ mise run setup:rust
 mise run dev
 ```
 
-`mise run dev` starts the GTK app with Preview and Split. It uses the normal
+`mise run dev` starts GTK on Linux and WinUI on Windows. It uses the normal
 application data directory. Use the [isolated profile procedure](docs/agents/appimage-rehearsal.md#3-launch-with-an-isolated-profile)
 when you need a disposable collection.
 
@@ -46,11 +50,11 @@ can omit WebKitGTK:
 mise exec -- cargo run -p nota-desktop --no-default-features --features gui --locked
 ```
 
-A headless core or desktop-library check does not need GTK:
+A headless core or shared-application check does not need GTK:
 
 ```sh
 mise run test:core
-mise exec -- cargo check -p nota-desktop --no-default-features --locked
+mise exec -- cargo check -p nota-app --locked
 ```
 
 ## Verify a change
@@ -63,6 +67,11 @@ mise run doc
 `verify` runs formatting, Cargo checks, Clippy, workspace tests, and the
 AppImage directory contract tests. It does not build an AppImage or run the
 ignored GTK widget test.
+
+On Windows, `verify` checks the portable Rust crates, builds WinUI, and runs
+the C# integration checks against the real Rust DLL. Windows CI also publishes
+the self-contained package. Native UI checks are described in the
+[Windows guide](docs/windows.md#keep-verification-separate-from-personal-notes).
 
 On a working GTK display, run:
 
@@ -94,7 +103,7 @@ which automated and human checks passed. Packaging produces
 ## Preserve the product and data contracts
 
 Read [the architecture map](docs/architecture.md) before moving behavior
-between `nota-core` and `nota-desktop`. Use the domain language in
+between `nota-core`, `nota-app`, and the platform frontends. Use the domain language in
 [CONTEXT.md](CONTEXT.md) and the design rules in [DESIGN.md](DESIGN.md).
 
 Keep Search and the Note List as the primary discovery tools. Preserve stable

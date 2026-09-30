@@ -12,6 +12,26 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v4
+      - uses: Swatinem/rust-cache@v2
+      - name: Install Rust checks
+        run: mise run setup:rust
+      - name: Verify Rust and Windows bindings
+        run: mise run verify
+      - name: Package Windows app
+        run: mise run package:windows
+      - name: Save Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nota-windows-x64
+          path: dist/Nota-windows-x64.zip
+          if-no-files-found: error
+
   check:
     runs-on: ubuntu-26.04
     timeout-minutes: 30

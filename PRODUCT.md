@@ -10,7 +10,8 @@ Users should not need to think in terms of files, folders, cloud sync, command s
 
 Nota exists to make local note-taking feel dependable and low-friction on the user's own machine. Success means a user can create a Note quickly, stay oriented in a Flat Collection, edit the Writing Surface without chrome getting in the way, preview Markdown when needed, recover accidental deletes, and export/import a local Backup without risking the current collection.
 
-The product is the Linux Relm4/GTK4 window. Native source migration is complete,
+The product has a Linux Relm4/GTK4 window and a Windows WinUI 3 window backed
+by shared Rust application behavior. Native source migration is complete,
 and the browser frontend is no longer part of the source tree. The current
 version is `2.0.0-alpha.1`; stable release acceptance and retirement of any
 hosted browser build remain separate steps. Backup v1 and desktop-transition

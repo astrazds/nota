@@ -1,4 +1,6 @@
 /target
+/windows/**/bin
+/windows/**/obj
 /node_modules
 /dist
 /build

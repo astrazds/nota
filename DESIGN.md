@@ -1,8 +1,9 @@
 # Nota design system
 
 Nota uses a compact Note List, a clear Writing Surface, warm functional accents,
-and paper-neutral dialogs. The Linux GTK window is the product. Preview is an
-embedded, read-only WebKitGTK view of the same Note.
+and paper-neutral dialogs. Linux uses GTK and Windows uses WinUI 3. Preview is
+an embedded, read-only view of the same Note, using WebKitGTK on Linux and
+WebView2 on Windows.
 
 ## Sources of truth
 
@@ -14,7 +15,8 @@ Keep design intent here and exact implementation values in their owners:
 | Window composition and widget behavior | [workspace.rs](crates/nota-desktop/src/ui/workspace.rs) |
 | Shared layout dimensions | [visual_contract.rs](crates/nota-desktop/src/visual_contract.rs) |
 | Pango-based reading measure | [writing_plane.rs](crates/nota-desktop/src/ui/writing_plane.rs) and [style.rs](crates/nota-desktop/src/ui/style.rs) |
-| Preview HTML, typography, and content policy | [preview.rs](crates/nota-desktop/src/preview.rs) |
+| Preview HTML, typography, and content policy | [preview.rs](crates/nota-app/src/preview.rs) |
+| Windows composition, native input, and styling | [Windows frontend](windows/Nota.Windows) |
 | Product dialogs | [dialogs.rs](crates/nota-desktop/src/ui/dialogs.rs) |
 | Bundled fonts | [fonts.rs](crates/nota-desktop/src/fonts.rs) and [assets/fonts](assets/fonts) |
 
@@ -38,6 +40,8 @@ Selected Notes must also have a visible border or other non-color cue.
 Use bundled Source Sans 3 for app controls and reading text. Use Source Code
 Pro for Markdown editing and code examples. Register the local fonts through
 Pango for GTK and include their installed files in the AppImage.
+Windows bundles the TrueType versions for native controls. Preserve the
+upstream font licenses in both distribution formats.
 
 Keep the Note Title, Tags, body, and footer aligned across Write, Preview, and
 Split. The writing plane is left-aligned and capped at a Pango-measured `72ch`.

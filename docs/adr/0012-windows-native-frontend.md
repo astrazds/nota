@@ -1,6 +1,6 @@
 # Windows frontend with shared Rust application logic
 
-Status: Accepted.
+Status: Implemented by [PR #8](https://github.com/astrazds/nota/pull/8).
 
 Nota needs a native Windows application while retaining the Linux GTK
 interface and existing collection and backup formats.

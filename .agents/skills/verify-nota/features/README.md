@@ -2,6 +2,11 @@
 
 Read this index before driving a feature. This is a starter map of the native GTK app. Use the launch, Doctor, evidence, and cleanup procedure in [verify-nota](../SKILL.md).
 
+These recipes describe GTK labels and entry points. Windows has different
+Tags, Export, deletion, and recovery controls. Use [the user guide](../../../../docs/usage.md)
+and [Windows procedure](../../../../docs/windows.md#keep-verification-separate-from-personal-notes)
+for that frontend.
+
 ## Preconditions and conventions
 
 - Start with an empty disposable profile and the current build. Create synthetic Notes through the UI.

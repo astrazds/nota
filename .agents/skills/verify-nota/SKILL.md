@@ -7,6 +7,11 @@ description: Verify Nota's native GTK desktop UI after behavior or visual change
 
 Drive the real GTK app through its Broadway display backend and the Codex CUA browser tool. Read [the feature index](features/README.md), then the requested feature. This checkout has no browser frontend or product CLI. Cargo tests supplement UI proof.
 
+This procedure covers Linux GTK only. For WinUI, follow the
+[Windows verification procedure](../../../docs/windows.md#keep-verification-separate-from-personal-notes)
+and drive the native Windows window. Shared Rust tests do not establish
+platform UI parity.
+
 For packaging or migration checks, also use [the AppImage rehearsal](../../../docs/agents/appimage-rehearsal.md). Broadway does not prove Wayland integration, GPU rendering, desktop portals, or the packaged runtime.
 
 ## Launch

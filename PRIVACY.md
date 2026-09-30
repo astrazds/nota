@@ -21,9 +21,12 @@ valid snapshot, and any corrupt-payload quarantine files share that directory.
 These are local JSON files. Nota does not encrypt them or exported Backups.
 
 The Windows app uses `%LOCALAPPDATA%\net.astrazds.Nota` for the same files.
-An explicit `--data-dir` argument selects a different local profile.
-WebView2 runtime files are separate from Nota's collection files. Microsoft's
-runtime installation and update services have their own network behavior.
+An explicit Windows `--data-dir` argument selects a different local profile.
+Both frontends also use a local `profile.lock` to prevent concurrent writers.
+Windows Preview stores WebView2 browser data under `preview-cache/` inside
+the selected profile. The WebView2 Runtime installation is separate.
+Microsoft's runtime installation and update services have their own network
+behavior.
 
 Legacy browser builds store Notes in LocalStorage under `nota-*` keys in that
 browser profile, with a fallback read of legacy `noter-*` keys.
@@ -31,9 +34,10 @@ browser profile, with a fallback read of legacy `noter-*` keys.
 ## Backup and export
 
 A Backup is a JSON file the user chooses to export. Merge Import reads a file
-the user chose. A desktop-transition file is a local migration format for
-moving a browser-era collection into the native app. Native Nota keeps this
-import compatible after the source cutover.
+the user chose. A Backup contains active Notes. A desktop-transition file
+also contains Recently Deleted, Theme, and optional Backup Health. Windows
+can export that format, and both frontends can restore it into an empty
+collection. Browser-era desktop-transition files remain compatible.
 
 Nota does not upload those files. If you copy, email, or otherwise share an
 exported Backup, that sharing is controlled by you and by the destination you

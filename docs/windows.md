@@ -3,12 +3,20 @@
 Nota's Windows frontend uses WinUI 3 and the same Rust note model, Markdown
 rules, storage formats, and backup compatibility as the Linux app. The initial
 Windows package targets x64. ARM64 packages are not provided yet.
+The recorded live verification used Windows 11 x64. Windows 10 and clean
+machines without development tools have not been verified; see
+[the verification limits](windows-verification.md#limits).
 
 ## Run the packaged app
 
 Extract `Nota-windows-x64.zip` to a writable folder and run `Nota.Windows.exe`.
 Keep the extracted files together. The package includes the .NET and Windows
 App SDK runtimes and the Rust library.
+
+Build the ZIP with the steps below, or download the `Nota-windows-x64`
+artifact from a successful [CI run](https://github.com/astrazds/nota/actions/workflows/ci.yml).
+Extract the workflow artifact, then extract the app ZIP inside it. Workflow
+artifacts are development builds, not signed releases.
 
 Preview requires Microsoft's WebView2 Runtime. It is normally present on
 Windows 11. If Nota reports that it is missing, install the
@@ -66,6 +74,10 @@ modes. Close the app normally and reopen the same profile to prove saving.
 Check Light and Dark Themes, keyboard focus, and display scaling in the real
 Windows app. Binding tests alone do not prove native rendering or input.
 
+Only one session can write a profile at a time. If Nota reports that the
+profile is already open, return to its existing window or use a different
+`--data-dir`. Do not delete `profile.lock` to bypass the running session.
+
 To verify Storage Recovery, close the isolated app first. Preserve its
 `collection.json`, then replace that test file with malformed JSON. Reopen
 Nota and verify that normal editing is blocked until recovery is resolved.
@@ -75,10 +87,14 @@ preserve the corrupt bytes in a quarantine file.
 ## Move Notes between Linux and Windows
 
 Use **Export** on the source machine and **Import** on the destination.
-Review the merge counts before confirming. Existing Backup v1 files and
+On Windows, select **Export notes backup…** from the Export menu. Review the
+merge counts before confirming. Existing Backup v1 files and
 legacy `noter.*` format identifiers remain supported. A desktop-transition
 file restores an entire collection only into an empty destination.
 
 Nota does not synchronize machines. A normal Backup contains active Notes.
-Use a desktop-transition export when transferring Recently Deleted and
-preferences as well.
+On Windows, **Export complete notebook state…** creates a desktop-transition
+file with active Notes, Recently Deleted, Theme, and optional Backup Health.
+Use **Restore** on either platform to load it into an empty notebook. Linux's
+Export button creates only a notes Backup. Window dimensions and Preview cache
+are not part of either export. See [the restore procedure](usage.md#restore-a-complete-notebook).

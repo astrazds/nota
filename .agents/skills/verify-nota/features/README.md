@@ -12,7 +12,7 @@ for that frontend.
 - Start with an empty disposable profile and the current build. Create synthetic Notes through the UI.
 - Use one Broadway tab per instance. Choose an unused loopback port for another run.
 - CUA coordinates come from the latest screenshot. The rendered GTK names below are visual handles, not browser ARIA selectors.
-- Enter lowercase ASCII fixtures with `for (const key of 'verify') await notaTab.pressKey(key)`. Translate spaces to `space` and newlines to `Return`.
+- Enter lowercase ASCII fixtures with `for (const key of 'verify') await notaTab.pressKey(null, key)`. Translate spaces to `space` and newlines to `Return`.
 - After each batch, call `getAXState()` and inspect a screenshot. Record actual actions and resulting state.
 - For a feature-level claim, cover every listed entry point and relevant sub-feature. Report skips individually. One passing recipe does not establish whole-app coverage.
 

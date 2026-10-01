@@ -16,7 +16,7 @@ For packaging or migration checks, also use [the AppImage rehearsal](../../../do
 
 ## Launch
 
-Run from the repository root. Use `mise.toml` and the prerequisites in `CONTRIBUTING.md`. Require `gtk4-broadwayd`, `dbus-run-session`, `curl`, `ss`, and a CUA-controlled browser. Report missing prerequisites explicitly.
+Run from the repository root. Use `mise.toml` and the prerequisites in `CONTRIBUTING.md`. Require `gtk4-broadwayd`, `dbus-run-session`, `curl`, `ss`, `grep`, `readlink`, `sha256sum`, `file`, and a CUA-controlled browser. Report missing prerequisites explicitly.
 
 Build with the same features as `mise run dev`, then launch the binary directly to track its PID:
 
@@ -33,7 +33,8 @@ nota_run=$(mktemp -d "$PWD/.scratch/verify-nota-XXXXXXXX")
 nota_profile=$(mktemp -d /tmp/nota-verify-XXXXXXXX)
 mkdir -p "$nota_profile"/{home,data,config,cache,runtime}
 export nota_run nota_profile
-nota_binary="$PWD/target/debug/nota-desktop"
+nota_binary=$(readlink -f "${CARGO_TARGET_DIR:-target}/debug/nota-desktop")
+test -x "$nota_binary"
 nota_port=18085
 nota_display=:85
 printf '%s\n' "$nota_run" "$nota_profile"
@@ -41,6 +42,10 @@ git rev-parse HEAD >"$nota_run/revision.txt"
 git status --short >"$nota_run/worktree.txt"
 sha256sum "$nota_binary" >"$nota_run/binary.sha256"
 ```
+
+Keep the build's `CARGO_TARGET_DIR` in this shell when one is set. If Cargo configuration selects another target directory, set `nota_binary` to that build's absolute executable path before hashing or launching it. Stop if the executable check fails.
+
+For a Windows-managed worktree built in WSL, run the two Git receipt commands in host PowerShell against that worktree and write their output to the Windows path of `nota_run`. WSL Git cannot resolve a worktree's Windows `.git` path. Build and runtime commands still run in Bash; the evidence directory is shared.
 
 Require `ss -ltnp "sport = :$nota_port"` to show no listener. If occupied, choose another port and update the browser URL. Runs have private profiles, runtime directories, and D-Bus sessions. Never attach to an existing listener or drive one run from two tabs.
 
@@ -65,10 +70,10 @@ nota_session_pid=$!
 
 Apply profile overrides only to the runtime command, after mise builds. Outer `HOME` or `XDG_DATA_HOME` overrides can redirect mise's tool installation.
 
-In `mcp__cua_repl.js`, follow the tool's first-call rules, then retain this tab:
+In `mcp__cua_repl.js`, follow the tool's first-call and browser-selection rules. Use an available browser and retain one tab. For the in-app browser:
 
 ```javascript
-var notaTab = await cua.createBrowserTab('chrome', 'http://127.0.0.1:18085', { sessionName: '📝 Nota verification' });
+var notaTab = await cua.createBrowserTab('iab', 'http://127.0.0.1:18085', { visible: false });
 ```
 
 In the next tool call, inspect the window:
@@ -89,7 +94,7 @@ nota_app_pid=$(cat "$nota_run/app.pid")
   kill -0 "$nota_broadway_pid" && kill -0 "$nota_app_pid" &&
   test "$(readlink -f "/proc/$nota_app_pid/exe")" = "$nota_binary" &&
   sha256sum --check "$nota_run/binary.sha256" &&
-  tr '\0' '\n' <"/proc/$nota_app_pid/environ" | rg -F -x "XDG_DATA_HOME=$nota_profile/data" &&
+  tr '\0' '\n' <"/proc/$nota_app_pid/environ" | grep -F -x "XDG_DATA_HOME=$nota_profile/data" &&
   ss -ltnp "sport = :$nota_port" &&
   curl --fail --silent --max-time 3 "http://127.0.0.1:$nota_port/" >/dev/null
 } >"$nota_run/doctor.txt" 2>&1
@@ -100,12 +105,14 @@ Also inspect `app.log` and the screenshot. HTTP success alone does not prove GTK
 
 ## Drive
 
-Broadway paints GTK controls into a canvas. Its AX tree may contain only `AXWebArea`; GTK labels are not DOM selectors. Prefer accessible handles when exposed. Otherwise take a fresh screenshot and use `notaTab.click([x, y])` at the visible control. Derive coordinates from that screenshot, never from an earlier run.
+Broadway paints GTK controls as rendered surfaces, including DOM images. Its AX tree may contain only `AXWebArea`; GTK labels are not DOM selectors. Prefer accessible handles when exposed. Otherwise take a fresh screenshot and use `notaTab.click([x, y])` at the visible control. Derive coordinates from that screenshot, never from an earlier run.
 
-Use `pressKey` for GTK text. Browser `typeText`, `paste`, and form filling may leave the canvas unchanged. For the synthetic title `verify`:
+If CUA rejects a click on a rendered text image, run Doctor, inspect the current screenshot, and target the same visible control's background. Keyboard focus and activation are another supported path. Record which path worked. If the browser clips the GTK window, use the browser's documented viewport capability to expose it and reset that override during Cleanup. Changing the browser viewport does not prove GTK's compact layout.
+
+Use `pressKey(null, key)` for GTK text, with `null` retaining the current focus. Browser `typeText`, `paste`, and form filling may leave the rendered app unchanged. For the synthetic title `verify`:
 
 ```javascript
-for (const key of ['v', 'e', 'r', 'i', 'f', 'y']) await notaTab.pressKey(key);
+for (const key of ['v', 'e', 'r', 'i', 'f', 'y']) await notaTab.pressKey(null, key);
 await notaTab.getAXState();
 await notaTab.getScreenshot();
 ```
@@ -138,7 +145,7 @@ Backups need exported file contents and merge results alongside UI evidence. Use
 
 ## Cleanup
 
-Close the native window through the UI. Wait for `nota_session_pid` and record its exit status. Close only this tab with `await notaTab.close()`.
+Close the native window through the UI. Wait for `nota_session_pid` and record its exit status. Reset any temporary browser viewport override and close only this tab with `await notaTab.close()`.
 
 If a failed attempt leaves Nota alive, confirm the recorded app PID still identifies the binary in `/proc` before sending `TERM` to that PID. Wait for the recorded D-Bus wrapper. Forced termination does not prove shutdown flush. Never kill by process name or signal stale PIDs.
 

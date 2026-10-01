@@ -23,10 +23,10 @@ Find Notes by title, body, Tags, or pin state without changing their content.
 
 Preconditions: Through [Writing](writing.md), create `verify` with body `save proof` and `second` with body `other`.
 
-- Search entry. Screenshot, click Search, then require input focus and the Search Hint. Repeat by clicking the input and by `await notaTab.pressKey('ctrl+f')`. Verify GTK receives the shortcut.
-- Query. Focus the search input, send `ctrl+a`, and enter `proof` through key events. Require only `verify` and a body-match snippet. Repeat with `title:verify` and a quoted `"save proof"`; use `pressKey('colon')` and `pressKey('quotedbl')` for punctuation.
+- Search entry. Screenshot, click Search, then require input focus and the Search Hint. Repeat by clicking the input and by `await notaTab.pressKey(null, 'ctrl+f')`. Verify GTK receives the shortcut.
+- Query. Focus the search input, send `ctrl+a`, and enter `proof` through key events. Require only `verify` and a body-match snippet. Repeat with `title:verify` and a quoted `"save proof"`; use `pressKey(null, 'colon')` and `pressKey(null, 'quotedbl')` for punctuation.
 - Empty and clear. Replace the query with `volcano`, require zero matches, then use `ctrl+a` and `BackSpace`. Require both Notes again.
-- Tags. Select `verify`, click Edit tags, and enter `work` in the visible Tags field. Send `Return`. Require a Tag pill. Click its Note List Tag button and require the filtered result. Click the filter chip to clear it. Repeat via `tag:work` in Search.
+- Tags. Select `verify`, click Edit tags, and enter `work` in the visible Tags field. Click the title or body to leave the Tags field. Require a Tag pill in the editor. Return alone does not finish Tag editing. Click its Note List Tag button and require the filtered result. Click the filter chip to clear it. Repeat via `tag:work` in Search.
 - Pin. Open Note actions on `verify`, choose Pin, then search `is:pinned`. Require only `verify`. Choose Unpin and require it to disappear from that query.
 - Cleanup. If Review Tag cleanup is visible, open it, capture the proposed changes, cancel and confirm unchanged Tags, then repeat and apply when authorized for the disposable fixture.
 - Proof. Capture query and results together. Compare stored titles and bodies before and after search. Tag and pin operations must change only their intended metadata and survive restart.

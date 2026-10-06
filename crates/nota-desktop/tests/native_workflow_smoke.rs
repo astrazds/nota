@@ -123,5 +123,5 @@ fn preview_and_split_expose_documented_view_mode_surfaces() {
     assert!(app.view_mode.surfaces().writing);
 
     app.apply(AppMsg::Resize(600.0));
-    assert_eq!(app.view_mode, EditorViewMode::Write);
+    assert_eq!(app.view_mode, EditorViewMode::Split);
 }

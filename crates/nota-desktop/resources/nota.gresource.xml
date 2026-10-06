@@ -3,5 +3,15 @@
   <gresource prefix="/net/astrazds/Nota">
     <file>nota.css</file>
     <file>nota-icon.svg</file>
+    <file>icons/scalable/actions/nota-panel-left-symbolic.svg</file>
+    <file>icons/scalable/actions/nota-plus-symbolic.svg</file>
+    <file>icons/scalable/actions/nota-sliders-horizontal-symbolic.svg</file>
+    <file>icons/scalable/actions/nota-pin-symbolic.svg</file>
+    <file>icons/scalable/actions/nota-ellipsis-symbolic.svg</file>
+    <file>icons/scalable/actions/nota-list-symbolic.svg</file>
+    <file>icons/scalable/actions/nota-list-checks-symbolic.svg</file>
+    <file>icons/scalable/actions/nota-link-symbolic.svg</file>
+    <file>icons/scalable/actions/nota-x-symbolic.svg</file>
+    <file>icons/LICENSE.txt</file>
   </gresource>
 </gresources>

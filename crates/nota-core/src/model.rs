@@ -58,7 +58,13 @@ impl Note {
     }
 
     pub fn word_count(&self) -> usize {
-        self.content.split_whitespace().count()
+        self.content
+            .split_whitespace()
+            .filter(|word| {
+                word.chars()
+                    .any(|ch| !matches!(ch, '#' | '*' | '[' | ']' | '>'))
+            })
+            .count()
     }
 
     pub fn character_count(&self) -> usize {
@@ -87,30 +93,25 @@ mod tests {
         let mut n2 = Note::new("Banana".to_string(), "Yellow".to_string());
         let mut n3 = Note::new("Cherry".to_string(), "Red".to_string());
 
-        // Set specific modification times for sorting
         n1.last_modified = Utc::now();
         n2.last_modified = Utc::now() + chrono::Duration::seconds(10);
         n3.last_modified = Utc::now() + chrono::Duration::seconds(20);
 
         let notes = vec![n1.clone(), n2.clone(), n3.clone()];
 
-        // Default sort (newest first)
         let result = projected_ids(&notes, "", None);
         assert_eq!(result[0], n3.id);
         assert_eq!(result[1], n2.id);
         assert_eq!(result[2], n1.id);
 
-        // Search filter
         let result = projected_ids(&notes, "ba", None);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], n2.id);
 
-        // Search content
         let result = projected_ids(&notes, "red", None);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], n3.id);
 
-        // Pinning (pinned first)
         let mut pinned_n1 = n1.clone();
         pinned_n1.is_pinned = true;
         let notes_with_pin = vec![pinned_n1.clone(), n2.clone(), n3.clone()];
@@ -129,40 +130,41 @@ mod tests {
         assert_eq!(empty_note.word_count(), 0);
         assert_eq!(empty_note.character_count(), 0);
 
-        // Markdown complexity
         let md_note = Note::new(
             "".to_string(),
             "# Title\n\n- List item\n- List item 2".to_string(),
         );
-        assert_eq!(md_note.word_count(), 9);
+        assert_eq!(md_note.word_count(), 8);
 
-        // Unicode characters should be counted correctly (not bytes)
         let unicode_note = Note::new("".to_string(), "日本語".to_string());
         assert_eq!(unicode_note.character_count(), 3); // 3 chars, 9 bytes in UTF-8
         assert_eq!(unicode_note.word_count(), 1);
     }
 
     #[test]
+    fn word_count_ignores_standalone_heading_emphasis_quote_and_checkbox_delimiters() {
+        let note = Note::new(String::new(), "## 日本語 ** text **\n> [ ] reminder".into());
+        assert_eq!(note.word_count(), 3);
+        let sample = Note::new("A slower Sunday".into(), "Leave a little room for the things that make the week feel lighter. No schedule, just a few things worth making time for.\n\n## A few good things\n\n- Walk by the water before the city wakes up\n- Find something new at the bookshop\n- Cook a meal that takes its time\n\n## Before Monday\n\n- [x] Put the phone away for the morning\n- [ ] Write a page, without editing it\n- [ ] Call someone I miss\n\n> A quiet day is still a full day.".into());
+        assert_eq!(sample.word_count(), 83);
+    }
+
+    #[test]
     fn should_format_text_correctly() {
         let content = "Hello world";
 
-        // Bold "world"
         let result = format_text(content, 6, 11, "**", "**");
         assert_eq!(result, "Hello **world**");
 
-        // Bold "Hello"
         let result = format_text(content, 0, 5, "**", "**");
         assert_eq!(result, "**Hello** world");
 
-        // Link "Hello"
         let result = format_text(content, 0, 5, "[", "](https://google.com)");
         assert_eq!(result, "[Hello](https://google.com) world");
 
-        // Empty selection (just insert)
         let result = format_text(content, 5, 5, "**", "**");
         assert_eq!(result, "Hello**** world");
 
-        // At the very end
         let result = format_text(content, 11, 11, "!", "!");
         assert_eq!(result, "Hello world!!");
     }
@@ -291,7 +293,6 @@ mod tests {
     fn should_format_date_correctly() {
         let note = Note::new("".to_string(), "".to_string());
         let date_str = note.display_date();
-        // Check format DD/MM/YYYY
         assert!(date_str.chars().nth(2) == Some('/'));
         assert!(date_str.chars().nth(5) == Some('/'));
         assert_eq!(date_str.len(), 10);

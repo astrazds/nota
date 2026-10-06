@@ -86,15 +86,15 @@ preserve the corrupt bytes in a quarantine file.
 
 ## Move Notes between Linux and Windows
 
-Use **Export** on the source machine and **Import** on the destination.
-On Windows, select **Export notes backup…** from the Export menu. Review the
+Open **Notes**, then **Backup**. Use **Export notes backup…** on the source
+machine and **Import notes backup…** on the destination. Review the
 merge counts before confirming. Existing Backup v1 files and
 legacy `noter.*` format identifiers remain supported. A desktop-transition
 file restores an entire collection only into an empty destination.
 
 Nota does not synchronize machines. A normal Backup contains active Notes.
-On Windows, **Export complete notebook state…** creates a desktop-transition
+On either platform, **Export complete notebook…** creates a desktop-transition
 file with active Notes, Recently Deleted, Theme, and optional Backup Health.
-Use **Restore** on either platform to load it into an empty notebook. Linux's
-Export button creates only a notes Backup. Window dimensions and Preview cache
+Use **Restore complete notebook…** on either platform to load it into an empty notebook.
+Window dimensions and Preview cache
 are not part of either export. See [the restore procedure](usage.md#restore-a-complete-notebook).

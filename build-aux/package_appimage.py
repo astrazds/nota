@@ -29,6 +29,18 @@ FONT_FILES = (
     "source-sans-3-latin-wght-italic.woff2",
     "source-code-pro-latin-wght-normal.woff2",
     "source-code-pro-latin-wght-italic.woff2",
+    "Gelasio-Regular.woff2",
+    "Gelasio-Italic.woff2",
+    "Gelasio-Bold.woff2",
+    "Gelasio-BoldItalic.woff2",
+    "SourceSans3-Regular.ttf",
+    "SourceSans3-Semibold.ttf",
+    "SourceCodePro-Regular.ttf",
+    "Gelasio-Regular.ttf",
+    "Gelasio-Italic.ttf",
+    "Gelasio-Bold.ttf",
+    "Gelasio-BoldItalic.ttf",
+    "Gelasio-OFL.txt",
 )
 WEBKIT_HELPERS = (
     "WebKitWebProcess",

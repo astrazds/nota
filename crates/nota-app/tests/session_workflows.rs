@@ -18,6 +18,115 @@ fn command(session: &mut Session, value: Value) -> Value {
 }
 
 #[test]
+fn preview_layout_changes_type_size_without_changing_markdown_content_or_policy() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut session = open(temp.path());
+    for (layout, font) in [
+        ("reading", "font:18px/1.9 'Gelasio'"),
+        ("split", "font:15px/1.9 'Gelasio'"),
+        ("split_narrow", "font:14px/1.9 'Gelasio'"),
+    ] {
+        let reply = command(
+            &mut session,
+            json!({"command":"preview", "title":"Notebook", "content":"# Notebook\n\nBody **text**", "dark":false, "layout":layout}),
+        );
+        let html = reply["result"]["html"].as_str().unwrap();
+        assert!(html.contains(font));
+        assert!(html.contains("<p>Body <strong>text</strong></p>"));
+        assert!(!html.contains("<h1>Notebook</h1>"));
+        assert!(html.contains("script-src 'none'"));
+    }
+    assert!(serde_json::from_value::<Request>(json!({"command":"preview", "title":"Notebook", "content":"Body", "dark":false, "layout":"editing"})).is_err());
+}
+
+#[test]
+fn new_note_clears_search_tag_and_pinned_filters_so_the_note_is_visible() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut session = open(temp.path());
+    let existing =
+        command(&mut session, json!({"command":"new_note"}))["snapshot"]["selected_note"]["id"]
+            .clone();
+    command(
+        &mut session,
+        json!({"command":"edit_note", "id":existing, "edit_sequence":1, "title":"Release plan", "content":"", "tags_input":"Work"}),
+    );
+    command(&mut session, json!({"command":"toggle_pin", "id":existing}));
+    command(
+        &mut session,
+        json!({"command":"search", "query":"title:release"}),
+    );
+    command(&mut session, json!({"command":"filter_tag", "tag":"Work"}));
+    let filtered = command(
+        &mut session,
+        json!({"command":"filter_pinned", "pinned":true}),
+    );
+    assert_eq!(filtered["snapshot"]["rows"].as_array().unwrap().len(), 1);
+    let created = command(&mut session, json!({"command":"new_note"}));
+    let snapshot = &created["snapshot"];
+    let new_id = &snapshot["selected_note"]["id"];
+    assert_ne!(new_id, &existing);
+    assert_eq!(snapshot["rows"].as_array().unwrap().len(), 2);
+    assert!(
+        snapshot["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|row| &row["id"] == new_id)
+    );
+    assert_eq!(snapshot["search_input"], "");
+    assert_eq!(snapshot["active_tag"], Value::Null);
+    assert_eq!(snapshot["pinned_only"], false);
+    assert_eq!(snapshot["view_mode"], "write");
+}
+
+#[test]
+fn pinned_filter_changes_visible_rows_without_changing_selection_search_or_revision() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut session = open(temp.path());
+    let first =
+        command(&mut session, json!({"command":"new_note"}))["snapshot"]["selected_note"]["id"]
+            .clone();
+    command(
+        &mut session,
+        json!({"command":"edit_note", "id":first, "edit_sequence":1, "title":"Release plan", "content":"", "tags_input":"Work"}),
+    );
+    command(&mut session, json!({"command":"toggle_pin", "id":first}));
+    let second = command(&mut session, json!({"command":"new_note"}))["snapshot"]["selected_note"]
+        ["id"]
+        .clone();
+    command(
+        &mut session,
+        json!({"command":"edit_note", "id":second, "edit_sequence":2, "title":"Release checklist", "content":"", "tags_input":"Work"}),
+    );
+    command(
+        &mut session,
+        json!({"command":"search", "query":"title:release"}),
+    );
+    let before = command(&mut session, json!({"command":"filter_tag", "tag":"Work"}));
+    assert_eq!(before["snapshot"]["rows"].as_array().unwrap().len(), 2);
+    let filtered = command(
+        &mut session,
+        json!({"command":"filter_pinned", "pinned":true}),
+    );
+    assert_eq!(filtered["snapshot"]["pinned_only"], true);
+    assert_eq!(filtered["snapshot"]["rows"].as_array().unwrap().len(), 1);
+    assert_eq!(filtered["snapshot"]["rows"][0]["id"], first);
+    assert_eq!(filtered["snapshot"]["selected_note"]["id"], second);
+    assert_eq!(filtered["snapshot"]["search_input"], "title:release");
+    assert_eq!(filtered["snapshot"]["active_tag"], "Work");
+    assert_eq!(
+        filtered["snapshot"]["revision"],
+        before["snapshot"]["revision"]
+    );
+    let all = command(
+        &mut session,
+        json!({"command":"filter_pinned", "pinned":false}),
+    );
+    assert_eq!(all["snapshot"]["pinned_only"], false);
+    assert_eq!(all["snapshot"]["rows"].as_array().unwrap().len(), 2);
+}
+
+#[test]
 fn edits_follow_the_note_identity_and_reopen_with_unicode_and_tags() {
     let temp = tempfile::tempdir().unwrap();
     let mut session = open(temp.path());

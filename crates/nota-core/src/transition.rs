@@ -72,7 +72,7 @@ impl fmt::Display for TransitionError {
             Self::DuplicateNoteId(id) => write!(formatter, "duplicate Note identity {id}"),
             Self::CollectionNotEmpty => write!(
                 formatter,
-                "desktop transition restore requires an Empty Collection; use merge Backup import instead"
+                "Restore requires an empty notebook. Use Import notes backup to combine notes."
             ),
         }
     }

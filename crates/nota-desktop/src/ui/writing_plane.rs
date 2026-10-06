@@ -1,7 +1,4 @@
-//! GTK writing-plane clamp: caps child allocation at a Pango-measured max width.
-//!
-//! GTK Stylesheet rejects CSS `max-width`, so this widget enforces the contract
-//! measure in layout (left-aligned, grow up to N×`ch` then stop).
+//! GTK does not support CSS max-width. Center and clamp the reading column here.
 
 use std::cell::Cell;
 
@@ -31,7 +28,6 @@ mod imp {
             self.parent_constructed();
             let obj = self.obj();
             obj.set_css_classes(&["nota-writing-plane"]);
-            // Fill cross-axis so vertical parents allocate full width; clamp in size_allocate.
             obj.set_halign(gtk::Align::Fill);
             obj.set_hexpand(true);
         }
@@ -44,6 +40,10 @@ mod imp {
     }
 
     impl WidgetImpl for WritingPlane {
+        fn request_mode(&self) -> gtk::SizeRequestMode {
+            gtk::SizeRequestMode::HeightForWidth
+        }
+
         fn measure(&self, orientation: gtk::Orientation, for_size: i32) -> (i32, i32, i32, i32) {
             let Some(child) = self.child.upgrade() else {
                 return (0, 0, -1, -1);
@@ -54,9 +54,6 @@ mod imp {
                     let (min, nat, min_baseline, nat_baseline) =
                         child.measure(orientation, for_size);
                     if max_w > 0 {
-                        // Prefer the contract plane width so title/tags Entries expand
-                        // to the full 72ch strip instead of their short natural size
-                        // (which ellipsizes placeholders mid-word).
                         let min = min.min(max_w);
                         let nat = max_w.max(min);
                         (min, nat, min_baseline, nat_baseline)
@@ -83,8 +80,21 @@ mod imp {
             };
             let max_w = self.max_width.get();
             let child_w = if max_w > 0 { width.min(max_w) } else { width };
-            // Left-align within the allocated strip (parent may be full-bleed).
-            child.allocate(child_w, height, baseline, None);
+            let translation = gtk::gsk::Transform::new().translate(&gtk::graphene::Point::new(
+                ((width - child_w) / 2) as f32,
+                0.0,
+            ));
+            let request = child.measure(gtk::Orientation::Vertical, child_w);
+            child.allocate(child_w, height, baseline, Some(translation));
+            if child.measure(gtk::Orientation::Vertical, child_w) != request {
+                // GTK clears resize requests raised while TextView validates its layout.
+                let plane = self.obj().downgrade();
+                glib::idle_add_local_once(move || {
+                    if let Some(plane) = plane.upgrade() {
+                        plane.queue_resize();
+                    }
+                });
+            }
         }
 
         fn snapshot(&self, snapshot: &gtk::Snapshot) {

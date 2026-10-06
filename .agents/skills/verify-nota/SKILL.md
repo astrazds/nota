@@ -82,7 +82,7 @@ In the next tool call, inspect the window:
 await notaTab.getScreenshot();
 ```
 
-Ready means the native window shows `Nota`, `New Note`, and an Empty Collection with count zero. The browser title is `broadway 2.0`. Capture this state before mutation. On failure, inspect logs and run Cleanup before retrying.
+Ready means the native window shows `nota`, Notes, the New note control, and the empty editor. Open Notes and require a zero count with `No notes yet.` The browser title is `broadway 2.0`. Capture this state before mutation. On failure, inspect logs and run Cleanup before retrying.
 
 ## Doctor
 

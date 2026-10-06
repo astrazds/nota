@@ -5,7 +5,7 @@ use nota_core::backup::{
 };
 use nota_core::editor_view::EditorViewMode;
 use nota_core::note_list_interaction::{NoteListInteraction, NoteListRenderModel};
-use nota_core::responsive_navigation::{ViewportClass, normalize_view_mode};
+use nota_core::responsive_navigation::ViewportClass;
 use nota_core::tag_rules::{
     TagCleanupPlan, TagSuggestion, parse_tags_input, suggest_existing_tags,
 };
@@ -46,6 +46,7 @@ pub enum AppMsg {
     EditSearch(String),
     CommitSearch,
     SelectTag(String),
+    SetPinnedFilter(bool),
     ClearTag,
     TogglePin(Uuid),
     RequestDelete(Uuid),
@@ -108,6 +109,11 @@ impl AppModel {
         theme: ThemePreference,
         backup_health: Option<BackupHealthRecord>,
     ) -> Self {
+        let view_mode = if collection.notes.is_empty() {
+            EditorViewMode::Write
+        } else {
+            EditorViewMode::Preview
+        };
         Self {
             workspace: NoteWorkspace::new_with_recently_deleted(
                 collection.notes,
@@ -115,9 +121,9 @@ impl AppModel {
             ),
             note_list: NoteListInteraction::default(),
             theme,
-            view_mode: EditorViewMode::Write,
+            view_mode,
             viewport: ViewportClass::Wide,
-            note_list_visible: true,
+            note_list_visible: false,
             save_status: SaveStatus::Saved,
             notification: None,
             backup_health,
@@ -136,11 +142,14 @@ impl AppModel {
         let changed = match message {
             AppMsg::QuickCapture => {
                 self.workspace.create_note();
+                self.note_list = NoteListInteraction::default();
+                self.note_list_visible = false;
+                self.view_mode = EditorViewMode::Write;
                 true
             }
             AppMsg::SelectNote(id) => {
                 let selected = self.workspace.select_note(id);
-                if selected && self.viewport == ViewportClass::Compact {
+                if selected {
                     self.note_list_visible = false;
                 }
                 false
@@ -168,6 +177,12 @@ impl AppModel {
             }
             AppMsg::SelectTag(tag) => {
                 self.note_list.select_tag(tag);
+                self.note_list_visible = true;
+                false
+            }
+            AppMsg::SetPinnedFilter(pinned) => {
+                self.note_list.set_pinned_only(pinned);
+                self.note_list_visible = true;
                 false
             }
             AppMsg::ClearTag => {
@@ -190,26 +205,18 @@ impl AppModel {
             }
             AppMsg::ConfirmClearAll => self.workspace.confirm_clear_all_recently_deleted(),
             AppMsg::SetViewMode(mode) => {
-                self.view_mode = normalize_view_mode(self.viewport, mode);
+                self.view_mode = mode;
                 false
             }
             AppMsg::Resize(width) => {
-                // GTK may notify width=0 before the window is mapped. Treating that
-                // as Compact hides the sidebar/editor exclusively and sticks there.
                 if width <= 0.0 {
                     return false;
                 }
                 self.viewport = ViewportClass::from_width(width);
-                if self.viewport == ViewportClass::Wide {
-                    self.note_list_visible = true;
-                }
-                self.view_mode = normalize_view_mode(self.viewport, self.view_mode);
                 false
             }
             AppMsg::ToggleNavigation => {
-                if self.viewport == ViewportClass::Compact {
-                    self.note_list_visible = !self.note_list_visible;
-                }
+                self.note_list_visible = !self.note_list_visible;
                 false
             }
             AppMsg::RestorePreviousSnapshot | AppMsg::StartEmptyAfterRecovery => false,
@@ -476,47 +483,78 @@ mod tests {
     }
 
     #[test]
-    fn resize_ignores_non_positive_widths_so_unmapped_windows_stay_dual_pane() {
+    fn resize_ignores_non_positive_widths_and_preserves_the_closed_drawer() {
         let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::System, None);
         assert_eq!(app.viewport, ViewportClass::Wide);
-        assert!(app.note_list_visible);
+        assert!(!app.note_list_visible);
 
         app.apply(AppMsg::Resize(0.0));
         assert_eq!(app.viewport, ViewportClass::Wide);
-        assert!(app.note_list_visible);
+        assert!(!app.note_list_visible);
 
         app.apply(AppMsg::Resize(-1.0));
         assert_eq!(app.viewport, ViewportClass::Wide);
     }
 
     #[test]
-    fn split_view_normalizes_when_the_window_becomes_narrow() {
+    fn split_view_survives_resize_and_can_be_selected_on_a_narrow_window() {
         let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::System, None);
         app.apply(AppMsg::SetViewMode(EditorViewMode::Split));
         assert_eq!(app.view_mode, EditorViewMode::Split);
 
-        app.apply(AppMsg::Resize(600.0));
+        app.apply(AppMsg::Resize(500.0));
 
         assert_eq!(app.viewport, ViewportClass::Compact);
-        assert_eq!(app.view_mode, EditorViewMode::Write);
+        assert_eq!(app.view_mode, EditorViewMode::Split);
+        app.apply(AppMsg::SetViewMode(EditorViewMode::Write));
+        app.apply(AppMsg::SetViewMode(EditorViewMode::Split));
+        assert_eq!(app.view_mode, EditorViewMode::Split);
+        app.apply(AppMsg::Resize(1200.0));
+        assert_eq!(app.viewport, ViewportClass::Wide);
+        assert_eq!(app.view_mode, EditorViewMode::Split);
     }
 
     #[test]
-    fn compact_navigation_uses_full_width_surfaces_and_selection_returns_to_writing() {
+    fn drawer_toggles_at_every_width_and_selection_closes_it_without_revising_notes() {
         let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::System, None);
         app.apply(AppMsg::QuickCapture);
         let id = app.workspace.selected_id().unwrap();
-        app.apply(AppMsg::Resize(700.0));
+        let revision = app.revision();
+        for width in [500.0, 1200.0] {
+            app.apply(AppMsg::Resize(width));
+            assert!(!app.note_list_visible);
+            assert!(!app.apply(AppMsg::ToggleNavigation));
+            assert!(app.note_list_visible);
+            app.apply(AppMsg::Resize(width + 1.0));
+            assert!(app.note_list_visible);
+            app.apply(AppMsg::SelectNote(Uuid::new_v4()));
+            assert!(app.note_list_visible);
+            app.apply(AppMsg::SelectNote(id));
+            assert!(!app.note_list_visible);
+        }
+        assert_eq!(app.revision(), revision);
+    }
 
-        app.apply(AppMsg::ToggleNavigation);
+    #[test]
+    fn existing_notebook_opens_in_preview_and_capture_opens_a_new_note_for_writing() {
+        let note = nota_core::Note::new("Existing".to_string(), "Body".to_string());
+        let mut app = AppModel::new(
+            CollectionEnvelope::new(vec![note.clone()], Vec::new()),
+            ThemePreference::Light,
+            None,
+        );
+        assert_eq!(app.workspace.selected_id(), Some(note.id));
+        assert_eq!(app.view_mode, EditorViewMode::Preview);
         assert!(!app.note_list_visible);
         app.apply(AppMsg::ToggleNavigation);
-        assert!(app.note_list_visible);
-
-        app.apply(AppMsg::SelectNote(id));
+        assert!(app.apply(AppMsg::QuickCapture));
+        assert_ne!(app.workspace.selected_id(), Some(note.id));
+        assert_eq!(app.view_mode, EditorViewMode::Write);
         assert!(!app.note_list_visible);
-        app.apply(AppMsg::Resize(1200.0));
-        assert!(app.note_list_visible);
+        assert_eq!(
+            app.workspace.focus_intent(),
+            nota_core::note_workspace::FocusIntent::NoteTitle
+        );
     }
 
     #[test]

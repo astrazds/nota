@@ -1,10 +1,13 @@
 use std::path::{Path, PathBuf};
 
 pub const BUNDLED_FONT_FILES: &[&str] = &[
-    "source-sans-3-latin-wght-normal.woff2",
-    "source-sans-3-latin-wght-italic.woff2",
-    "source-code-pro-latin-wght-normal.woff2",
-    "source-code-pro-latin-wght-italic.woff2",
+    "SourceSans3-Regular.ttf",
+    "SourceSans3-Semibold.ttf",
+    "SourceCodePro-Regular.ttf",
+    "Gelasio-Regular.ttf",
+    "Gelasio-Italic.ttf",
+    "Gelasio-Bold.ttf",
+    "Gelasio-BoldItalic.ttf",
 ];
 
 pub fn bundled_font_search_dirs() -> Vec<PathBuf> {
@@ -50,11 +53,6 @@ mod tests {
             bundled_font_search_dirs()
                 .iter()
                 .all(|dir| !is_node_modules_font_path(dir))
-        );
-        assert!(
-            BUNDLED_FONT_FILES
-                .iter()
-                .all(|file| file.ends_with(".woff2"))
         );
     }
 }

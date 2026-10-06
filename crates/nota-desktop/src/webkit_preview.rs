@@ -1,13 +1,16 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use url::Url;
 use webkit6::glib::prelude::Cast;
 use webkit6::prelude::{PolicyDecisionExt, WebViewExt};
 use webkit6::{NavigationPolicyDecision, PolicyDecisionType, Settings, WebView};
 
-use nota_app::preview::{PREVIEW_CSP, external_navigation_target, preview_document};
+use nota_app::preview::{PREVIEW_CSP, PreviewLayout, external_navigation_target, preview_document};
 
 #[derive(Clone)]
 pub struct SecurePreview {
     web_view: WebView,
+    document: Rc<RefCell<String>>,
 }
 
 impl SecurePreview {
@@ -60,15 +63,21 @@ impl SecurePreview {
             true
         });
 
-        Self { web_view }
+        Self {
+            web_view,
+            document: Rc::new(RefCell::new(String::new())),
+        }
     }
 
     pub fn widget(&self) -> &WebView {
         &self.web_view
     }
 
-    pub fn load_note(&self, title: &str, tags: &[String], markdown: &str, dark: bool) {
-        self.web_view
-            .load_html(&preview_document(title, tags, markdown, dark), None);
+    pub fn load_note(&self, title: &str, markdown: &str, dark: bool, layout: PreviewLayout) {
+        let document = preview_document(title, markdown, dark, layout);
+        if *self.document.borrow() != document {
+            self.web_view.load_html(&document, None);
+            self.document.replace(document);
+        }
     }
 }

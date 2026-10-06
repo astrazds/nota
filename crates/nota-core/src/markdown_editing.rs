@@ -4,6 +4,9 @@
 pub enum MarkdownCommand {
     Bold,
     Italic,
+    Heading,
+    BulletList,
+    Link,
     Strikethrough,
     TaskList,
     Table,
@@ -14,6 +17,9 @@ impl MarkdownCommand {
         match self {
             Self::Bold => ("**", "**"),
             Self::Italic => ("*", "*"),
+            Self::Heading => ("## ", ""),
+            Self::BulletList => ("- ", ""),
+            Self::Link => ("[", "](https://example.com)"),
             Self::Strikethrough => ("~~", "~~"),
             Self::TaskList => ("- [ ] ", ""),
             Self::Table => (
@@ -185,5 +191,25 @@ mod tests {
 
         assert_eq!(result.content, "A**😀**B");
         assert_eq!(result.caret_byte, 9);
+    }
+
+    #[test]
+    fn focus_commands_format_reversed_unicode_selection_and_leave_surrounding_text() {
+        let content = "Before\n日本😀\nAfter";
+        let selection = ByteSelection::new(content, 17, 7).unwrap();
+        for (command, expected, caret) in [
+            (MarkdownCommand::Heading, "Before\n## 日本😀\nAfter", 20),
+            (MarkdownCommand::BulletList, "Before\n- 日本😀\nAfter", 19),
+            (
+                MarkdownCommand::Link,
+                "Before\n[日本😀](https://example.com)\nAfter",
+                40,
+            ),
+        ] {
+            let result = apply_markdown_command(content, selection, command);
+            assert_eq!(result.content, expected);
+            assert_eq!(result.caret_byte, caret);
+            assert_eq!(&result.content[result.caret_byte..], "\nAfter");
+        }
     }
 }

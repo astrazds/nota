@@ -90,6 +90,10 @@ run = [
 description = "Run GTK widget behavior tests on the current display"
 run = "cargo test -p nota-desktop --bin nota-desktop --locked gtk_toolbar_formatting -- --ignored --test-threads=1"
 
+[tasks."test:gtk:fonts"]
+description = "Verify GTK child controls use the bundled font families"
+run = "cargo test -p nota-desktop --bin nota-desktop --locked gtk_child_controls_resolve_bundled_font_families -- --ignored --test-threads=1"
+
 [tasks."build:windows"]
 description = "Build the WinUI app and shared Rust DLL on Windows"
 run = [

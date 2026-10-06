@@ -1,36 +1,12 @@
 use nota_app::storage::Preferences;
-use nota_core::responsive_navigation::WIDE_VIEWPORT_MIN_WIDTH;
 use relm4::gtk;
 use relm4::gtk::prelude::*;
 
-/// Prefer Frame A dual-pane on open. Compact exclusive-pane remains available by
-/// resizing below the wide breakpoint; do not restore a sub-wide size that was
-/// often just the unrealized-window floor (640×480).
-pub(super) fn frame_a_startup_window_size(preferences: &Preferences) -> (i32, i32) {
-    let defaults = Preferences::default();
-    if f64::from(preferences.window_width) < WIDE_VIEWPORT_MIN_WIDTH {
-        (
-            defaults.window_width,
-            preferences.window_height.max(defaults.window_height),
-        )
-    } else {
-        (preferences.window_width, preferences.window_height.max(480))
-    }
-}
-
-/// Pixel width of the CSS `ch` unit (glyph "0") in the notebook body font.
-pub(super) fn measure_ch_width_px(widget: &impl IsA<gtk::Widget>) -> f64 {
-    let context = widget.pango_context();
-    let mut desc = context
-        .font_description()
-        .unwrap_or_else(|| gtk::pango::FontDescription::from_string("Sans 14"));
-    desc.set_family("Source Sans 3");
-    desc.set_size(14 * gtk::pango::SCALE);
-    let layout = gtk::pango::Layout::new(&context);
-    layout.set_font_description(Some(&desc));
-    layout.set_text("0");
-    let (width, _) = layout.pixel_size();
-    f64::from(width.max(1))
+pub(super) fn startup_window_size(preferences: &Preferences) -> (i32, i32) {
+    (
+        preferences.window_width.max(480),
+        preferences.window_height.max(480),
+    )
 }
 
 pub(super) fn install_workspace_fonts(window: &gtk::ApplicationWindow) {
@@ -53,5 +29,36 @@ pub(super) fn install_css() {
             &provider,
             gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "requires a GTK display; run mise run test:gtk"]
+    fn gtk_child_controls_resolve_bundled_font_families() {
+        gtk::init().expect("the GTK font test requires a display");
+        let application = gtk::Application::default();
+        application
+            .register(None::<&gtk::gio::Cancellable>)
+            .expect("GTK test application registers");
+        let window = gtk::ApplicationWindow::new(&application);
+        install_workspace_fonts(&window);
+        let child = gtk::Entry::new();
+        window.set_child(Some(&child));
+        for family in ["Gelasio", "Source Sans 3", "Source Code Pro"] {
+            let mut description = gtk::pango::FontDescription::new();
+            description.set_family(family);
+            description.set_absolute_size(31.0 * gtk::pango::SCALE as f64);
+            let font = child
+                .pango_context()
+                .load_font(&description)
+                .expect("bundled font resolves in a child control");
+            let resolved = font.describe();
+            println!("Requested {family}; resolved {resolved}");
+            assert_eq!(resolved.family().as_deref(), Some(family));
+        }
     }
 }

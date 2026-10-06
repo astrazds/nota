@@ -11,7 +11,7 @@ public sealed record ImportPreview(int TotalImportedNotes, int NotesToAdd, int N
 
 public sealed record Snapshot(
     ulong Revision, ulong EditSequence, Note? SelectedNote, NoteRow[] Rows,
-    DeletedNote[] RecentlyDeleted, string SearchInput, string? ActiveTag, string[] Tags,
+    DeletedNote[] RecentlyDeleted, string SearchInput, string? ActiveTag, string[] Tags, bool PinnedOnly,
     string ViewMode, string Theme, string SaveStatus, string BackupHealth,
     Notification? Notification, Recovery? Recovery, ImportPreview? PendingImport, string DataDirectory);
 

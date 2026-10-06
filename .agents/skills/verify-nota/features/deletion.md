@@ -13,7 +13,7 @@ Move a named Note to Recently Deleted and restore it to the active collection.
 
 ## How to get to it (user POV)
 
-- Open the three-dot Note actions menu on an active Note and choose Delete.
+- Open the three-dot Note actions menu on an active Note and choose Move to recently deleted.
 - Use Restore or Delete beside a Note in Recently Deleted.
 - Choose Clear All in the Recently Deleted header when Notes are present.
 
@@ -22,7 +22,7 @@ Move a named Note to Recently Deleted and restore it to the active collection.
 Preconditions: Create only synthetic Notes using [Writing](writing.md). Record their UUIDs and contents.
 
 - Empty section. Before deleting a Note, require the Recently Deleted header to remain visible and Clear All to be hidden.
-- Confirmation. From a fresh screenshot, click the row's Note actions, then Delete. Require a dialog naming that Note and Cancel as default focus. Click Cancel and require the active collection unchanged.
+- Confirmation. From a fresh screenshot, click the selected Note's or row's Note actions, then Move to recently deleted. Require a dialog naming that Note and Cancel as default focus. Click Cancel and require the active collection unchanged.
 - Soft delete. Repeat and accept the named confirmation. Require the row to leave the active list and appear in Recently Deleted. Copy the collection and require the same UUID and content in the deleted collection.
 - Section appearance. Move a second disposable Note to Recently Deleted. Inspect Light and Dark Themes. Require a full-width contrasting neutral header, distinct recovery rows, a visible separator between rows, neutral Restore, and readable red Delete and Clear All controls. Include a long title and a compact window to check wrapping and clipping.
 - Restore. Click Restore beside the original Note, not the Backup Restore control. Require its active row and content to return with the same UUID. Restart and confirm persistence.

@@ -8,6 +8,7 @@ fn main() {
     println!("cargo:rerun-if-changed=resources/nota.gresource.xml");
     println!("cargo:rerun-if-changed=resources/nota.css");
     println!("cargo:rerun-if-changed=resources/nota-icon.svg");
+    println!("cargo:rerun-if-changed=resources/icons");
 
     let output = PathBuf::from(std::env::var_os("OUT_DIR").expect("Cargo always sets OUT_DIR"))
         .join("nota.gresource");

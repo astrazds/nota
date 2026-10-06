@@ -9,6 +9,10 @@ rust-version = "1.95"
 authors = ["Andrejs Strazds"]
 license = "MIT"
 repository = "https://github.com/astrazds/nota"
+homepage = "https://github.com/astrazds/nota#readme"
+readme = "README.md"
+keywords = ["notes", "markdown", "local-first"]
+categories = ["text-editors"]
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

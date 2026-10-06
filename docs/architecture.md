@@ -54,9 +54,11 @@ Core Markdown formatting accepts UTF-8 byte ranges. The GTK toolbar applies
 the changed range as one TextBuffer user action so undo, redo, and caret
 placement remain owned by GTK. GTK character conversion stays in
 `crates/nota-desktop/src/selection.rs`. The core renders the Markdown body.
-Shared `preview.rs` wraps it with the
-Note Title, Tags, CSS, and content security policy. `webkit_preview.rs` owns
-WebKitGTK settings and navigation; the GTK shell opens allowed external links
+Shared `preview.rs` wraps it with bundled fonts, layout-specific CSS, and
+content security policy. The frontend
+keeps the Note Title and metadata in native controls above the body. A leading top-level
+Markdown heading that repeats the Note Title is suppressed in Preview.
+`webkit_preview.rs` owns WebKitGTK settings and navigation. The GTK shell opens allowed external links
 through the system handler.
 
 The Windows frontend serializes DLL calls on a background queue. Typed JSON
@@ -75,6 +77,33 @@ requests, and navigation.
 GTK's `GtkApplication` creates the component and opens `Session` only in the
 primary process. A second launch activates that process. Windows opens a
 window per launch, but the shared profile lock rejects a second writer.
+
+## Focus layout ownership
+
+`AppModel::new` opens a nonempty collection in Preview. Quick Capture switches
+to Write, selects the new Note, and closes navigation. The Notes drawer starts
+closed at every window width. GTK uses `AppModel::note_list_visible`; WinUI
+owns the drawer state in its `SplitView`. Opening the drawer disables editor
+input until the drawer closes.
+
+Both frontends retain one native title and metadata header across view modes.
+Write and Preview use a centered reading area. Split divides the body area
+equally above 560 logical pixels and stacks the editor above Preview at 560
+or below. `PreviewLayout` selects the shared HTML typography for Reading,
+Split, and SplitNarrow. In Split mode, the frontends select SplitNarrow at
+760 or below.
+
+GTK layout lives in `ui/workspace.rs`, `ui/writing_plane.rs`, and `nota.css`.
+WinUI layout lives in `MainWindow.xaml` and `ApplyViewMode` and
+`UpdateLayoutMode` in `MainWindow.xaml.cs`. `App.xaml` owns WinUI resources.
+Keep these native layout rules aligned with the shared Preview CSS when a
+change affects both editing and reading.
+
+Gelasio provides reading text, Source Sans 3 provides controls, and Source
+Code Pro provides code and Split editing. GTK registers the bundled TTF files
+through Pango in `ui/style.rs`; `fonts.rs` resolves their paths. WinUI packages
+the fonts as application content. Shared Preview HTML embeds WOFF2 bytes as
+data URLs, so webviews do not fetch fonts from the network.
 
 ## Boundaries worth preserving
 
@@ -121,7 +150,9 @@ See [the user guide](usage.md) for the user-facing recovery choices.
 `mise.toml` defines tool versions and common tasks. On Linux, `mise run verify` runs
 formatting, Cargo checks, Clippy, workspace tests, and the AppImage directory
 contract in order. Run `mise run test:gtk` separately on a live display for
-GTK widget behavior. CI runs both workspace and GTK tests under Xvfb.
+GTK toolbar behavior and `mise run test:gtk:fonts` for bundled font resolution.
+CI runs workspace tests and the toolbar test under Xvfb. Other ignored GTK
+display tests need separate runs; see [Contributing](../CONTRIBUTING.md#verify-a-change).
 
 On Windows, `mise run verify` checks the portable Rust crates, builds WinUI,
 and runs `mise run test:windows` against the real DLL. `mise run package:windows`

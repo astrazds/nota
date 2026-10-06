@@ -9,18 +9,21 @@ Source documents:
 - [`CONTEXT.md`](../CONTEXT.md): domain language and product relationships.
 - [`docs/adr/0007-local-notebook-visual-system.md`](adr/0007-local-notebook-visual-system.md): accepted visual-system decisions.
 
-Concept artifact:
+Historical concept artifacts:
 
 - [`docs/assets/brand/nota-brand-toolkit-concepts.png`](assets/brand/nota-brand-toolkit-concepts.png): exploratory brand toolkit image covering mark direction, README hero, social preview, mood board, and screenshot frames.
 - [`docs/assets/brand/nota-main-app-frame-palette.png`](assets/brand/nota-main-app-frame-palette.png): exploratory palette artifact for main application frame templates.
 - [`docs/assets/brand/nota-main-app-frame-mocks.png`](assets/brand/nota-main-app-frame-mocks.png): exploratory main application frame template mocks for the product UI.
 
-Approved product frame:
+Current product frame:
 
-- **Frame A, Quiet Notebook Frame** is the product UI reference for the main app frame: light paper default, compact restrained sidebar, warm selected Note row, thin editor toolbar, stable editor-area footer, and paper-neutral popup panels.
-- Recently Deleted has a contrasting neutral header across the sidebar width and separated recovery rows below the active Note List. Follow [the section design](../DESIGN.md#recently-deleted) in both themes.
+- The native app uses a centered reading column, Gelasio titles and prose, a thin formatting toolbar, and a stable editor footer. **Notes** opens an overlay drawer without moving the reading column.
+- Recently Deleted has a collapsible header with a deleted count below the active Note List. Follow [the section design](../DESIGN.md#recently-deleted) in both themes.
 - GTK paper product windows cover About, Markdown help, Delete Confirmation, Clear All, and Backup Import Preview. Windows uses themed WinUI ContentDialogs for these actions. Keep screenshots faithful to the platform being described.
 - Product screenshots use the native Relm4/GTK4 or WinUI 3 window. Identify the platform when it matters. Use legacy browser screenshots only when migration history or a hosted browser app is the subject.
+
+The concept images record earlier exploration. They do not override the
+current native layout or [design system](../DESIGN.md).
 
 ## Brand Promise
 
@@ -71,13 +74,14 @@ Nota copy is plain, operational, and specific. It should name the thing that wil
 
 Use the visible control labels when writing instructions:
 
-- "New Note" in the sidebar and "Create a Note" in the empty Writing Surface.
+- "New note" in the top bar and empty Writing Surface.
 - "Restore" beside a Recently Deleted Note.
 - "Move" in the GTK deletion confirmation and "Move note" on Windows.
-- "Export" and "Import" in Backup Controls.
+- "Export notes backup" and "Import notes backup" in the drawer's Backup menu.
 
-Windows Export opens a menu with **Export notes backup…** and
-**Export complete notebook state…**. Use the exact action label in instructions.
+Both frontends also offer **Export complete notebook** and
+**Restore complete notebook** in the Backup menu. Windows appends an ellipsis
+to actions that open a file picker. Use the visible action label in instructions.
 The [user guide](usage.md) records other platform differences.
 
 Avoid:
@@ -182,22 +186,25 @@ another token table into this guide.
 
 Nota's product typography is already decided:
 
-- UI and reading surfaces: Source Sans 3.
-- Markdown/source editing and syntax examples: Source Code Pro.
-- Native fallbacks only after the Source families.
+- Note Titles, Write body, and Preview prose: Gelasio.
+- UI controls and Preview headings: Source Sans 3.
+- Split's Markdown editor and code examples: Source Code Pro.
+- Native fallbacks only after the bundled family for each text role.
 - Fonts ship in `assets/fonts/` and the native packages. Pango registers the
-  Linux fonts; WinUI uses bundled TrueType fonts. Windows Preview embeds the
-  WOFF2 files. Preserve the upstream font licenses when updating them.
+  Linux fonts; WinUI uses bundled TrueType fonts. Both Preview renderers embed
+  the WOFF2 files. Preserve the upstream font licenses when updating them.
 
 ### Type Character
 
-Source Sans 3 gives Nota a humanist, open-source, practical voice. It is readable without feeling platform-native or decorative. Source Code Pro is a tool for Markdown editing, not a brand costume.
+Gelasio is the reading face. Source Sans 3 keeps controls and Preview headings
+distinct from prose. Source Code Pro supports the Split editor and code
+examples without making monospace typography the app's identity.
 
 ### Type Rules
 
 - Use hierarchy through size and weight, not letter spacing.
 - Keep body lines around 65 to 75 characters when possible.
-- Do not introduce a display serif for brand polish.
+- Keep Gelasio as the reading serif instead of adding another display family.
 - Do not make mono typography the identity.
 - Do not use all-caps body copy.
 - Do not use gradient text.
@@ -277,11 +284,11 @@ The product layout is a working notebook, not a marketing dashboard.
 
 - Keep the Writing Surface visually primary.
 - Keep Write, Preview, and Split on one Pane Rhythm.
-- In Split, divide the editor area 50/50 of the current viewport.
+- In wide Split, divide the body area equally. In compact Split, stack the editor above Preview.
 - Keep View Mode Controls in the editor-area footer, not in a persistent app header.
-- Keep the sidebar dense enough to scan several Notes.
-- Separate Recently Deleted with its full-width header and recovery rows.
-- Keep Note List and Writing Surface Tag pills on the same compact chip.
+- Keep the Notes drawer dense enough to scan several Notes.
+- Separate Recently Deleted with its collapsible header and recovery rows.
+- Keep Tags as compact links beneath the Note Title and show the active filter in the drawer.
 - Keep Search as the primary discovery control.
 - Keep Backup Controls compact and secondary.
 - Keep Product Metadata and diagnostics outside the primary workflow.
@@ -304,11 +311,11 @@ Primary buttons use Warm Capture Yellow for clear action. Secondary buttons use 
 
 Labels should name outcomes:
 
-- "New Note"
+- "New note"
 - "Restore"
-- "Clear All"
-- "Export"
-- "Import"
+- "Clear All" on Linux and "Clear all" on Windows
+- "Export notes backup"
+- "Import notes backup"
 
 Avoid vague labels:
 
@@ -317,13 +324,17 @@ Avoid vague labels:
 - "Manage"
 - "Apply"
 
-### Chips
+### Tags and filters
 
-Tags are metadata. They support filtering and recognition, but they are not navigation pillars. Keep Tag chips compact, neutral, and secondary unless they are actively filtering.
+Tags are metadata links below the Note Title. They open the Notes drawer
+with a filter. Keep them secondary to the title and body. Show the active
+Tag filter beside **All notes** and **Pinned** with a way to clear it.
 
 ### Notifications
 
-Notifications are transient feedback for save, Backup, import, and recovery outcomes. They must not become permanent status chrome.
+Notifications report save, Backup, import, and recovery outcomes. Success
+feedback is transient. Windows keeps errors visible until dismissed. Keep
+the editor footer's local Save Status visible without adding diagnostic chrome.
 
 ### Modals
 
@@ -468,8 +479,8 @@ Do not make a SaaS hero with abstract stats, floating cards, gradient text, or c
 
 - Keep the Note primary.
 - Use Warm Capture Yellow as a meaningful signal.
-- Use Source Sans 3 for product and brand typography.
-- Use Source Code Pro only for Markdown editing or syntax examples.
+- Use Gelasio for reading and Source Sans 3 for controls and headings.
+- Use Source Code Pro for the Split editor and code examples.
 - Keep Search and Note List as the discovery model.
 - Treat Backup as user-owned local preservation.
 - Name destructive and recovery impacts explicitly.
@@ -483,7 +494,7 @@ Do not make a SaaS hero with abstract stats, floating cards, gradient text, or c
 - Do not turn Tags into a folder replacement.
 - Do not hide Note Actions behind hover-only controls.
 - Do not imply cloud sync.
-- Do not add permanent status chrome.
+- Keep status in the editor footer and avoid permanent diagnostic panels.
 - Do not use generic destructive confirmations.
 - Do not use side-stripe accent borders.
 - Do not use gradient text.

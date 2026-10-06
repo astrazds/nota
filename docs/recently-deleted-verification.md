@@ -49,7 +49,7 @@ files remained identical to the fixture. This comparison received a PASS
 verdict; [PR #6](https://github.com/astrazds/nota/pull/6) merged as
 `e226bf63b55f69dc2f27a2513d7c4b821d94c471`.
 
-The [README screenshot](assets/readme/nota-main-window.jpg) comes from the head
+The [README screenshot from that run](assets/readme/nota-main-window.jpg) comes from the head
 comparison. The two screenshots above remain the original recovery smoke
 captures. The PR's CI also passed its separate GTK editing workflow test.
 

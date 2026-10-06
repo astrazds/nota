@@ -33,7 +33,7 @@ visual rules belong in [DESIGN.md](DESIGN.md).
 
 Do not make Nota feel like an Apple Notes clone, a developer Markdown workbench, a folder or notebook-heavy organiser, a command-palette-first productivity shell, or a cloud-sync product.
 
-Avoid hover-only actions, persistent syntax instruction blocks, permanent utility/status chrome, destructive import defaults, generic destructive confirmations, visual clutter around the Writing Surface, and UI patterns that make Tags feel like primary navigation.
+Avoid hover-only actions, persistent syntax instruction blocks, permanent diagnostic panels, destructive import defaults, generic destructive confirmations, visual clutter around the Writing Surface, and UI patterns that make Tags feel like primary navigation. Keep Save Status and View Mode controls in the editor footer.
 
 ## Design principles
 

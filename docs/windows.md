@@ -71,6 +71,11 @@ an absolute directory:
 Use synthetic notes. Check title and body editing, formatting and undo,
 Unicode text, Search, Tags, pinning, Recently Deleted, Backup, and all view
 modes. Close the app normally and reopen the same profile to prove saving.
+Check that a nonempty notebook opens in Preview and a new Note opens in Write.
+Open and close the Notes drawer by mouse and keyboard, then confirm that
+focus returns to the editor. At compact widths, check the full-width drawer
+and stacked Split layout. Use Settings for Theme and Markdown help, and
+expand Recently deleted to reach Restore, permanent Delete, and Clear all.
 Check Light and Dark Themes, keyboard focus, and display scaling in the real
 Windows app. Binding tests alone do not prove native rendering or input.
 

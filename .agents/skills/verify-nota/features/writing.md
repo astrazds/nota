@@ -21,7 +21,7 @@ Create a Note, write its title and Markdown body, and recover the same content a
 
 Preconditions: Launch an empty profile and pass Doctor. Use the main skill's key-event recipe.
 
-- Empty entry. Click the visible Create a Note control using `notaTab.click([x, y])`. The count becomes one and the Note Title receives focus.
+- Empty entry. Click the visible New note control using `notaTab.click([x, y])`. The count becomes one and the Note Title receives focus.
 - Write. Type `verify` with `for (const key of 'verify') await notaTab.pressKey(null, key)`. Click the body and send `['s','a','v','e','space','p','r','o','o','f']` through `pressKey(null, key)`. Require the title, body, sidebar snippet, and Saved state to agree.
 - Top-bar entry. Click New note and type `second`. Require title focus. Open Notes and require count two. Re-select `verify` and require its body unchanged.
 - Keyboard entry. With focus inside Nota, call `await notaTab.pressKey(null, 'ctrl+n')`. Require one additional Note and title focus. Record a skip if the browser consumes the shortcut.

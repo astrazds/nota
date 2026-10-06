@@ -98,7 +98,7 @@ mise run doc
 
 On Linux, `verify` runs formatting, Cargo checks, Clippy, workspace tests, and the
 AppImage directory contract tests. It does not build an AppImage or run the
-ignored GTK widget test.
+ignored GTK display tests.
 
 On Windows, `verify` checks the portable Rust crates, builds WinUI, and runs
 the C# integration checks against the real Rust DLL. Windows CI also publishes
@@ -109,11 +109,21 @@ On Linux with a working GTK display, run:
 
 ```sh
 mise run test:gtk
+mise run test:gtk:fonts
+```
+
+These tasks check toolbar editing and bundled font resolution. The reading
+plane layout test also needs a display:
+
+```sh
+mise exec -- cargo test -p nota-desktop --bin nota-desktop --locked gtk_focus_reading_plane_centers_and_shrinks_without_css_errors -- --ignored --test-threads=1
 ```
 
 The [CI workflow](.github/workflows/ci.yml) has `check`, `native`, and `windows`
 jobs. The Linux native job uses the gtk4-rs container, installs WebKitGTK,
-and runs workspace and GTK tests under Xvfb. The Windows job verifies the
+and runs workspace and toolbar editing tests under Xvfb. Font resolution and
+the ignored reading plane layout test require the separate commands above.
+The Windows job verifies the
 WinUI build and bindings, then uploads the x64 ZIP as a workflow artifact.
 
 `mise run doc` generates API documentation under `target/doc/`. Linux includes
@@ -121,8 +131,10 @@ all Rust workspace crates; Windows includes `nota-core`, `nota-app`, and
 `nota-ffi`. These generated files are not hand-edited or committed.
 
 For a GTK UI change, inspect the real app in Light and Dark Themes and at
-wide and compact window sizes. Check focus, selection, scroll position, and
-keyboard behavior. Follow the [native verification procedure](.agents/skills/verify-nota/SKILL.md)
+wide and compact window sizes. Check the Notes drawer, keyboard focus,
+selection, scroll position, and the change from side-by-side to stacked Split.
+Check that a saved notebook opens in Preview and a new Note opens in Write.
+Follow the [native verification procedure](.agents/skills/verify-nota/SKILL.md)
 for isolated profiles, screenshots, and persistence proof. Broadway can expose
 the real GTK app to a browser driver. Source-level contracts and web mockups
 alone do not prove native rendering.

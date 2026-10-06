@@ -352,7 +352,7 @@ public sealed partial class MainWindow : Window
             restore.Click += async (_, _) => await TransitionAsync(new { command = "restore_note", id = note.Id });
             Grid.SetColumn(restore, 1); grid.Children.Add(restore);
             var delete = new Button { Content = "Delete", Style = (Style)Application.Current.Resources["QuietButton"], Foreground = DangerBrush(), FontSize = 11, Padding = new Thickness(6) };
-            delete.Click += async (_, _) => { if (await ConfirmAsync("Delete this note permanently?", "This cannot be undone. Export a backup first if you want to keep a copy.", "Delete")) await RunAsync(new { command = "permanently_delete", id = note.Id }); };
+            delete.Click += async (_, _) => { if (await ConfirmAsync("Delete this note permanently?", "This cannot be undone. Use Export complete notebook in the Backup menu first if you want to keep a copy.", "Delete")) await RunAsync(new { command = "permanently_delete", id = note.Id }); };
             Grid.SetColumn(delete, 2); grid.Children.Add(delete);
             DeletedRows.Children.Add(new Border { Child = grid, BorderThickness = new Thickness(0, 0, 0, 1), BorderBrush = new SolidColorBrush(ColorHelper.FromArgb(40, 128, 128, 128)) });
         }

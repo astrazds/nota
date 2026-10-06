@@ -56,9 +56,12 @@ The desktop-transition fixture is
 
 Create a temporary profile. Point `HOME`, `XDG_DATA_HOME`, `XDG_CONFIG_HOME`,
 and `XDG_CACHE_HOME` at subdirectories of the profile. Keep `XDG_RUNTIME_DIR`,
-`DISPLAY`, `WAYLAND_DISPLAY`, and `DBUS_SESSION_BUS_ADDRESS` when set.
+`DISPLAY`, and `WAYLAND_DISPLAY` when set.
 Preserve a caller-selected `GDK_BACKEND`; otherwise let GTK select the backend.
-Launch `dist/Nota-x86_64.AppImage`.
+Launch `dbus-run-session -- dist/Nota-x86_64.AppImage` with those profile
+overrides. A private D-Bus session prevents this test launch from activating
+an existing personal notebook. Apply the overrides after building so they
+do not redirect mise's tool installation.
 
 Done when the window class is `net.astrazds.Nota`, the title is `Nota`, and the
 profile has no `collection.json` before restore.
@@ -70,8 +73,8 @@ For a real migration, use a transition export supplied
 from a legacy browser build. This source tree no longer produces browser
 exports.
 
-1. In the AppImage, restore the desktop-transition JSON into the Empty
-   Collection.
+1. In the AppImage, open **Notes**, then **Backup**, then **Restore complete
+   notebook**. Restore the desktop-transition JSON into the Empty Collection.
 2. Confirm the restored Notes, then close and reopen the AppImage with the
    same temporary profile and check that the collection persists. If the file
    contains Recently Deleted Notes or a Theme preference, confirm those values
@@ -93,5 +96,5 @@ blocked. Keep local profile paths and process identifiers in the local
 receipt; public PR evidence should contain synthetic observations and test
 results without machine-specific paths.
 
-See [the user guide](../usage.md#restore-a-browser-era-collection) for the
+See [the user guide](../usage.md#restore-a-complete-notebook) for the
 Backup and desktop-transition distinction.

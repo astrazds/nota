@@ -6,8 +6,9 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
   <description>
-    <p>Nota is a local-first Markdown note app with a flat, searchable collection, lightweight tags, recoverable deletion, and user-owned backups.</p>
-    <p>Write Markdown notes privately on your computer, find them with Search, and export a Backup you own. Rendered Preview and Split recommend WebKitGTK 6.</p>
+    <p>Nota is a local-first Markdown note app for Linux and Windows. The native Linux app uses GTK4 and keeps your notes on your computer, with no account, telemetry, or sync service.</p>
+    <p>Write in a centered reading column, switch between Write, Preview, and Split, and open the Notes drawer to search your collection. Use tags and pinned notes to find what you need.</p>
+    <p>Restore notes from Recently Deleted, export local backups, or move a complete notebook between platforms. Preview and Split use WebKitGTK 6 in the Linux app.</p>
   </description>
   <recommends>
     <control>keyboard</control>
@@ -23,14 +24,34 @@
     <name>Andrejs Strazds</name>
   </developer>
   <url type="homepage">https://github.com/astrazds/nota</url>
+  <url type="bugtracker">https://github.com/astrazds/nota/issues</url>
+  <url type="help">https://github.com/astrazds/nota/blob/main/docs/usage.md</url>
+  <url type="vcs-browser">https://github.com/astrazds/nota</url>
   <provides>
     <binary>nota-desktop</binary>
   </provides>
   <categories>
     <category>Office</category>
     <category>Utility</category>
+    <category>TextEditor</category>
   </categories>
+  <keywords>
+    <keyword>notes</keyword>
+    <keyword>markdown</keyword>
+    <keyword>writing</keyword>
+    <keyword>offline</keyword>
+  </keywords>
   <content_rating type="oars-1.1"/>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Read a Markdown note in the Linux app</caption>
+      <image type="source" width="1100" height="820">https://raw.githubusercontent.com/astrazds/nota/main/docs/assets/readme/nota-linux-preview.jpg</image>
+    </screenshot>
+    <screenshot>
+      <caption>Write Markdown in a centered reading column</caption>
+      <image type="source" width="1100" height="820">https://raw.githubusercontent.com/astrazds/nota/main/docs/assets/readme/nota-linux-write.jpg</image>
+    </screenshot>
+  </screenshots>
   <releases>
     <release version="2.0.0-alpha.1" date="2026-09-05">
       <description>

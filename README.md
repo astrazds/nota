@@ -16,15 +16,13 @@ writing area, Markdown Preview, Search, Tags, pinned notes, and recoverable
 deletion. Your notes stay on your computer. There are no accounts, telemetry,
 or sync services.
 
-![Nota on Linux with the Focus writing layout](docs/assets/readme/nota-linux-write.jpg)
+![Nota on Windows, with Light Theme on the left and Dark Theme on the right](docs/assets/readme/nota-themes.png)
+
+This image combines equal halves of two native Windows captures of the same note.
+[Screenshot details](docs/screenshots.md) describe the capture and composition.
 
 The Linux app uses GTK4 and Relm4. The Windows app uses WinUI 3. Both share the
 Rust note model, Markdown rendering rules, and storage formats.
-
-![Nota on Windows in Preview](docs/assets/readme/nota-windows-preview.jpg)
-
-These screenshots show the current Focus interface with synthetic notes.
-[The screenshot gallery](docs/screenshots.md) includes more views and capture details.
 
 ## Run Nota
 

@@ -5,7 +5,7 @@ Start with the guide that matches your task:
 | Task | Guide |
 | --- | --- |
 | Run Nota and understand its current release status | [README](../README.md) |
-| See the current Linux and Windows interface | [Screenshot gallery](screenshots.md) |
+| See the Windows Light and Dark themes | [Theme screenshot](screenshots.md) |
 | Build, package, or verify the Windows frontend | [Windows guide](windows.md) |
 | Inspect Windows package, editing, and recovery evidence | [Windows verification record](windows-verification.md) |
 | Write, search, back up, migrate, or recover Notes | [User guide](usage.md) |

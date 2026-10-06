@@ -26,7 +26,7 @@ use workspace::DesktopWidgets;
 use dialogs::{ConfirmationRequest, show_about_dialog, show_confirmation};
 use files::{ImportKind, open_json_file, save_json_file};
 use note_list::NoteLists;
-use style::frame_a_startup_window_size;
+use style::startup_window_size;
 
 struct DesktopComponent {
     session: Session,
@@ -54,14 +54,12 @@ impl DesktopComponent {
     }
 
     fn preferences(&self) -> Preferences {
-        // GTK reports 0×0 before map. `width().max(640)` used to persist 640×480,
-        // which opens Compact exclusive-pane (sidebar XOR editor) on next launch.
         let width = self.window.width();
         let height = self.window.height();
         Preferences {
             theme: self.session.app.theme,
             window_width: if width > 0 {
-                width.max(640)
+                width.max(480)
             } else {
                 Preferences::default().window_width
             },
@@ -103,7 +101,7 @@ impl SimpleComponent for DesktopComponent {
             eprintln!("Nota could not open its profile: {error}");
             std::process::exit(1);
         });
-        let (width, height) = frame_a_startup_window_size(session.preferences());
+        let (width, height) = startup_window_size(session.preferences());
         window.set_default_size(width, height);
         let mut note_lists = NoteLists::new(sender.input_sender());
         note_lists.refresh(&session.app);
@@ -224,7 +222,7 @@ impl SimpleComponent for DesktopComponent {
             ) {
                 Ok(json) => save_json_file(
                     &self.window,
-                    "Export for Nota Desktop",
+                    "Export complete notebook",
                     &desktop_transition_file_name(chrono::Utc::now()),
                     json,
                     AppMsg::OperationSucceeded("Desktop transition exported".to_string()),
@@ -263,7 +261,7 @@ impl SimpleComponent for DesktopComponent {
                     ConfirmationRequest {
                         title: "Merge Import this Backup?",
                         detail: format!(
-                            "Import {} notes: {} new, {} replace",
+                            "Notes in this backup: {}\n\nNotes to add: {}\nNotes to replace: {}",
                             preview.total_imported_notes,
                             preview.notes_to_add,
                             preview.notes_to_replace
@@ -309,10 +307,16 @@ impl SimpleComponent for DesktopComponent {
         }
         if captured && self.session.app.workspace.focus_intent() == FocusIntent::NoteTitle {
             let _intent = self.session.app.workspace.take_focus_intent();
-            self.title.grab_focus();
+            let title = self.title.clone();
+            gtk::glib::idle_add_local_once(move || {
+                title.grab_focus();
+            });
         }
         if started_edit_tags {
-            self.tags.grab_focus();
+            let tags = self.tags.clone();
+            gtk::glib::idle_add_local_once(move || {
+                tags.grab_focus();
+            });
         }
         if edited_search {
             let sender = sender.input_sender().clone();

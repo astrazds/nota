@@ -1,10 +1,3 @@
-/* Native rendering of the final web/WASM Local Notebook visual contract.
- *
- * Frame A Quiet Notebook tokens (parity with tailwind apple.notebook + apple.yellow):
- *   --capture #FFB340 Warm Capture Yellow (primary action)
- *   --signal  #E7A858 notebook amber (selection / segmented active)
- * Writing measure: left-aligned 72ch plane via Rust/Pango layout (parity with ui_recipes::note_measure).
- */
 .nota-root {
   --frame: #F7F5F1;
   --surface: #FDFCF9;
@@ -23,27 +16,74 @@
   --pin: #B16F20;
   --tag-fg: #79501D;
 
-  background: var(--frame);
+  background: var(--surface);
   color: var(--graphite);
   font-family: "Source Sans 3", "Cantarell", sans-serif;
   font-size: 14px;
 }
 
 window.nota-root {
-  background: var(--frame);
+  background: var(--surface);
   color: var(--graphite);
   font-family: "Source Sans 3", "Cantarell", sans-serif;
   font-size: 14px;
 }
 
-.nota-sidebar { background: var(--sidebar); border-right: 1px solid var(--border-strong); }
-.nota-sidebar-header { padding: 14px 16px 12px 16px; }
-.nota-app-title { color: var(--graphite); font-size: 20px; font-weight: 700; }
+.nota-topbar { padding: 15px 23px; background: var(--surface); border: 0; box-shadow: none; }
+.nota-window-handle { padding: 0; background: var(--surface); border: 0; box-shadow: none; }
+window.nota-root > decoration { box-shadow: none; }
+.nota-app-title { color: var(--graphite); font-size: 17px; font-weight: 400; }
+windowcontrols button, windowcontrols button image { color: var(--muted); }
+.nota-sidebar {
+  background: var(--sidebar);
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  box-shadow: 18px 0 45px rgba(0, 0, 0, 0.06);
+}
+.nota-sidebar-header { padding: 22px 14px 18px; }
+.nota-editor-tools { padding: 11px 24px 0; min-height: 31px; }
+button.nota-drawer-scrim, button.nota-drawer-scrim:hover, button.nota-drawer-scrim:active {
+  min-height: 0;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: alpha(var(--surface), 0.80);
+}
+button.nota-icon-button, menubutton.nota-icon-menu > button,
+menubutton.nota-backup-menu > button, button.nota-filter-button {
+  background: transparent;
+  background-image: none;
+  border: 0;
+  box-shadow: none;
+  color: var(--muted);
+  text-shadow: none;
+  border-radius: 5px;
+}
+button.nota-icon-button, menubutton.nota-icon-menu > button {
+  min-width: 16px;
+  min-height: 16px;
+  padding: 8px;
+}
+button.nota-icon-button:hover, menubutton.nota-icon-menu > button:hover,
+menubutton.nota-backup-menu > button:hover, button.nota-filter-button:hover,
+button.nota-navigation-button.active {
+  background: var(--selected);
+  color: var(--graphite);
+}
+button.nota-icon-button.pinned { color: var(--pin); }
+button.nota-filter-button { min-height: 18px; min-width: 0; padding: 4px 8px; font-size: 12px; }
+button.nota-filter-button.active { background: var(--selected); color: var(--graphite); }
+.nota-metadata { margin-top: 20px; color: var(--muted); font-size: 12px; }
+.nota-metadata link, .nota-metadata link:visited { color: var(--tag-fg); text-decoration-line: none; }
+.nota-metadata link:hover { text-decoration-line: underline; }
+menubutton.nota-backup-menu > button { min-height: 24px; padding: 4px 8px; font-size: 12px; }
 
-button.nota-navigation-button, button.nota-command,
+button.nota-navigation-button,
 button.nota-note-select, menubutton.nota-note-actions > button,
 button.nota-toolbar-button, button.nota-mode-button,
-button.nota-help-button, button.nota-footer-button,
+button.nota-footer-button,
 button.nota-small-button {
   background: transparent;
   background-image: none;
@@ -54,51 +94,27 @@ button.nota-small-button {
 }
 
 button.nota-navigation-button {
-  min-height: 28px;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-}
-.nota-command-list { margin-top: 1px; }
-button.nota-command {
-  min-height: 30px;
-  padding: 2px 7px;
-  border-radius: 6px;
-  color: var(--ink-soft);
+  min-height: 18px;
+  padding: 7px 10px;
+  border-radius: 5px;
   font-size: 12px;
 }
-/* New Note = Warm Capture Yellow primary (ThemeAccent::PrimaryFill parity). */
-button.nota-command-primary {
-  background: var(--capture);
-  color: var(--graphite);
-  font-weight: 600;
-}
-button.nota-command-primary .nota-command-icon,
-button.nota-command-primary .nota-command-shortcut {
-  color: var(--graphite);
-  opacity: 0.72;
-}
-button.nota-command:hover, button.nota-navigation-button:hover,
+button.nota-navigation-button:hover,
 button.nota-toolbar-button:hover, button.nota-mode-button:hover,
-button.nota-help-button:hover, button.nota-footer-button:hover,
+button.nota-footer-button:hover,
 button.nota-small-button:hover, menubutton.nota-note-actions > button:hover {
   background: rgba(37, 34, 31, 0.07);
   color: var(--graphite);
 }
-button.nota-command-primary:hover {
-  background: var(--signal);
-  color: var(--graphite);
-}
-.nota-command-icon { min-width: 16px; color: var(--muted); font-size: 13px; }
-.nota-command-shortcut { color: var(--subtle); font-size: 10px; }
 
 entry.nota-search {
-  min-height: 34px;
-  margin-top: 2px;
-  padding: 1px 9px;
-  background: rgba(253, 252, 249, 0.72);
-  border: 1px solid rgba(216, 209, 197, 0.78);
-  border-radius: 8px;
+  min-height: 18px;
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
   box-shadow: none;
   color: var(--graphite);
   font-size: 13px;
@@ -112,46 +128,43 @@ entry.nota-search:focus {
   border: 0;
 }
 .nota-section-header {
-  min-height: 28px;
-  padding: 4px 16px 3px 16px;
+  min-height: 16px;
+  padding: 0 23px 8px;
   color: var(--muted);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
 }
 .nota-section-count { color: var(--subtle); font-weight: 400; }
 .nota-empty-state {
-  margin: 8px 12px;
-  padding: 18px 12px;
-  border: 1px dashed var(--border-strong);
-  border-radius: 8px;
+  padding: 24px 23px;
   color: var(--muted);
+  font-size: 13px;
 }
-.nota-empty-title { color: var(--ink-soft); font-weight: 600; }
-.nota-empty-copy { font-size: 12px; }
 
 .nota-note-row {
-  min-height: 58px;
-  margin: 0 12px 4px 12px;
+  min-height: 76px;
+  margin: 0 14px 4px;
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: 7px;
+  border: 0;
+  border-left: 2px solid transparent;
+  border-radius: 0 4px 4px 0;
 }
 .nota-note-row:hover { background: rgba(253, 252, 249, 0.70); }
 .nota-note-row.selected {
   background: var(--selected);
-  border-color: var(--signal-border);
-  box-shadow: 0 0 0 1px alpha(var(--signal), 0.16);
+  border-left-color: var(--signal-border);
+  box-shadow: none;
 }
 button.nota-note-select {
-  min-height: 56px;
-  padding: 7px 4px 7px 9px;
-  border-radius: 7px 0 0 7px;
+  min-height: 52px;
+  padding: 12px 4px 12px 11px;
+  border-radius: 0;
   color: var(--graphite);
 }
 button.nota-note-select:hover, button.nota-note-select:active { background: transparent; }
-.nota-note-title { color: var(--graphite); font-size: 14px; font-weight: 600; }
+.nota-note-title { color: var(--graphite); font-size: 14px; font-weight: 500; }
 .nota-note-date, .nota-note-preview { color: var(--muted); font-size: 11px; }
-.nota-note-preview { color: var(--preview-muted); }
+.nota-note-preview { color: var(--preview-muted); font-size: 12px; }
 .nota-note-pin { color: var(--pin); font-size: 9px; }
 .nota-note-tags, button.nota-note-tags {
   min-height: 18px;
@@ -178,29 +191,26 @@ menubutton.nota-note-actions > button {
   border-radius: 999px;
   color: var(--subtle);
 }
-/* Frame A note action popup (ThemeState::NoteActionMenu parity).
- * Absolute colors: GTK popovers often do not inherit window custom properties.
- * Theme class `nota-dark` is set on the popover/menu when the app is dark.
- * Light: paper surface + graphite ink. Dark: dim-desk sidebar + warm off-white.
- */
 popover.nota-note-actions-popover {
   background: transparent;
   border: 0;
   box-shadow: none;
   padding: 0;
+  margin: 0;
 }
 popover.nota-note-actions-popover contents,
 popover.nota-note-actions-popover > contents {
   padding: 0;
+  margin: 0;
   background: #FDFCF9;
   background-color: #FDFCF9;
   color: #25221F;
   border: 1px solid #D8D1C5;
-  border-radius: 8px;
-  box-shadow: 0 10px 28px rgba(37, 34, 31, 0.28);
+  border-radius: 7px;
+  box-shadow: 0 10px 25px rgba(37, 34, 31, 0.07);
 }
 .nota-note-menu {
-  min-width: 160px;
+  min-width: 180px;
   padding: 6px;
   background: #FDFCF9;
   background-color: #FDFCF9;
@@ -209,10 +219,10 @@ popover.nota-note-actions-popover > contents {
 .nota-note-menu button,
 button.nota-note-menu-item,
 popover.nota-note-actions-popover button {
-  min-height: 40px;
+  min-height: 16px;
   min-width: 0;
   margin: 0;
-  padding: 10px 14px;
+  padding: 7px 9px;
   border: 0;
   border-radius: 6px;
   box-shadow: none;
@@ -220,8 +230,8 @@ popover.nota-note-actions-popover button {
   background-image: none;
   background-color: transparent;
   color: #25221F;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 400;
   text-shadow: none;
   opacity: 1;
 }
@@ -239,8 +249,9 @@ button.nota-note-menu-item.danger,
 popover.nota-note-actions-popover button.destructive-action,
 popover.nota-note-actions-popover button.danger {
   color: #B42318;
-  font-weight: 700;
+  font-weight: 400;
 }
+.nota-note-menu button label { font-weight: 400; }
 .nota-note-menu button.destructive-action:hover,
 .nota-note-menu button.danger:hover,
 button.nota-note-menu-item.destructive-action:hover,
@@ -252,14 +263,13 @@ popover.nota-note-actions-popover button.danger:hover {
   color: #861A12;
 }
 
-/* Dim Desk note-action popover — class set on the popover itself (not via root inheritance). */
 popover.nota-note-actions-popover.nota-dark contents,
 popover.nota-note-actions-popover.nota-dark > contents {
   background: #211F1C;
   background-color: #211F1C;
   color: #F7F5F1;
   border: 1px solid #3A3733;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.48);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.28);
 }
 .nota-note-menu.nota-dark {
   background: #211F1C;
@@ -299,21 +309,17 @@ popover.nota-note-actions-popover.nota-dark button.danger:hover {
 }
 
 .nota-deleted-panel {
-  margin: 20px 0 12px;
-  padding: 0 12px 6px;
-  border-top: 1px solid var(--border-strong);
-  border-bottom: 1px solid var(--border-strong);
-  background: var(--surface);
+  margin: 8px 0 0;
+  padding: 0 8px 6px;
+  background: transparent;
 }
+.nota-deleted-expander { margin: 18px 14px 12px; padding-top: 15px; border-top: 1px solid var(--border); }
 .nota-deleted-header {
-  min-height: 32px;
-  margin: 0 -12px;
-  padding: 6px 14px;
-  border-bottom: 1px solid var(--border-strong);
-  background: var(--border);
-  color: var(--graphite);
-  font-size: 13px;
-  font-weight: 600;
+  min-height: 28px;
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
 }
 .nota-deleted-row {
   min-height: 36px;
@@ -333,12 +339,11 @@ button.nota-small-button {
 button.danger, button.destructive-action { color: #C0392B; font-weight: 600; }
 
 .nota-sidebar-footer, .nota-editor-footer {
-  min-height: 45px;
-  border-top: 1px solid var(--border-strong);
+  min-height: 27px;
   color: var(--muted);
   font-size: 11px;
 }
-.nota-sidebar-footer { padding: 5px 10px 5px 12px; }
+.nota-sidebar-footer { padding: 9px 14px 14px; border-top: 1px solid var(--border); }
 .nota-footer-label { font-weight: 600; }
 .nota-backup-dot { color: var(--subtle); font-size: 7px; }
 .nota-backup-dot.missing { color: var(--subtle); }
@@ -355,15 +360,9 @@ separator { min-width: 0; background: var(--border-strong); }
 
 .nota-editor, .nota-writing, .nota-content-scroll,
 .nota-content-scroll > viewport { background: var(--surface); }
-.nota-editor-header { padding: 16px 32px 10px 32px; background: var(--surface); }
-
-/* Left-aligned writing plane (title, tags, toolbar row, TextView, preview).
- * Max width is enforced in Rust (Pango ch × contract chars) — GTK CSS rejects max-width. */
-.nota-writing-plane {
-}
+.nota-editor-header { padding: 44px 42px 0; background: var(--surface); }
 
 entry.nota-title, entry.nota-tags {
-  /* min-height:0 clipped 23px title glyphs and made placeholders look truncated. */
   min-height: 28px;
   min-width: 0;
   padding: 0;
@@ -373,76 +372,112 @@ entry.nota-title, entry.nota-tags {
   box-shadow: none;
   color: var(--graphite);
 }
-/* Note Title ~22–24px semibold (web note_title_text: text-xl / md:text-2xl). */
 entry.nota-title {
-  min-height: 32px;
-  font-size: 23px;
-  font-weight: 600;
+  min-height: 47px;
+  font-family: Gelasio, serif;
+  font-size: 39px;
+  font-weight: 400;
+  letter-spacing: -1.25px;
+  line-height: 46.8px;
 }
 entry.nota-tags {
   min-height: 24px;
   color: var(--muted);
   font-size: 12px;
 }
-entry.nota-title:focus, entry.nota-tags:focus { box-shadow: none; }
+entry.nota-title:focus, entry.nota-title:focus-within, entry.nota-tags:focus, entry.nota-tags:focus-within { outline: none; box-shadow: none; }
 .nota-formatting-toolbar {
-  min-height: 35px;
-  padding: 3px 32px;
+  min-height: 28px;
+  padding: 26px 36px 8px;
   background: var(--surface);
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  border: 0;
 }
+.nota-formatting-divider { margin: 7px 9px; min-width: 1px; background: var(--border); }
+.nota-compact .nota-editor-header { padding: 40px 24px 0; }
+.nota-compact entry.nota-title { min-height: 38px; font-size: 31px; line-height: 37.2px; }
+.nota-medium:not(.nota-compact) entry.nota-title { font-size: 36px; line-height: 43.2px; }
+.nota-compact .nota-editor-tools { padding: 14px 12px 0; }
+.nota-compact .nota-topbar { padding: 12px 15px; }
+.nota-compact .nota-formatting-toolbar { padding: 23px 17px 4px; }
+.nota-compact .nota-editor-footer { padding: 14px 17px; border-top: 1px solid var(--border); }
+.nota-compact .nota-sidebar { box-shadow: none; border-right: 0; }
 button.nota-toolbar-button {
-  min-width: 28px;
-  min-height: 27px;
-  padding: 2px 7px;
+  min-width: 14px;
+  min-height: 18px;
+  padding: 5px 8px;
   border-radius: 5px;
   color: #5C554D;
-  font-family: "Source Code Pro", monospace;
-  font-size: 12px;
-  font-weight: 600;
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 13px;
+  font-weight: 400;
 }
+button.nota-toolbar-button.nota-format-bold { font-weight: 700; }
+button.nota-toolbar-button.nota-format-italic { font-style: italic; }
+.nota-formatting-toolbar button.nota-icon-button { min-width: 14px; min-height: 18px; padding: 5px 8px; }
 .nota-writing-surface, .nota-writing-surface text {
   background: var(--surface);
   color: #332F2A;
   caret-color: var(--pin);
-  font-family: "Source Code Pro", "Monospace", monospace;
-  font-size: 14px;
+  font-family: Gelasio, serif;
+  font-size: 18px;
+  line-height: 32.4px;
 }
 .nota-writing-surface selection, .nota-writing-surface text selection {
   background: var(--selected);
   color: var(--graphite);
 }
+.nota-compact .nota-writing-surface, .nota-compact .nota-writing-surface text { font-size: 16px; line-height: 28.8px; }
+.nota-split .nota-writing-surface, .nota-split .nota-writing-surface text { font-family: "Source Code Pro", Consolas, monospace; font-size: 13px; line-height: 24.05px; }
+.nota-split-preview { border-left: 1px solid var(--border); padding-left: 25px; }
+.nota-compact .nota-split-preview { border-left: 0; border-top: 1px solid var(--border); padding: 24px 0 0; }
+.nota-editor-empty { padding: 24px; }
 .nota-editor-footer {
-  padding: 5px 12px 5px 16px;
+  padding: 24px 27px 14px;
   background: var(--surface);
-  border-color: var(--border);
+  border: 0;
 }
 .nota-statistics, .nota-save-status { color: var(--preview-muted); font-size: 11px; }
 .nota-save-status { min-width: 64px; }
-.nota-mode-group { padding: 1px; background: var(--sidebar); border-radius: 6px; }
-button.nota-mode-button, button.nota-help-button {
-  min-height: 25px;
+.nota-save-dot { min-width: 4px; min-height: 4px; border-radius: 2px; background: var(--signal); }
+.nota-mode-group { padding: 0; background: transparent; }
+button.nota-mode-button {
+  min-height: 17px;
   min-width: 0;
-  padding: 2px 8px;
+  padding: 5px 10px;
   border-radius: 5px;
-  font-size: 10px;
+  font-size: 12px;
 }
-/* Amber active segment (ThemeState::SegmentedActive) — no white pill / drop shadow. */
 button.nota-mode-button.active, button.nota-mode-button:checked {
-  background: var(--selected);
-  color: #92400E;
-  border: 1px solid var(--signal-border);
+  background: transparent;
+  color: var(--graphite);
+  border: 0;
   box-shadow: none;
 }
-button.nota-help-button { min-width: 25px; padding: 2px 6px; }
+button.nota-mode-button label { padding-bottom: 6px; border-bottom: 1px solid transparent; }
+button.nota-mode-button { padding: 5px 9px 0; }
+button.nota-mode-button.active label { border-bottom-color: var(--graphite); }
 
 .nota-recovery {
-  background: #FFF3D6;
-  border: 1px solid var(--signal-border);
+  background: var(--sidebar);
+  border: 1px solid var(--border-strong);
   border-radius: 9px;
   padding: 14px;
-  color: #453216;
+  color: var(--graphite);
+}
+.nota-recovery button {
+  background: var(--surface);
+  background-image: none;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  box-shadow: none;
+  text-shadow: none;
+  color: var(--graphite);
+}
+.nota-recovery button:hover {
+  background: var(--selected);
+}
+.nota-recovery button:disabled {
+  color: var(--subtle);
 }
 .nota-notification {
   padding: 8px 12px;
@@ -456,7 +491,6 @@ button.nota-help-button { min-width: 25px; padding: 2px 6px; }
 .nota-notification-success { background: #DDEBE5; border-color: #A8CDBE; color: #245E4B; }
 .nota-notification-error { background: #F2DEDB; border-color: #D8A39E; color: #863C35; }
 
-/* The dim-desk theme is separately tuned, not inverted. */
 .nota-root.nota-dark {
   --frame: #151311;
   --surface: #25221F;
@@ -475,43 +509,30 @@ button.nota-help-button { min-width: 25px; padding: 2px 6px; }
   --pin: #E7A858;
   --tag-fg: #E7A858;
 
-  background: var(--frame);
+  background: var(--surface);
   color: var(--graphite);
 }
 .nota-dark .nota-sidebar { background: var(--sidebar); border-color: var(--border-strong); }
 .nota-dark .nota-app-title, .nota-dark .nota-note-title,
 .nota-dark button.nota-note-select, .nota-dark entry.nota-title,
 .nota-dark .nota-writing-surface, .nota-dark .nota-writing-surface text { color: var(--graphite); }
-.nota-dark button.nota-command, .nota-dark button.nota-navigation-button,
+.nota-dark button.nota-navigation-button,
 .nota-dark button.nota-toolbar-button, .nota-dark button.nota-mode-button,
-.nota-dark button.nota-help-button, .nota-dark button.nota-footer-button,
+.nota-dark button.nota-footer-button,
 .nota-dark button.nota-small-button, .nota-dark menubutton.nota-note-actions > button,
 .nota-dark .nota-section-header, .nota-dark .nota-note-date,
 .nota-dark .nota-note-preview, .nota-dark .nota-sidebar-footer,
 .nota-dark .nota-editor-footer, .nota-dark .nota-statistics,
 .nota-dark .nota-save-status, .nota-dark entry.nota-tags { color: var(--muted); }
-.nota-dark button.nota-command:hover, .nota-dark button.nota-navigation-button:hover,
+.nota-dark button.nota-navigation-button:hover,
 .nota-dark button.nota-toolbar-button:hover, .nota-dark button.nota-mode-button:hover,
-.nota-dark button.nota-help-button:hover, .nota-dark button.nota-footer-button:hover,
+.nota-dark button.nota-footer-button:hover,
 .nota-dark button.nota-small-button:hover, .nota-dark menubutton.nota-note-actions > button:hover {
   background: rgba(247, 245, 241, 0.08);
   color: var(--graphite);
 }
-.nota-dark button.nota-command-primary {
-  background: var(--capture);
-  color: #25221F;
-}
-.nota-dark button.nota-command-primary .nota-command-icon,
-.nota-dark button.nota-command-primary .nota-command-shortcut {
-  color: #25221F;
-  opacity: 0.72;
-}
-.nota-dark button.nota-command-primary:hover {
-  background: var(--signal);
-  color: #25221F;
-}
 .nota-dark entry.nota-search {
-  background: rgba(37, 34, 31, 0.72);
+  background: transparent;
   border-color: var(--border-strong);
   color: var(--graphite);
 }
@@ -519,11 +540,10 @@ button.nota-help-button { min-width: 25px; padding: 2px 6px; }
 .nota-dark .nota-note-row.selected {
   background: var(--selected);
   border-color: var(--signal-border);
-  box-shadow: 0 0 0 1px alpha(var(--signal), 0.10);
+  box-shadow: none;
 }
 .nota-dark .nota-note-tags { background: alpha(var(--signal), 0.16); color: var(--signal); }
 .nota-dark .nota-deleted-panel button.danger { color: #F97066; }
-.nota-dark .nota-sidebar-footer,
 .nota-dark separator { border-color: var(--border-strong); background-color: var(--border-strong); }
 .nota-dark .nota-editor, .nota-dark .nota-writing,
 .nota-dark .nota-editor-header, .nota-dark .nota-formatting-toolbar,
@@ -531,17 +551,14 @@ button.nota-help-button { min-width: 25px; padding: 2px 6px; }
 .nota-dark .nota-writing-surface, .nota-dark .nota-writing-surface text,
 .nota-dark .nota-editor-footer { background: var(--surface); }
 .nota-dark .nota-formatting-toolbar, .nota-dark .nota-editor-footer { border-color: var(--border); }
-.nota-dark .nota-mode-group { background: var(--sidebar); }
+.nota-dark .nota-mode-group { background: transparent; }
 .nota-dark button.nota-mode-button.active, .nota-dark button.nota-mode-button:checked {
-  background: alpha(var(--signal), 0.20);
-  color: var(--signal);
-  border: 1px solid var(--signal);
+  background: transparent;
+  color: var(--graphite);
+  border: 0;
   box-shadow: none;
 }
-.nota-dark .nota-empty-state { border-color: var(--border-strong); color: var(--muted); }
-.nota-dark .nota-empty-title { color: var(--ink-soft); }
 
-/* Paper-neutral confirmation / About / Markdown help windows. */
 window.nota-dialog {
   background: var(--surface);
   background-image: none;
@@ -643,9 +660,6 @@ button.nota-dialog-header-close:hover {
   background: rgba(37, 34, 31, 0.08);
   color: var(--graphite);
 }
-.nota-dialog-actions {
-  margin-top: 4px;
-}
 button.nota-dialog-cancel, button.nota-dialog-accept, button.nota-dialog-close {
   min-height: 24px;
   min-width: 48px;
@@ -722,7 +736,6 @@ window.nota-dialog.nota-dark,
   color: var(--graphite);
 }
 
-/* Tag autocomplete panel under Edit tags (web tag suggestion list parity). */
 .nota-tag-suggestions {
   margin-top: 4px;
   border: 1px solid var(--border-strong);

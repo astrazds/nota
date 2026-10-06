@@ -42,6 +42,18 @@ await using (var session = opened.Session)
     Check(formatted.Result!.Value.GetProperty("content").GetString() == "😀 **hello**", "Formatting uses native UTF-16 selection offsets");
     Check(formatted.Result.Value.GetProperty("caret_utf16").GetInt32() <= "😀 **hello**".Length, "Formatting returns a UTF-16 caret inside the result");
 
+    foreach (var (kind, expected) in new[] {
+        ("heading", "Before\n## 日本😀\nAfter"),
+        ("bullet_list", "Before\n- 日本😀\nAfter"),
+        ("link", "Before\n[日本😀](https://example.com)\nAfter")
+    })
+    {
+        var focusFormat = await session.ExecuteAsync(new { command = "format", content = "Before\n日本😀\nAfter", start_utf16 = 7, end_utf16 = 11, kind });
+        var result = focusFormat.Result!.Value;
+        Check(result.GetProperty("content").GetString() == expected, $"{kind} formats the complete Unicode selection through the C ABI");
+        Check(expected[result.GetProperty("caret_utf16").GetInt32()..] == "\nAfter", $"{kind} caret follows the formatted selection");
+    }
+
     var nativeSelection = "😀\r\nhello\rworld";
     var multiline = await session.ExecuteAsync(new { command = "format", content = EditorText.ToCore(nativeSelection), start_utf16 = EditorText.ToCoreOffset(nativeSelection, 4), end_utf16 = EditorText.ToCoreOffset(nativeSelection, 9), kind = "bold" });
     var multilineResult = multiline.Result!.Value.GetProperty("content").GetString()!;
@@ -49,12 +61,29 @@ await using (var session = opened.Session)
     Check(EditorText.ToNative(multilineResult) == "😀\r**hello**\rworld", "Formatted Markdown returns native TextBox paragraph separators");
     var caret = EditorText.ToNativeOffset(multilineResult, multiline.Result.Value.GetProperty("caret_utf16").GetInt32());
     Check(EditorText.ToNative(multilineResult)[..caret].EndsWith("**hello**", StringComparison.Ordinal), "Formatting caret maps to the end of the selected phrase in native text");
-    var paragraphs = await session.ExecuteAsync(new { command = "preview", title = "", content = EditorText.ToCore("First paragraph\r\rSecond paragraph"), tags = Array.Empty<string>(), dark = false });
+    var paragraphs = await session.ExecuteAsync(new { command = "preview", layout = "reading", title = "", content = EditorText.ToCore("First paragraph\r\rSecond paragraph"), dark = false });
     var paragraphHtml = paragraphs.Result!.Value.GetProperty("html").GetString()!;
     Check(paragraphHtml.Contains("<p>First paragraph</p>") && paragraphHtml.Contains("<p>Second paragraph</p>"), "Windows Return produces separate Markdown paragraphs in shared preview");
+    var headingPreview = await session.ExecuteAsync(new { command = "preview", layout = "reading", title = "Notebook", content = "# Notebook\n\nBody\n\n# Another heading", dark = false });
+    var headingHtml = headingPreview.Result!.Value.GetProperty("html").GetString()!;
+    Check(!headingHtml.Contains("<h1>Notebook</h1>") && headingHtml.Contains("<p>Body</p>") && headingHtml.Contains("<h1>Another heading</h1>"), "Preview leaves the native title in charge and preserves other Markdown content");
+    foreach (var (layout, font) in new[] { ("reading", "font:18px/1.9 'Gelasio'"), ("split", "font:15px/1.9 'Gelasio'"), ("split_narrow", "font:14px/1.9 'Gelasio'") })
+    {
+        var layoutPreview = await session.ExecuteAsync(new { command = "preview", layout, title = "Notebook", content = "Body **text**", dark = false });
+        var layoutHtml = layoutPreview.Result!.Value.GetProperty("html").GetString()!;
+        Check(layoutHtml.Contains(font) && layoutHtml.Contains("<p>Body <strong>text</strong></p>"), $"{layout} uses its preview type size while retaining Markdown content");
+    }
 
+    await session.ExecuteAsync(new { command = "set_view_mode", mode = "preview" });
     var next = await session.ExecuteAsync(new { command = "new_note" });
     Check(next.Snapshot.SelectedNote!.Id != savedId, "New note has a distinct identity");
+    Check(next.Snapshot.ViewMode == "write", "New note leaves Preview ready for writing");
+    await session.ExecuteAsync(new { command = "toggle_pin", id = savedId });
+    var pinned = await session.ExecuteAsync(new { command = "filter_pinned", pinned = true });
+    Check(pinned.Snapshot.Rows.Length == 1 && pinned.Snapshot.Rows[0].Id == savedId && pinned.Snapshot.SelectedNote!.Id == next.Snapshot.SelectedNote.Id, "Pinned navigation filters rows without replacing the selected note");
+    var allNotes = await session.ExecuteAsync(new { command = "filter_pinned", pinned = false });
+    Check(allNotes.Snapshot.Rows.Length == 2, "All notes restores unpinned rows");
+    await session.ExecuteAsync(new { command = "toggle_pin", id = savedId });
     var targeted = await session.ExecuteAsync(new { command = "edit_note", id = savedId, edit_sequence = sequence + 1, title = "Unicode notebook", content = "😀 hello\n- [ ] A task\nIdentity checked", tags_input = "work, café" });
     Check(targeted.Snapshot.SelectedNote?.Id == next.Snapshot.SelectedNote.Id && targeted.Snapshot.SelectedNote.Content == "", "A queued edit targets its explicit note and preserves current selection");
     var selectedTarget = await session.ExecuteAsync(new { command = "select_note", id = savedId });
@@ -71,7 +100,7 @@ await using (var session = opened.Session)
     var imported = await session.ExecuteAsync(new { command = "confirm_import" });
     Check(imported.Snapshot.SelectedNote?.Id == savedId && imported.Snapshot.SelectedNote.Title == "Unicode notebook", "Confirmed import replaces the selected note with the same identity");
 
-    var html = await session.ExecuteAsync(new { command = "preview", title = "<script>alert(1)</script>", content = "# A note\n<script>alert(2)</script>\n![remote](https://example.com/image.png)", tags = Array.Empty<string>(), dark = false });
+    var html = await session.ExecuteAsync(new { command = "preview", layout = "reading", title = "<script>alert(1)</script>", content = "# A note\n<script>alert(2)</script>\n![remote](https://example.com/image.png)", dark = false });
     var document = html.Result!.Value.GetProperty("html").GetString()!;
     Check(document.Contains("Content-Security-Policy") && !document.Contains("<script>alert(2)</script>"), "Preview has a content policy and sanitizes raw scripts");
     var blocked = await session.ExecuteAsync(new { command = "external_navigation", uri = "file:///C:/Windows/win.ini", user_activated = true });

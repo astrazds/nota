@@ -15,7 +15,7 @@ pub(super) fn open_json_file(
 ) {
     let dialog = gtk::FileDialog::builder()
         .title(match kind {
-            ImportKind::DesktopTransition => "Restore Nota Desktop Transition",
+            ImportKind::DesktopTransition => "Restore complete notebook",
             ImportKind::Backup => "Import Nota Backup",
         })
         .modal(true)

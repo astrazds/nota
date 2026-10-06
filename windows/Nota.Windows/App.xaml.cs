@@ -20,6 +20,16 @@ public partial class App : Application
             else
                 error = "Start Nota with --data-dir followed by an absolute folder path, or with no arguments.";
         }
+        UnhandledException += (_, eventArgs) =>
+        {
+            try
+            {
+                Directory.CreateDirectory(directory);
+                File.AppendAllText(Path.Combine(directory, "native-error.log"), $"{DateTimeOffset.Now:O}\n{eventArgs.Message}\n{eventArgs.Exception}\n");
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        };
         window = new MainWindow(directory, error);
         window.Activate();
     }

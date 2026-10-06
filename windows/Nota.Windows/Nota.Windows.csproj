@@ -20,10 +20,13 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260921001" />
     <Content Include="../../assets/icons/favicon.ico" Link="Assets/nota.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../assets/icons/lucide-LICENSE.txt" Link="Assets/Icons/lucide-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../../assets/fonts/*.woff2" Link="Assets/Fonts/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../../assets/fonts/SourceSans3-Regular.ttf" Link="Assets/Fonts/SourceSans3-Regular.ttf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../../assets/fonts/SourceSans3-Semibold.ttf" Link="Assets/Fonts/SourceSans3-Semibold.ttf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../../assets/fonts/SourceCodePro-Regular.ttf" Link="Assets/Fonts/SourceCodePro-Regular.ttf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../assets/fonts/Gelasio-*.ttf" Link="Assets/Fonts/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../assets/fonts/Gelasio-OFL.txt" Link="Assets/Fonts/Gelasio-OFL.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../../assets/fonts/SourceSans3-LICENSE.md" Link="Assets/Fonts/SourceSans3-LICENSE.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../../assets/fonts/SourceCodePro-LICENSE.md" Link="Assets/Fonts/SourceCodePro-LICENSE.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>

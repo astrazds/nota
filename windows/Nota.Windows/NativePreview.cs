@@ -12,7 +12,6 @@ internal sealed class NativePreview(WebView2 view, StackPanel message, TextBlock
     private bool allowDocument;
     private string? documentUri;
     private ulong generation;
-    private string fontStyles = string.Empty;
 
     public async Task RenderAsync(string html)
     {
@@ -20,10 +19,9 @@ internal sealed class NativePreview(WebView2 view, StackPanel message, TextBlock
         initialization ??= InitializeAsync();
         await initialization;
         if (!ready || requested != generation) return;
-        var document = html.Replace("</style>", fontStyles + "</style>", StringComparison.Ordinal);
-        documentUri = "data:text/html;charset=utf-8;base64," + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(document));
+        documentUri = "data:text/html;charset=utf-8;base64," + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(html));
         allowDocument = true;
-        view.CoreWebView2.NavigateToString(document);
+        view.CoreWebView2.NavigateToString(html);
         view.Visibility = Visibility.Visible;
         message.Visibility = Visibility.Collapsed;
     }
@@ -32,14 +30,8 @@ internal sealed class NativePreview(WebView2 view, StackPanel message, TextBlock
     {
         try
         {
-            var fontDirectory = Path.Combine(AppContext.BaseDirectory, "Assets", "Fonts");
-            fontStyles = string.Join("", new[] {
-                ("Source Sans 3", "source-sans-3-latin-wght-normal.woff2", "normal"),
-                ("Source Sans 3", "source-sans-3-latin-wght-italic.woff2", "italic"),
-                ("Source Code Pro", "source-code-pro-latin-wght-normal.woff2", "normal"),
-                ("Source Code Pro", "source-code-pro-latin-wght-italic.woff2", "italic")
-            }.Select(font => $"@font-face{{font-family:'{font.Item1}';font-style:{font.Item3};font-weight:200 900;src:url(data:font/woff2;base64,{Convert.ToBase64String(File.ReadAllBytes(Path.Combine(fontDirectory, font.Item2)))}) format('woff2')}}"));
-            var environment = await CoreWebView2Environment.CreateWithOptionsAsync(null, Path.Combine(directory, "preview-cache"), new CoreWebView2EnvironmentOptions());
+            var options = new CoreWebView2EnvironmentOptions { ScrollBarStyle = CoreWebView2ScrollbarStyle.FluentOverlay };
+            var environment = await CoreWebView2Environment.CreateWithOptionsAsync(null, Path.Combine(directory, "preview-cache"), options);
             await view.EnsureCoreWebView2Async(environment);
             var core = view.CoreWebView2;
             var settings = core.Settings;
@@ -81,10 +73,6 @@ internal sealed class NativePreview(WebView2 view, StackPanel message, TextBlock
                     ShowFailure("Preview could not display this note. Your note is still available in Write mode.", false);
             };
             ready = true;
-        }
-        catch (IOException exception)
-        {
-            ShowFailure($"Nota's preview fonts could not load: {exception.Message} Reinstall the complete application.", false);
         }
         catch (Exception exception) when (exception.HResult is unchecked((int)0x80070002) or unchecked((int)0x80070003))
         {

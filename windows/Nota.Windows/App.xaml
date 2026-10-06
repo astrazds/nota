@@ -15,8 +15,18 @@
               <SolidColorBrush x:Key="MutedBrush" Color="#6E685F" />
               <SolidColorBrush x:Key="DangerBrush" Color="#AF342B" />
               <SolidColorBrush x:Key="SelectionBrush" Color="#F2E0BE" />
+              <SolidColorBrush x:Key="AccentButtonBackground" Color="#25221F" />
+              <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#79501D" />
+              <SolidColorBrush x:Key="AccentButtonBackgroundPressed" Color="#79501D" />
+              <SolidColorBrush x:Key="AccentButtonForeground" Color="#FDFCF9" />
+              <SolidColorBrush x:Key="AccentButtonForegroundPointerOver" Color="#FDFCF9" />
+              <SolidColorBrush x:Key="AccentButtonForegroundPressed" Color="#FDFCF9" />
+              <SolidColorBrush x:Key="ContentDialogTopOverlay" Color="#FDFCF9" />
+              <SolidColorBrush x:Key="ContentDialogSeparatorBorderBrush" Color="#D8D1C5" />
+              <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#25221F" />
+              <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#25221F" />
           </ResourceDictionary>
-          <ResourceDictionary x:Key="Default">
+          <ResourceDictionary x:Key="Dark">
               <SolidColorBrush x:Key="PaperBrush" Color="#25221F" />
               <SolidColorBrush x:Key="SidebarBrush" Color="#211F1C" />
               <SolidColorBrush x:Key="BandBrush" Color="#35312C" />
@@ -25,10 +35,24 @@
               <SolidColorBrush x:Key="MutedBrush" Color="#B9B0A4" />
               <SolidColorBrush x:Key="DangerBrush" Color="#F08C80" />
               <SolidColorBrush x:Key="SelectionBrush" Color="#574126" />
+              <SolidColorBrush x:Key="AccentButtonBackground" Color="#F7F5F1" />
+              <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#E7B970" />
+              <SolidColorBrush x:Key="AccentButtonBackgroundPressed" Color="#E7B970" />
+              <SolidColorBrush x:Key="AccentButtonForeground" Color="#25221F" />
+              <SolidColorBrush x:Key="AccentButtonForegroundPointerOver" Color="#25221F" />
+              <SolidColorBrush x:Key="AccentButtonForegroundPressed" Color="#25221F" />
+              <SolidColorBrush x:Key="ContentDialogTopOverlay" Color="#25221F" />
+              <SolidColorBrush x:Key="ContentDialogSeparatorBorderBrush" Color="#51493E" />
+              <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#F7F5F1" />
+              <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#F7F5F1" />
           </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
       <SolidColorBrush x:Key="CaptureBrush" Color="#FFB340" />
       <SolidColorBrush x:Key="SignalBrush" Color="#DBA756" />
+      <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent" />
+      <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
+      <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent" />
+      <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
       <SolidColorBrush x:Key="ToggleButtonBackgroundChecked" Color="#DBA756" />
       <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPointerOver" Color="#E7B970" />
       <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPressed" Color="#C5964D" />
@@ -48,10 +72,114 @@
           <Setter Property="Foreground" Value="{ThemeResource InkBrush}" />
           <Setter Property="SelectionHighlightColor" Value="{StaticResource SignalBrush}" />
           <Setter Property="Padding" Value="0,6" />
+          <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TextBox">
+              <Grid Background="Transparent">
+                  <Border x:Name="BorderElement" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Control.IsTemplateFocusTarget="True" />
+                  <ScrollViewer x:Name="ContentElement" HorizontalScrollMode="{TemplateBinding ScrollViewer.HorizontalScrollMode}" HorizontalScrollBarVisibility="{TemplateBinding ScrollViewer.HorizontalScrollBarVisibility}" VerticalScrollMode="{TemplateBinding ScrollViewer.VerticalScrollMode}" VerticalScrollBarVisibility="{TemplateBinding ScrollViewer.VerticalScrollBarVisibility}" IsHorizontalRailEnabled="{TemplateBinding ScrollViewer.IsHorizontalRailEnabled}" IsVerticalRailEnabled="{TemplateBinding ScrollViewer.IsVerticalRailEnabled}" IsTabStop="False" Padding="{TemplateBinding Padding}" ZoomMode="Disabled" />
+                  <TextBlock x:Name="PlaceholderTextContentPresenter" Text="{TemplateBinding PlaceholderText}" Foreground="{ThemeResource MutedBrush}" Padding="{TemplateBinding Padding}" TextWrapping="{TemplateBinding TextWrapping}" IsHitTestVisible="False" />
+              </Grid>
+          </ControlTemplate></Setter.Value></Setter>
       </Style>
 
+      <Style x:Key="QuietRichEditBox" TargetType="RichEditBox">
+          <Setter Property="Background" Value="Transparent" />
+          <Setter Property="BorderThickness" Value="0" />
+          <Setter Property="Foreground" Value="{ThemeResource InkBrush}" />
+          <Setter Property="SelectionHighlightColor" Value="{StaticResource SignalBrush}" />
+          <Setter Property="Padding" Value="0" />
+      </Style>
+      <Style x:Key="QuietToggle" TargetType="ToggleButton">
+          <Setter Property="FontSize" Value="12" />
+          <Setter Property="Padding" Value="8,4" />
+          <Setter Property="Background" Value="Transparent" />
+          <Setter Property="BorderThickness" Value="0" />
+          <Setter Property="Foreground" Value="{ThemeResource MutedBrush}" />
+          <Setter Property="UseSystemFocusVisuals" Value="True" />
+          <Setter Property="Template">
+              <Setter.Value><ControlTemplate TargetType="ToggleButton">
+                  <Grid x:Name="ToggleRoot" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                      <VisualStateManager.VisualStateGroups>
+                          <VisualStateGroup x:Name="CommonStates">
+                              <VisualState x:Name="Normal" /><VisualState x:Name="Indeterminate" />
+                              <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="ToggleRoot.Background" Value="{ThemeResource SelectionBrush}" /></VisualState.Setters></VisualState>
+                              <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="ToggleRoot.Background" Value="{ThemeResource SelectionBrush}" /></VisualState.Setters></VisualState>
+                              <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="ToggleRoot.Opacity" Value="0.4" /></VisualState.Setters></VisualState>
+                              <VisualState x:Name="Checked"><VisualState.Setters><Setter Target="ToggleRoot.Background" Value="{ThemeResource SelectionBrush}" /><Setter Target="ToggleContent.Foreground" Value="{ThemeResource InkBrush}" /></VisualState.Setters></VisualState>
+                              <VisualState x:Name="CheckedPointerOver"><VisualState.Setters><Setter Target="ToggleRoot.Background" Value="{ThemeResource SelectionBrush}" /><Setter Target="ToggleContent.Foreground" Value="{ThemeResource InkBrush}" /></VisualState.Setters></VisualState>
+                              <VisualState x:Name="CheckedPressed"><VisualState.Setters><Setter Target="ToggleRoot.Background" Value="{ThemeResource SelectionBrush}" /><Setter Target="ToggleContent.Foreground" Value="{ThemeResource InkBrush}" /></VisualState.Setters></VisualState>
+                              <VisualState x:Name="CheckedDisabled"><VisualState.Setters><Setter Target="ToggleRoot.Background" Value="{ThemeResource SelectionBrush}" /><Setter Target="ToggleRoot.Opacity" Value="0.4" /></VisualState.Setters></VisualState>
+                          </VisualStateGroup>
+                      </VisualStateManager.VisualStateGroups>
+                      <ContentPresenter x:Name="ToggleContent" Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Grid>
+              </ControlTemplate></Setter.Value>
+          </Setter>
+      </Style>
+      <Style x:Key="ModeToggle" TargetType="ToggleButton">
+          <Setter Property="FontSize" Value="12" />
+          <Setter Property="Foreground" Value="{ThemeResource MutedBrush}" />
+          <Setter Property="Background" Value="Transparent" />
+          <Setter Property="BorderThickness" Value="0" />
+          <Setter Property="Padding" Value="9,5" />
+          <Setter Property="UseSystemFocusVisuals" Value="True" />
+          <Setter Property="Template">
+              <Setter.Value><ControlTemplate TargetType="ToggleButton">
+                  <Grid x:Name="ModeRoot" Background="Transparent" Padding="{TemplateBinding Padding}">
+                      <VisualStateManager.VisualStateGroups>
+                          <VisualStateGroup x:Name="CommonStates">
+                              <VisualState x:Name="Normal" /><VisualState x:Name="Indeterminate" />
+                              <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="ModeRoot.Background" Value="{ThemeResource SelectionBrush}" /></VisualState.Setters></VisualState>
+                              <VisualState x:Name="Pressed" />
+                              <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="ModeRoot.Opacity" Value="0.4" /></VisualState.Setters></VisualState>
+                              <VisualState x:Name="Checked"><VisualState.Setters><Setter Target="ModeUnderline.Opacity" Value="1" /><Setter Target="ModeContent.Foreground" Value="{ThemeResource InkBrush}" /></VisualState.Setters></VisualState>
+                              <VisualState x:Name="CheckedPointerOver"><VisualState.Setters><Setter Target="ModeUnderline.Opacity" Value="1" /><Setter Target="ModeContent.Foreground" Value="{ThemeResource InkBrush}" /><Setter Target="ModeRoot.Background" Value="{ThemeResource SelectionBrush}" /></VisualState.Setters></VisualState>
+                              <VisualState x:Name="CheckedPressed"><VisualState.Setters><Setter Target="ModeUnderline.Opacity" Value="1" /><Setter Target="ModeContent.Foreground" Value="{ThemeResource InkBrush}" /></VisualState.Setters></VisualState>
+                              <VisualState x:Name="CheckedDisabled"><VisualState.Setters><Setter Target="ModeUnderline.Opacity" Value="1" /><Setter Target="ModeRoot.Opacity" Value="0.4" /></VisualState.Setters></VisualState>
+                          </VisualStateGroup>
+                      </VisualStateManager.VisualStateGroups>
+                      <ContentPresenter x:Name="ModeContent" Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      <Border x:Name="ModeUnderline" Height="1" Background="{ThemeResource InkBrush}" VerticalAlignment="Bottom" Margin="0,0,0,-5" Opacity="0" />
+                  </Grid>
+              </ControlTemplate></Setter.Value>
+          </Setter>
+      </Style>
+
+      <FontFamily x:Key="ReadingFont">ms-appx:///Assets/Fonts/Gelasio-Regular.ttf#Gelasio</FontFamily>
       <FontFamily x:Key="ContentControlThemeFontFamily">ms-appx:///Assets/Fonts/SourceSans3-Regular.ttf#Source Sans 3</FontFamily>
       <FontFamily x:Key="TextControlThemeFontFamily">ms-appx:///Assets/Fonts/SourceSans3-Regular.ttf#Source Sans 3</FontFamily>
+      <Style TargetType="ContentDialog">
+          <Setter Property="Background" Value="{ThemeResource PaperBrush}" />
+          <Setter Property="Foreground" Value="{ThemeResource InkBrush}" />
+          <Setter Property="BorderBrush" Value="{ThemeResource LineBrush}" />
+          <Setter Property="BorderThickness" Value="1" />
+          <Setter Property="CornerRadius" Value="8" />
+          <Setter Property="FontFamily" Value="{StaticResource ContentControlThemeFontFamily}" />
+      </Style>
+      <Style TargetType="MenuFlyoutPresenter">
+          <Setter Property="Background" Value="{ThemeResource PaperBrush}" />
+          <Setter Property="Foreground" Value="{ThemeResource InkBrush}" />
+          <Setter Property="BorderBrush" Value="{ThemeResource LineBrush}" />
+          <Setter Property="BorderThickness" Value="1" />
+          <Setter Property="CornerRadius" Value="7" />
+          <Setter Property="Padding" Value="6" />
+          <Setter Property="MinWidth" Value="192" />
+          <Setter Property="FontFamily" Value="{StaticResource ContentControlThemeFontFamily}" />
+          <Setter Property="FontSize" Value="13" />
+      </Style>
+      <Style TargetType="MenuFlyoutItem">
+          <Setter Property="FontFamily" Value="{StaticResource ContentControlThemeFontFamily}" />
+          <Setter Property="FontSize" Value="13" />
+          <Setter Property="FontWeight" Value="Normal" />
+          <Setter Property="MinHeight" Value="30" />
+          <Setter Property="Padding" Value="9,7" />
+      </Style>
+      <Style TargetType="ToggleMenuFlyoutItem">
+          <Setter Property="FontFamily" Value="{StaticResource ContentControlThemeFontFamily}" />
+          <Setter Property="FontSize" Value="13" />
+          <Setter Property="FontWeight" Value="Normal" />
+          <Setter Property="MinHeight" Value="30" />
+          <Setter Property="Padding" Value="9,7" />
+      </Style>
       <ResourceDictionary.MergedDictionaries><controls:XamlControlsResources /></ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
   </Application.Resources>

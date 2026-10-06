@@ -9,6 +9,7 @@ pub struct NoteListInteraction {
     search_input: String,
     committed_search: String,
     active_tag: Option<String>,
+    pinned_only: bool,
 }
 
 impl NoteListInteraction {
@@ -22,6 +23,14 @@ impl NoteListInteraction {
 
     pub fn active_tag(&self) -> Option<&str> {
         self.active_tag.as_deref()
+    }
+
+    pub fn pinned_only(&self) -> bool {
+        self.pinned_only
+    }
+
+    pub fn set_pinned_only(&mut self, pinned: bool) {
+        self.pinned_only = pinned;
     }
 
     pub fn edit_search(&mut self, input: String) {
@@ -46,12 +55,12 @@ impl NoteListInteraction {
     }
 
     pub fn project_notes(&self, notes: &[Note], selected_id: Option<Uuid>) -> NoteListProjection {
-        project_note_list(
-            notes,
-            selected_id,
-            &self.committed_search,
-            self.active_tag(),
-        )
+        let query = if self.pinned_only {
+            format!("is:pinned {}", self.committed_search)
+        } else {
+            self.committed_search.clone()
+        };
+        project_note_list(notes, selected_id, &query, self.active_tag())
     }
 
     pub fn render_model(&self, notes: &[Note], selected_id: Option<Uuid>) -> NoteListRenderModel {
@@ -103,18 +112,27 @@ impl NoteListInteraction {
         let search = self.trimmed_committed_search();
         let tag = self.trimmed_active_tag();
 
-        let title = match (search, tag) {
+        let mut title = match (search, tag) {
             (Some(search), Some(tag)) => format!("No notes match search: {search} in #{tag}"),
             (Some(search), None) => format!("No notes match search: {search}"),
             (None, Some(tag)) => format!("No notes tagged #{tag}"),
             (None, None) => "No notes found".to_string(),
         };
 
-        let body = match (search, tag) {
-            (Some(_), Some(_)) => "Try a different search term or clear the Tag filter.",
-            (Some(_), None) => "Try a different search term.",
-            (None, Some(_)) => "Clear the Tag filter to return to all Notes.",
-            (None, None) => "Try a different search term.",
+        let body = if self.pinned_only {
+            if search.is_none() && tag.is_none() {
+                title = "No pinned notes".to_string();
+            } else {
+                title.push_str(" among pinned notes");
+            }
+            "Change the search or filters, or choose All notes."
+        } else {
+            match (search, tag) {
+                (Some(_), Some(_)) => "Try a different search term or clear the Tag filter.",
+                (Some(_), None) => "Try a different search term.",
+                (None, Some(_)) => "Clear the Tag filter to return to all Notes.",
+                (None, None) => "Try a different search term.",
+            }
         };
 
         NoteListFilteredEmptyMessage { title, body }
@@ -133,11 +151,16 @@ impl NoteListInteraction {
     }
 
     fn active_filter_context(&self) -> String {
-        match (self.trimmed_committed_search(), self.trimmed_active_tag()) {
+        let context = match (self.trimmed_committed_search(), self.trimmed_active_tag()) {
             (Some(search), Some(tag)) => format!("for search: {search} in #{tag}"),
             (Some(search), None) => format!("for search: {search}"),
             (None, Some(tag)) => format!("in #{tag}"),
             (None, None) => "shown".to_string(),
+        };
+        if self.pinned_only {
+            format!("{context} among pinned notes")
+        } else {
+            context
         }
     }
 
@@ -201,6 +224,67 @@ fn match_noun(count: usize) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pinned_filter_composes_with_committed_search_and_tag_without_changing_input() {
+        use crate::note_discovery::SelectedNoteVisibility;
+
+        let mut matching = Note::new("Release plan".into(), "Draft".into());
+        matching.tags = vec!["Work".into()];
+        matching.is_pinned = true;
+        let mut selected = Note::new("Release checklist".into(), String::new());
+        selected.tags = vec!["Work".into()];
+        let mut wrong_tag = Note::new("Release party".into(), String::new());
+        wrong_tag.tags = vec!["Personal".into()];
+        wrong_tag.is_pinned = true;
+        let mut wrong_search = Note::new("Budget".into(), String::new());
+        wrong_search.tags = vec!["Work".into()];
+        wrong_search.is_pinned = true;
+        let selected_id = selected.id;
+        let matching_id = matching.id;
+        let notes = [matching, selected, wrong_tag, wrong_search];
+        let mut interaction = NoteListInteraction::default();
+        interaction.edit_search("title:release".into());
+        interaction.commit_search();
+        interaction.edit_search("still typing".into());
+        interaction.select_tag("Work".into());
+        interaction.set_pinned_only(true);
+
+        let pinned = interaction.project_notes(&notes, Some(selected_id));
+        assert_eq!(
+            pinned.rows.iter().map(|row| row.id).collect::<Vec<_>>(),
+            vec![matching_id]
+        );
+        assert_eq!(
+            pinned.selected_note_visibility,
+            SelectedNoteVisibility::HiddenByFilter
+        );
+        assert!(pinned.has_active_filter);
+        assert_eq!(interaction.search_input(), "still typing");
+        assert_eq!(interaction.committed_search(), "title:release");
+        assert_eq!(interaction.active_tag(), Some("Work"));
+
+        interaction.set_pinned_only(false);
+        let all = interaction.project_notes(&notes, Some(selected_id));
+        assert_eq!(
+            all.rows.iter().map(|row| row.id).collect::<Vec<_>>(),
+            vec![matching_id, selected_id]
+        );
+        assert_eq!(
+            all.selected_note_visibility,
+            SelectedNoteVisibility::Visible
+        );
+        interaction.set_pinned_only(true);
+        interaction.commit_search();
+        let empty = interaction.render_model(&notes, Some(selected_id));
+        assert_eq!(empty.display_state, NoteListDisplayState::FilteredEmpty);
+        assert!(
+            empty
+                .filtered_empty_message
+                .title
+                .contains("among pinned notes")
+        );
+    }
 
     #[test]
     fn committed_search_and_active_tag_distinguish_filtered_empty_from_empty_collection() {

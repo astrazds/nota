@@ -1,13 +1,20 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Input;
+using Microsoft.UI.Text;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Nota.Windows.Interop;
+using Windows.ApplicationModel.DataTransfer;
+using Windows.UI.Core;
 using Windows.System;
 using DispatcherQueueTimer = Microsoft.UI.Dispatching.DispatcherQueueTimer;
 
@@ -30,18 +37,21 @@ public sealed partial class MainWindow : Window
     private bool allowClose;
     private bool closing;
     private bool showingRecovery;
-    private bool compactEditor;
+    private Control? drawerPreviousFocus;
     private string? deletedSignature;
-    private string? tagSignature;
+    private string? metadataSignature;
     private Notification? shownNotification;
     private readonly DispatcherQueueTimer noticeDelay;
+    private readonly Dictionary<VirtualKey, Func<Task>> shortcuts = [];
+    private readonly KeyboardHook previewKeyboardCallback;
+    private nint previewKeyboardHook;
 
     public MainWindow(string dataDirectory, string? error)
     {
         InitializeComponent();
-        var glyph = new TextBlock { Text = "0", FontFamily = BodyBox.FontFamily, FontSize = BodyBox.FontSize };
-        glyph.Measure(new global::Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
-        BodyMeasureColumn.MaxWidth = glyph.DesiredSize.Width * 72;
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(TitleDragRegion);
+        AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
         directory = dataDirectory;
         startupError = error;
         NoteList.ItemsSource = rows;
@@ -64,20 +74,77 @@ public sealed partial class MainWindow : Window
         noticeDelay.Interval = TimeSpan.FromSeconds(6);
         noticeDelay.IsRepeating = false;
         noticeDelay.Tick += (_, _) => Notice.IsOpen = false;
-        Closed += (_, _) => { savePoll.Stop(); previewDelay.Stop(); noticeDelay.Stop(); PreviewWeb.Close(); };
+        Closed += (_, _) =>
+        {
+            if (previewKeyboardHook != 0) UnhookWindowsHookEx(previewKeyboardHook);
+            previewKeyboardHook = 0;
+            savePoll.Stop(); previewDelay.Stop(); noticeDelay.Stop(); PreviewWeb.Close();
+        };
         AddShortcut(VirtualKey.N, CreateNoteAsync);
-        AddShortcut(VirtualKey.F, () => { compactEditor = false; UpdateLayoutMode(); SearchBox.Focus(FocusState.Keyboard); return Task.CompletedTask; });
+        AddShortcut(VirtualKey.F, () => { OpenLibrary(); SearchBox.Focus(FocusState.Keyboard); return Task.CompletedTask; });
+        var dismiss = new KeyboardAccelerator { Key = VirtualKey.Escape };
+        dismiss.Invoked += (_, args) => { if (Library.IsPaneOpen) { Library.IsPaneOpen = false; args.Handled = true; } };
+        Root.KeyboardAccelerators.Add(dismiss);
         AddShortcut(VirtualKey.B, () => FormatAsync("bold"));
         AddShortcut(VirtualKey.I, () => FormatAsync("italic"));
         AddShortcut(VirtualKey.S, async () => await RunAsync(new { command = "flush" }));
+        previewKeyboardCallback = PreviewKeyboard;
+        previewKeyboardHook = SetWindowsHookExW(2, previewKeyboardCallback, 0, GetCurrentThreadId());
+        if (previewKeyboardHook == 0) ShowError(new Win32Exception(Marshal.GetLastWin32Error()).Message);
     }
 
     private void AddShortcut(VirtualKey key, Func<Task> action)
     {
+        shortcuts.Add(key, action);
         var accelerator = new KeyboardAccelerator { Key = key, Modifiers = VirtualKeyModifiers.Control };
         accelerator.Invoked += async (_, args) => { args.Handled = true; await action(); };
         Root.KeyboardAccelerators.Add(accelerator);
     }
+
+    private nint PreviewKeyboard(int code, nint key, nint flags)
+    {
+        try
+        {
+            if (code == 0 && (flags.ToInt64() & (1L << 31)) == 0 && !closing && Workspace.IsEnabled
+                && KeyDown(VirtualKey.Control) && !KeyDown(VirtualKey.Shift) && !KeyDown(VirtualKey.Menu)
+                && !KeyDown(VirtualKey.LeftWindows) && !KeyDown(VirtualKey.RightWindows)
+                && shortcuts.TryGetValue((VirtualKey)key.ToInt32(), out var action))
+            {
+                var focused = FocusManager.GetFocusedElement(Root.XamlRoot);
+                var previewFocused = ReferenceEquals(focused, PreviewWeb);
+                if ((flags.ToInt64() & (1L << 30)) != 0
+                    && (previewFocused || ((VirtualKey)key.ToInt32() == VirtualKey.N && ReferenceEquals(focused, TitleBox)))) return 1;
+                if (previewFocused && DispatcherQueue.TryEnqueue(async () =>
+                {
+                    try { await action(); }
+                    catch (Exception exception) { ShowError(exception.Message); }
+                })) return 1;
+            }
+        }
+        catch (Exception exception)
+        {
+            DispatcherQueue.TryEnqueue(() => ShowError(exception.Message));
+        }
+        return CallNextHookEx(previewKeyboardHook, code, key, flags);
+    }
+
+    private static bool KeyDown(VirtualKey key)
+        => (InputKeyboardSource.GetKeyStateForCurrentThread(key) & CoreVirtualKeyStates.Down) != 0;
+
+    private delegate nint KeyboardHook(int code, nint key, nint flags);
+
+    [DllImport("user32.dll", ExactSpelling = true, SetLastError = true)]
+    private static extern nint SetWindowsHookExW(int hook, KeyboardHook callback, nint module, uint thread);
+
+    [DllImport("user32.dll", ExactSpelling = true)]
+    private static extern nint CallNextHookEx(nint hook, int code, nint key, nint flags);
+
+    [DllImport("user32.dll", ExactSpelling = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool UnhookWindowsHookEx(nint hook);
+
+    [DllImport("kernel32.dll", ExactSpelling = true)]
+    private static extern uint GetCurrentThreadId();
 
     private async void Root_Loaded(object sender, RoutedEventArgs args)
     {
@@ -96,6 +163,7 @@ public sealed partial class MainWindow : Window
             Apply(opened.Initial.Snapshot);
             Workspace.IsEnabled = true;
             await CheckRecoveryAsync();
+            if (snapshot?.Recovery is null) TitleBox.Focus(FocusState.Programmatic);
         }
         catch (Exception exception)
         {
@@ -129,15 +197,22 @@ public sealed partial class MainWindow : Window
         NewButton.IsEnabled = false;
         NoteList.IsEnabled = false;
         var succeeded = false;
+        var returnToEditor = Library.IsPaneOpen;
         try
         {
             var reply = await RunAsync(command, replaceEditor);
-            if (reply is not null) { succeeded = true; compactEditor = true; UpdateLayoutMode(); }
+            if (reply is not null)
+            {
+                succeeded = true;
+                drawerPreviousFocus = null;
+                Library.IsPaneOpen = false;
+                UpdateLayoutMode();
+            }
         }
         finally
         {
             transitioning = false;
-            EditorPane.IsEnabled = true;
+            EditorPane.IsEnabled = !Library.IsPaneOpen;
             NewButton.IsEnabled = true;
             NoteList.IsEnabled = true;
         }
@@ -145,6 +220,11 @@ public sealed partial class MainWindow : Window
         {
             TitleBox.Focus(FocusState.Programmatic);
             TitleBox.SelectAll();
+        }
+        else if (succeeded && returnToEditor && selectedId is not null)
+        {
+            if (BodyBox.Visibility == Visibility.Visible) BodyBox.Focus(FocusState.Programmatic);
+            else TitleBox.Focus(FocusState.Programmatic);
         }
     }
 
@@ -157,28 +237,40 @@ public sealed partial class MainWindow : Window
         try
         {
             Root.RequestedTheme = value.Theme switch { "light" => ElementTheme.Light, "dark" => ElementTheme.Dark, _ => ElementTheme.Default };
-            ThemeButton.Content = "Theme: " + char.ToUpperInvariant(value.Theme[0]) + value.Theme[1..];
+            if (SearchBox.Text != value.SearchInput) SearchBox.Text = value.SearchInput;
             if (replaceEditor || selectedId != value.SelectedNote?.Id)
             {
                 selectedId = value.SelectedNote?.Id;
                 TitleBox.Text = value.SelectedNote?.Title ?? "";
-                BodyBox.Text = EditorText.ToNative(value.SelectedNote?.Content ?? "");
-                TagsBox.Text = string.Join(", ", value.SelectedNote?.Tags ?? []);
-                BodyBox.Select(0, 0);
+                BodyBox.Document.SetText(TextSetOptions.None, EditorText.ToNative(value.SelectedNote?.Content ?? ""));
+                BodyBox.Document.Selection.SetRange(0, 0);
+                BodyBox.Document.ClearUndoRedoHistory();
                 UpdateCounts();
                 SchedulePreview();
             }
-            TitleBox.IsEnabled = TagsBox.IsEnabled = BodyBox.IsEnabled = selectedId is not null && value.Recovery is null;
+            TitleBox.IsEnabled = BodyBox.IsEnabled = selectedId is not null && value.Recovery is null;
+            PinButton.IsEnabled = SelectedActionsButton.IsEnabled = selectedId is not null && value.Recovery is null;
+            ReconcileMetadata(value);
+            NoteDate.Text = value.SelectedNote is { } selected && DateTimeOffset.TryParse(selected.LastModified, out var edited)
+                ? "  ·  Edited " + (DateTimeOffset.Now - edited < TimeSpan.FromMinutes(1) ? "just now" : edited.LocalDateTime.Date == DateTime.Today ? "today" : edited.ToLocalTime().ToString("d MMM")) : "";
+            var pinned = value.SelectedNote?.IsPinned == true;
+            if (pinned) PinButton.Foreground = (Brush)Application.Current.Resources["SignalBrush"];
+            else PinButton.ClearValue(Control.ForegroundProperty);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(PinButton, pinned ? "Unpin note" : "Pin note");
+            ToolTipService.SetToolTip(PinButton, pinned ? "Unpin note" : "Pin note");
+            AllNotesFilter.IsChecked = !value.PinnedOnly;
+            PinnedFilter.IsChecked = value.PinnedOnly;
+            ActiveTagFilter.Visibility = value.ActiveTag is null ? Visibility.Collapsed : Visibility.Visible;
+            ActiveTagFilter.Content = value.ActiveTag is { } tag ? "#" + tag + " ×" : "";
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(ActiveTagFilter, value.ActiveTag is { } activeTag ? "Clear " + activeTag + " filter" : "Clear tag filter");
             Toolbar.IsHitTestVisible = selectedId is not null;
             ReconcileRows(value.Rows);
             NoteList.SelectedItem = rows.FirstOrDefault(row => row.Id == selectedId);
-            NoteCount.Text = $"Notes   {value.Rows.Length}";
+            NoteCount.Text = value.Rows.Length.ToString();
             EmptyNotes.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-            EmptyNotes.Text = value.SearchInput.Length > 0 || value.ActiveTag is not null ? "No notes match this search." : "A little room for your thoughts.\nCreate a note to start writing.";
-            BackupHealth.Text = value.BackupHealth;
-            SaveStatus.Text = value.SaveStatus switch { "saving" => "Saving…", "failed" => "Save failed", _ => "Saved" };
+            EmptyNotes.Text = value.SearchInput.Length > 0 || value.ActiveTag is not null || value.PinnedOnly ? "No matching notes." : "No notes yet.";
+            SaveStatus.Text = value.SaveStatus switch { "saving" => "Saving…", "failed" => "Save failed", _ => "Saved locally" };
             ToolTipService.SetToolTip(SaveStatus, value.SaveStatus == "failed" ? "Press Ctrl+S to retry saving. Your changes remain in memory." : "Notes are saved on this device");
-            ReconcileTags(value);
             ReconcileDeleted(value);
             ApplyViewMode();
             ApplyTitleBar();
@@ -209,24 +301,39 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void ReconcileTags(Snapshot value)
+    private void ReconcileMetadata(Snapshot value)
     {
-        var signature = System.Text.Json.JsonSerializer.Serialize(new { value.Tags, value.ActiveTag });
-        if (signature == tagSignature) return;
-        tagSignature = signature;
-        TagFilters.Items.Clear();
-        if (value.Tags.Length == 0) return;
-        foreach (var filter in new string?[] { null }.Concat(value.Tags))
+        var tags = value.SelectedNote?.Tags ?? [];
+        var signature = System.Text.Json.JsonSerializer.Serialize(tags);
+        if (signature == metadataSignature) return;
+        metadataSignature = signature;
+        MetadataParagraph.Inlines.Clear();
+        foreach (var tag in tags)
         {
-            var button = new Button { Content = filter is null ? "All notes" : "#" + filter, FontSize = 11, Padding = new Thickness(8, 3, 8, 3), Margin = new Thickness(0, 0, 4, 4), CornerRadius = new CornerRadius(10) };
-            if (filter == value.ActiveTag) button.BorderBrush = (Brush)Application.Current.Resources["SignalBrush"];
-            button.Click += async (_, _) => await RunAsync(new { command = "filter_tag", tag = filter });
-            TagFilters.Items.Add(button);
+            var link = new Hyperlink { Foreground = (Brush)Application.Current.Resources["SignalBrush"], TextDecorations = global::Windows.UI.Text.TextDecorations.None };
+            link.Inlines.Add(new Run { Text = "#" + tag });
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(link, "Filter notes by " + tag);
+            link.Click += async (_, _) =>
+            {
+                OpenLibrary();
+                if (snapshot?.PinnedOnly == true) await RunAsync(new { command = "filter_pinned", pinned = false });
+                await RunAsync(new { command = "filter_tag", tag });
+                SearchBox.Focus(FocusState.Programmatic);
+            };
+            MetadataParagraph.Inlines.Add(link);
+            MetadataParagraph.Inlines.Add(new Run { Text = "  " });
         }
+        var edit = new Hyperlink { Foreground = (Brush)Application.Current.Resources["SignalBrush"], TextDecorations = global::Windows.UI.Text.TextDecorations.None };
+        edit.Inlines.Add(new Run { Text = tags.Length == 0 ? "Add tags" : "+" });
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(edit, "Edit tags");
+        edit.Click += (_, args) => Tags_Click(edit, args);
+        MetadataParagraph.Inlines.Add(edit);
+        MetadataParagraph.Inlines.Add(NoteDate);
     }
 
     private void ReconcileDeleted(Snapshot value)
     {
+        DeletedCount.Text = value.RecentlyDeleted.Length.ToString();
         var signature = System.Text.Json.JsonSerializer.Serialize(value.RecentlyDeleted);
         if (signature == deletedSignature) return;
         deletedSignature = signature;
@@ -251,29 +358,60 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private Brush DangerBrush() => new SolidColorBrush(Root.ActualTheme == ElementTheme.Dark ? ColorHelper.FromArgb(255, 240, 140, 128) : ColorHelper.FromArgb(255, 175, 52, 43));
+    private Brush DangerBrush() => (Brush)((ResourceDictionary)Application.Current.Resources.ThemeDictionaries[Root.ActualTheme.ToString()])["DangerBrush"];
 
-    private async void Editor_TextChanged(object sender, TextChangedEventArgs args)
+    private string ReadBody()
+    {
+        BodyBox.Document.GetText(TextGetOptions.None, out var text);
+        return text.EndsWith('\r') ? text[..^1] : text;
+    }
+
+    private async void Body_Paste(object sender, TextControlPasteEventArgs args)
+    {
+        args.Handled = true;
+        var id = selectedId;
+        var sequence = editSequence;
+        var start = BodyBox.Document.Selection.StartPosition;
+        var end = BodyBox.Document.Selection.EndPosition;
+        try
+        {
+            var clipboard = Clipboard.GetContent();
+            if (!clipboard.Contains(StandardDataFormats.Text)) return;
+            var text = EditorText.ToNative(await clipboard.GetTextAsync());
+            if (id != selectedId || sequence != editSequence || !BodyBox.IsEnabled) return;
+            BodyBox.Document.BeginUndoGroup();
+            try
+            {
+                BodyBox.Document.Selection.SetRange(start, end);
+                BodyBox.Document.Selection.SetText(TextSetOptions.None, text);
+            }
+            finally { BodyBox.Document.EndUndoGroup(); }
+            BodyBox.Document.Selection.SetRange(start + text.Length, start + text.Length);
+        }
+        catch (Exception exception) { ShowError($"The clipboard text could not be pasted. {exception.Message}"); }
+    }
+
+    private async void Editor_TextChanged(object sender, RoutedEventArgs args)
     {
         if (applying || selectedId is null || session is null) return;
-        var content = EditorText.ToCore(BodyBox.Text);
+        var content = EditorText.ToCore(ReadBody());
         if (snapshot?.SelectedNote is { } note && note.Id == selectedId
-            && TitleBox.Text == note.Title && content == EditorText.ToCore(note.Content)
-            && TagsBox.Text == string.Join(", ", note.Tags)) return;
+            && TitleBox.Text == note.Title && content == EditorText.ToCore(note.Content)) return;
         var id = selectedId;
         var sequence = ++editSequence;
         UpdateCounts();
         SchedulePreview();
-        await RunAsync(new { command = "edit_note", id, edit_sequence = sequence, title = TitleBox.Text, content, tags_input = TagsBox.Text });
+        await RunAsync(new { command = "edit_note", id, edit_sequence = sequence, title = TitleBox.Text, content, tags_input = string.Join(", ", snapshot?.SelectedNote?.Tags ?? []) });
     }
 
     private void UpdateCounts()
     {
-        var text = EditorText.ToCore(BodyBox.Text);
-        var words = text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+        var text = EditorText.ToCore(ReadBody());
+        var words = System.Text.RegularExpressions.Regex.Replace(text, @"[#*\[\]>]", "").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
         var lines = text.Length == 0 ? 0 : text.Count(c => c == '\n') + 1;
         var characters = text.EnumerateRunes().Count();
-        WordCount.Text = $"{lines} {(lines == 1 ? "line" : "lines")} · {words} {(words == 1 ? "word" : "words")} · {characters} {(characters == 1 ? "char" : "chars")}";
+        WordCount.Text = $"{words} {(words == 1 ? "word" : "words")}";
+        ToolTipService.SetToolTip(WordCount, $"{lines} {(lines == 1 ? "line" : "lines")} · {characters} {(characters == 1 ? "character" : "characters")}");
     }
 
     private async void Search_TextChanged(object sender, TextChangedEventArgs args)
@@ -291,24 +429,92 @@ public sealed partial class MainWindow : Window
     {
         if (args.ClickedItem is NoteRowViewModel row && row.Id == selectedId)
         {
-            compactEditor = true;
+            drawerPreviousFocus = null;
+            Library.IsPaneOpen = false;
             UpdateLayoutMode();
+            if (BodyBox.Visibility == Visibility.Visible) BodyBox.Focus(FocusState.Programmatic);
+            else TitleBox.Focus(FocusState.Programmatic);
         }
     }
 
     private Task CreateNoteAsync() => TransitionAsync(new { command = "new_note" }, focusTitle: true);
     private async void New_Click(object sender, RoutedEventArgs args) => await CreateNoteAsync();
-    private void Back_Click(object sender, RoutedEventArgs args) { compactEditor = false; UpdateLayoutMode(); }
+    private void Notes_Click(object sender, RoutedEventArgs args) { if (Library.IsPaneOpen) Library.IsPaneOpen = false; else OpenLibrary(); }
+    private void CloseNotes_Click(object sender, RoutedEventArgs args) => Library.IsPaneOpen = false;
+
+    private void OpenLibrary()
+    {
+        if (Library.IsPaneOpen) return;
+        drawerPreviousFocus = FocusManager.GetFocusedElement(Root.XamlRoot) as Control;
+        Library.IsPaneOpen = true;
+    }
+
+    private void Library_PaneOpening(SplitView sender, object args) => UpdateLayoutMode();
+    private void Library_PaneClosed(SplitView sender, object args)
+    {
+        UpdateLayoutMode();
+        if (!transitioning && drawerPreviousFocus is { } previousFocus) previousFocus.Focus(FocusState.Programmatic);
+        drawerPreviousFocus = null;
+    }
+
+    private void Deleted_Click(object sender, RoutedEventArgs args)
+        => DeletedContent.Visibility = DeletedContent.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+
+    private async void Filter_Click(object sender, RoutedEventArgs args)
+    {
+        if (sender is ToggleButton { Tag: string filter })
+        {
+            await RunAsync(new { command = "filter_tag", tag = (string?)null });
+            await RunAsync(new { command = "filter_pinned", pinned = filter == "pinned" });
+        }
+    }
+
+    private async void ClearTag_Click(object sender, RoutedEventArgs args)
+        => await RunAsync(new { command = "filter_tag", tag = (string?)null });
+
+    private async void Pin_Click(object sender, RoutedEventArgs args)
+    {
+        if (snapshot?.SelectedNote is { } note) await RunAsync(new { command = "toggle_pin", id = note.Id });
+    }
+
+    private void SelectedNoteActions_Click(object sender, RoutedEventArgs args)
+    {
+        if (snapshot?.SelectedNote is { } note && sender is Button button) ShowNoteActions(button, note.Id, note.IsPinned);
+    }
 
     private void NoteActions_Click(object sender, RoutedEventArgs args)
     {
         if (sender is not Button { Tag: string id } button || snapshot is null) return;
-        var flyout = new MenuFlyout();
-        var pin = new MenuFlyoutItem { Text = snapshot.Rows.First(row => row.Id == id).IsPinned ? "Unpin note" : "Pin note" };
+        var row = snapshot.Rows.FirstOrDefault(row => row.Id == id);
+        if (row is not null) ShowNoteActions(button, id, row.IsPinned);
+    }
+
+    private void ShowNoteActions(Button button, string id, bool pinned)
+    {
+        var flyout = new MenuFlyout { Placement = FlyoutPlacementMode.BottomEdgeAlignedRight };
+        var pin = new MenuFlyoutItem { Text = pinned ? "Unpin note" : "Pin note" };
         pin.Click += async (_, _) => await RunAsync(new { command = "toggle_pin", id });
-        var delete = new MenuFlyoutItem { Text = "Move to Recently Deleted" };
-        delete.Click += async (_, _) => { if (await ConfirmAsync("Move this note to Recently Deleted?", "You can restore it from the sidebar.", "Move note")) await TransitionAsync(new { command = "delete_note", id }); };
-        flyout.Items.Add(pin); flyout.Items.Add(delete); flyout.ShowAt(button);
+        var title = snapshot?.SelectedNote is { } selected && selected.Id == id
+            ? selected.Title : snapshot?.Rows.FirstOrDefault(note => note.Id == id)?.Title;
+        var displayTitle = string.IsNullOrWhiteSpace(title) ? "Untitled note" : title;
+        var delete = new MenuFlyoutItem { Text = "Move to recently deleted", Foreground = DangerBrush() };
+        delete.Click += async (_, _) => { if (await ConfirmAsync("Move to recently deleted?", $"\"{displayTitle}\" can be restored from Recently deleted in Notes.", "Move note")) await TransitionAsync(new { command = "delete_note", id }); };
+        flyout.Items.Add(pin);
+        if (id == selectedId)
+        {
+            var tags = new MenuFlyoutItem { Text = "Edit tags" };
+            tags.Click += Tags_Click;
+            flyout.Items.Add(tags);
+            var strike = new MenuFlyoutItem { Text = "Strikethrough" };
+            strike.Click += async (_, _) => await FormatAsync("strikethrough", enterWrite: true);
+            var table = new MenuFlyoutItem { Text = "Insert table" };
+            table.Click += async (_, _) => await FormatAsync("table", enterWrite: true);
+            flyout.Items.Add(strike);
+            flyout.Items.Add(table);
+        }
+        flyout.Items.Add(new MenuFlyoutSeparator());
+        flyout.Items.Add(delete);
+        flyout.ShowAt(button);
     }
 
     private async void ClearDeleted_Click(object sender, RoutedEventArgs args)
@@ -321,19 +527,25 @@ public sealed partial class MainWindow : Window
         if (sender is Button { Tag: string kind }) await FormatAsync(kind);
     }
 
-    private async Task FormatAsync(string kind)
+    private async Task FormatAsync(string kind, bool enterWrite = false)
     {
-        if (session is null || selectedId is null || transitioning || snapshot?.ViewMode == "preview") return;
-        var nativeContent = BodyBox.Text;
+        if (session is null || selectedId is null || transitioning) return;
+        if (snapshot?.ViewMode == "preview" && !enterWrite) return;
+        var nativeContent = ReadBody();
         var content = EditorText.ToCore(nativeContent);
         var id = selectedId;
         var sequence = editSequence;
-        var start = EditorText.ToCoreOffset(nativeContent, BodyBox.SelectionStart);
-        var end = EditorText.ToCoreOffset(nativeContent, BodyBox.SelectionStart + BodyBox.SelectionLength);
+        var start = EditorText.ToCoreOffset(nativeContent, BodyBox.Document.Selection.StartPosition);
+        var end = EditorText.ToCoreOffset(nativeContent, BodyBox.Document.Selection.EndPosition);
         try
         {
+            if (snapshot?.ViewMode == "preview")
+            {
+                var modeReply = await RunAsync(new { command = "set_view_mode", mode = "write" });
+                if (modeReply is null || session is null || transitioning || id != selectedId || sequence != editSequence) return;
+            }
             var reply = await session.ExecuteAsync(new { command = "format", content, start_utf16 = start, end_utf16 = end, kind });
-            if (id != selectedId || sequence != editSequence || BodyBox.Text != nativeContent || reply.Result is not { } result) return;
+            if (id != selectedId || sequence != editSequence || ReadBody() != nativeContent || reply.Result is not { } result) return;
             var formatted = result.GetProperty("content").GetString() ?? "";
             var updated = EditorText.ToNative(formatted);
             var prefix = 0;
@@ -343,20 +555,17 @@ public sealed partial class MainWindow : Window
             while (suffix < Math.Min(nativeContent.Length, updated.Length) - prefix && nativeContent[^(suffix + 1)] == updated[^(suffix + 1)]) suffix++;
             if (suffix > 0 && char.IsLowSurrogate(nativeContent[nativeContent.Length - suffix])) suffix--;
             BodyBox.Focus(FocusState.Programmatic);
-            BodyBox.Select(prefix, nativeContent.Length - prefix - suffix);
-            BodyBox.SelectedText = updated.Substring(prefix, updated.Length - prefix - suffix);
-            BodyBox.Select(EditorText.ToNativeOffset(formatted, result.GetProperty("caret_utf16").GetInt32()), 0);
+            BodyBox.Document.BeginUndoGroup();
+            try
+            {
+                BodyBox.Document.Selection.SetRange(prefix, nativeContent.Length - suffix);
+                BodyBox.Document.Selection.SetText(TextSetOptions.None, updated.Substring(prefix, updated.Length - prefix - suffix));
+            }
+            finally { BodyBox.Document.EndUndoGroup(); }
+            var caret = EditorText.ToNativeOffset(formatted, result.GetProperty("caret_utf16").GetInt32());
+            BodyBox.Document.Selection.SetRange(caret, caret);
         }
         catch (Exception exception) { ShowError(exception.Message); }
-    }
-
-    private async void Theme_Click(object sender, RoutedEventArgs args)
-    {
-        var theme = snapshot?.Theme switch { "system" => "light", "light" => "dark", _ => "system" };
-        await RunAsync(new { command = "set_theme", theme });
-        deletedSignature = null;
-        if (snapshot is not null) ReconcileDeleted(snapshot);
-        SchedulePreview();
     }
 
     private async void Mode_Click(object sender, RoutedEventArgs args)
@@ -368,35 +577,100 @@ public sealed partial class MainWindow : Window
     private void ApplyViewMode()
     {
         var mode = snapshot?.ViewMode ?? "write";
-        if (Root.ActualWidth < 900 && mode == "split") mode = "write";
         WriteMode.IsChecked = mode == "write"; PreviewMode.IsChecked = mode == "preview"; SplitMode.IsChecked = mode == "split";
-        SplitMode.IsEnabled = Root.ActualWidth >= 900;
         BodyBox.Visibility = mode == "preview" ? Visibility.Collapsed : Visibility.Visible;
-        Toolbar.Visibility = mode == "preview" ? Visibility.Collapsed : Visibility.Visible;
+        var hasNote = selectedId is not null;
+        NoteHeading.Visibility = NoteActions.Visibility = hasNote ? Visibility.Visible : Visibility.Collapsed;
+        EmptyEditor.Visibility = hasNote ? Visibility.Collapsed : Visibility.Visible;
+        WritingArea.Visibility = hasNote ? Visibility.Visible : Visibility.Collapsed;
+        Toolbar.Visibility = mode == "preview" || !hasNote ? Visibility.Collapsed : Visibility.Visible;
         PreviewPane.Visibility = mode == "write" ? Visibility.Collapsed : Visibility.Visible;
+        var stacked = mode == "split" && Root.ActualWidth <= 560;
+        if (WritingScroll.VerticalScrollMode == ScrollMode.Auto && !stacked)
+            WritingScroll.ChangeView(null, 0, null, disableAnimation: true);
+        var narrow = Root.ActualWidth <= 760;
         WriteColumn.Width = mode == "preview" ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
-        PreviewColumn.Width = mode == "write" ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
-        PreviewPane.Margin = mode == "split" ? new Thickness(20, 0, 0, 0) : new Thickness(0);
+        PreviewColumn.Width = mode == "write" || stacked ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+        SplitGapColumn.Width = mode == "split" && !stacked ? new GridLength(narrow ? 18 : 28) : new GridLength(0);
+        WriteRow.Height = stacked ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
+        PreviewRow.Height = stacked ? GridLength.Auto : new GridLength(0);
+        WritingScroll.VerticalScrollBarVisibility = stacked ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled;
+        WritingScroll.VerticalScrollMode = stacked ? ScrollMode.Auto : ScrollMode.Disabled;
+        WritingScroll.VerticalContentAlignment = stacked ? VerticalAlignment.Top : VerticalAlignment.Stretch;
+        ScrollViewer.SetVerticalScrollBarVisibility(BodyBox, stacked ? ScrollBarVisibility.Disabled : ScrollBarVisibility.Auto);
+        ScrollViewer.SetVerticalScrollMode(BodyBox, stacked ? ScrollMode.Disabled : ScrollMode.Auto);
+        BodyBox.MinHeight = stacked ? 340 : 0;
+        PreviewPane.Height = stacked ? 525 : double.NaN;
+        Grid.SetColumn(PreviewPane, stacked ? 0 : 2);
+        Grid.SetRow(PreviewPane, stacked ? 1 : 0);
+        PreviewPane.Margin = stacked ? new Thickness(0, 18, 0, 0) : new Thickness(0);
+        PreviewPane.BorderThickness = mode == "split" ? stacked ? new Thickness(0, 1, 0, 0) : new Thickness(1, 0, 0, 0) : new Thickness(0);
+        PreviewPane.Padding = mode == "split" ? stacked ? new Thickness(0, 24, 0, 0) : new Thickness(narrow ? 18 : 25, 0, 0, 0) : new Thickness(0);
+        WritingArea.MaxWidth = mode == "split" ? double.PositiveInfinity : 684;
+        WritingArea.Width = mode == "split" ? Root.ActualWidth : Math.Min(684, Root.ActualWidth);
+        WritingArea.Padding = Root.ActualWidth <= 560 ? new Thickness(24, 28, 24, 20)
+            : mode == "split" ? new Thickness(narrow ? 19 : 27, 31, narrow ? 19 : 27, 24) : new Thickness(42, 31, 42, 24);
+        var family = mode == "split" ? "ms-appx:///Assets/Fonts/SourceCodePro-Regular.ttf#Source Code Pro" : ((FontFamily)Application.Current.Resources["ReadingFont"]).Source;
+        var fontSize = mode == "split" ? 13 : Root.ActualWidth <= 560 ? 16 : 18;
+        BodyBox.Margin = new Thickness(0, Root.ActualWidth <= 560 ? -6 : -7, 0, stacked ? 3 : 0);
+        if (BodyBox.FontFamily.Source != family) BodyBox.FontFamily = new FontFamily(family);
+        if (BodyBox.FontSize != fontSize) BodyBox.FontSize = fontSize;
+        var paragraph = BodyBox.Document.GetDefaultParagraphFormat();
+        var lineHeightPoints = (float)(BodyBox.FontSize * (mode == "split" ? 1.85 : 1.8) * 72 / 96);
+        if (paragraph.LineSpacingRule != LineSpacingRule.Exactly || Math.Abs(paragraph.LineSpacing - lineHeightPoints) > 0.025)
+        {
+            paragraph.SetLineSpacing(LineSpacingRule.Exactly, lineHeightPoints);
+            paragraph.SpaceBefore = paragraph.SpaceAfter = 0;
+            BodyBox.Document.SetDefaultParagraphFormat(paragraph);
+        }
     }
 
-    private void Root_SizeChanged(object sender, SizeChangedEventArgs args) => UpdateLayoutMode();
+    private string PreviewLayout(double width) => snapshot?.ViewMode != "split" ? "reading" : width <= 760 ? "split_narrow" : "split";
+
+    private void Root_SizeChanged(object sender, SizeChangedEventArgs args)
+    {
+        UpdateLayoutMode();
+        if (PreviewLayout(args.PreviousSize.Width) != PreviewLayout(args.NewSize.Width)) SchedulePreview();
+    }
 
     private void UpdateLayoutMode()
     {
-        var compact = Root.ActualWidth < 720;
-        SidebarColumn.Width = compact ? new GridLength(compactEditor ? 0 : 1, compactEditor ? GridUnitType.Pixel : GridUnitType.Star) : new GridLength(288);
-        Sidebar.Visibility = compact && compactEditor ? Visibility.Collapsed : Visibility.Visible;
-        EditorPane.Visibility = compact && !compactEditor ? Visibility.Collapsed : Visibility.Visible;
-        Grid.SetColumnSpan(Sidebar, compact ? 2 : 1);
-        BackButton.Visibility = compact ? Visibility.Visible : Visibility.Collapsed;
-        WordCount.Visibility = Root.ActualWidth < 520 ? Visibility.Collapsed : Visibility.Visible;
+        var compact = Root.ActualWidth <= 560;
+        TopBar.Height = compact ? 56 : 62;
+        TopBar.Padding = new Thickness(compact ? 15 : 23, 0, 0, 0);
+        EditorToolsRow.Height = new GridLength(compact ? 46 : 42);
+        NoteActions.Margin = new Thickness(0, compact ? 14 : 11, compact ? 12 : 24, 0);
+        Library.OpenPaneLength = compact ? Root.ActualWidth : 278;
+        EditorPane.Visibility = compact && Library.IsPaneOpen ? Visibility.Collapsed : Visibility.Visible;
+        DrawerScrim.Visibility = Library.IsPaneOpen ? Visibility.Visible : Visibility.Collapsed;
+        EditorPane.IsEnabled = !Library.IsPaneOpen && !transitioning;
+        NotesButton.IsChecked = Library.IsPaneOpen;
+        NoteHeading.Padding = compact ? new Thickness(24, 40, 24, 0) : new Thickness(42, 44, 42, 0);
+        TitleBox.FontSize = compact ? 31 : Root.ActualWidth <= 760 ? 36 : 39;
+        TitleBox.CharacterSpacing = -(int)Math.Round(1250 / TitleBox.FontSize);
+        TitleBox.MinHeight = Math.Ceiling(TitleBox.FontSize * 1.2);
+        Toolbar.Padding = compact ? new Thickness(17, 23, 17, 4) : new Thickness(36, 26, 36, 8);
+        EditorFooter.Padding = compact ? new Thickness(17, 14, 17, 14) : new Thickness(27, 0, 27, 0);
+        EditorFooter.Height = compact ? double.NaN : 54;
+        EditorFooter.MinHeight = 0;
+        EditorFooter.RowDefinitions[0].Height = compact ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
+        ViewModes.VerticalAlignment = VerticalAlignment.Center;
+        EditorFooter.BorderThickness = compact ? new Thickness(0, 1, 0, 0) : new Thickness(0);
+        Grid.SetColumn(Brand, compact ? 1 : 0);
+        Grid.SetColumnSpan(Brand, compact ? 1 : 4);
+        Brand.Margin = compact ? new Thickness(0) : new Thickness(-23, 0, 0, 0);
+        ViewModes.HorizontalAlignment = compact ? HorizontalAlignment.Right : HorizontalAlignment.Center;
+        Grid.SetRow(SavedState, compact ? 1 : 0);
+        SavedState.Margin = compact ? new Thickness(0, 9, 0, 0) : new Thickness(0);
+        SavedState.HorizontalAlignment = compact ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+        CaptionInset.Width = new GridLength(AppWindow.TitleBar.RightInset / (Root.XamlRoot?.RasterizationScale ?? 1));
         ApplyViewMode();
     }
 
     private void ApplyTitleBar()
     {
         var dark = Root.ActualTheme == ElementTheme.Dark;
-        var background = dark ? ColorHelper.FromArgb(255, 33, 31, 28) : ColorHelper.FromArgb(255, 240, 237, 230);
+        var background = dark ? ColorHelper.FromArgb(255, 37, 34, 31) : ColorHelper.FromArgb(255, 253, 252, 249);
         AppWindow.TitleBar.BackgroundColor = AppWindow.TitleBar.ButtonBackgroundColor = background;
         AppWindow.TitleBar.ForegroundColor = AppWindow.TitleBar.ButtonForegroundColor = dark ? Colors.White : Colors.Black;
     }
@@ -409,11 +683,12 @@ public sealed partial class MainWindow : Window
         var sequence = editSequence;
         var id = selectedId;
         var title = TitleBox.Text;
-        var content = EditorText.ToCore(BodyBox.Text);
+        var content = EditorText.ToCore(ReadBody());
+        var layout = PreviewLayout(Root.ActualWidth);
         try
         {
-            var reply = await session.ExecuteAsync(new { command = "preview", title, content, tags = TagsBox.Text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries), dark = Root.ActualTheme == ElementTheme.Dark });
-            if (sequence != editSequence || id != selectedId || reply.Result is not { } result) return;
+            var reply = await session.ExecuteAsync(new { command = "preview", title, content, dark = Root.ActualTheme == ElementTheme.Dark, layout });
+            if (sequence != editSequence || id != selectedId || layout != PreviewLayout(Root.ActualWidth) || reply.Result is not { } result) return;
             await preview.RenderAsync(result.GetProperty("html").GetString() ?? "");
         }
         catch (Exception exception) { ShowError(exception.Message); }

@@ -8,27 +8,32 @@ Markdown rules, and saved collection formats. Some controls differ.
 
 ## Write and find Notes
 
-Select **New Note** or press `Ctrl+N`. Nota selects the new Note and focuses
+Select **New note** in the top bar or press `Ctrl+N`. Nota selects the new Note and focuses
 its title. Edit the title and Markdown body directly. Formatting buttons wrap
 the selected text or insert Markdown at the caret.
 
 Use **Write**, **Preview**, and **Split** in the editor footer. Split is
-available in wide windows. In a compact window, use the navigation control to
-switch between the Note List and the selected Note.
+side by side in wide windows and stacked in compact windows.
+Open **Notes** to find another Note. The list overlays the editor without
+moving its reading column. Selecting a Note closes the list.
 
-Press `Ctrl+F` to focus Search. Combine ordinary words with quoted phrases,
+Press `Ctrl+F` to open Notes and focus Search. Combine ordinary words with quoted phrases,
 `title:`, `tag:`, or `is:pinned`. Tag filter buttons narrow the Note List.
-Clear the filter to show the full list again. A filter can hide the
+Use **Pinned** to show pinned Notes alongside the current Search and Tag filters.
+Choose **All notes** to remove the pinned filter. A filter can hide the
 selected Note while it remains open in the editor. GTK also shows a message
 explaining why that Note is absent from the list.
 
-On Linux, choose **Edit tags** to change a Note's Tags. **Review Tag cleanup**
+Choose **+** beside the Tags or **Edit tags** in the Note actions menu to change Tags.
+Click a Tag to open Notes with that Tag filter. On Linux, **Review Tag cleanup**
 appears when the collection has Tags that can be normalized. Review the
 proposed changes before applying them. On Windows, edit the comma-separated
-Tags field below the title. Windows does not expose the collection-wide Tag
+Tags in the dialog. Windows does not expose the collection-wide Tag
 cleanup dialog.
 
-Use the Note actions menu to pin a Note or move it to Recently Deleted.
+Use the pin button or Note actions menu to pin a Note. The Note actions menu
+also moves a Note to Recently Deleted and contains additional Markdown commands.
+Open **Settings** for Theme and Markdown help.
 
 ## Save and recover a deleted Note
 
@@ -37,7 +42,7 @@ edits during orderly shutdown. Check the editor's Save Status before you
 close the app if it reports a save error. A failed shutdown save keeps the
 window open so you can retry. On Windows, `Ctrl+S` also retries the save.
 
-Open a Note's actions menu. On Linux, choose **Delete**, then **Move** in the
+Open a Note's actions menu. On Linux, choose **Move to recently deleted**, then **Move** in the
 confirmation that names the Note. On Windows, choose **Move to Recently
 Deleted**, then **Move note**. Choose **Cancel** to keep the Note active.
 
@@ -53,17 +58,16 @@ section header asks for confirmation before permanently clearing every
 deleted Note. Cancel leaves them in place.
 Clear All is hidden when the section is empty.
 
-The **Restore** control in the sidebar footer imports a
+The **Restore complete notebook** command in the drawer's **Backup** menu imports a
 [desktop-transition file](#restore-a-complete-notebook).
 
 ## Export and import a Backup
 
-1. Choose **Export** in the sidebar footer. On Windows, select **Export notes
-   backup…** from the menu.
+1. Open **Notes**, then **Backup** in the drawer footer. Choose **Export notes backup**.
 2. Save the JSON file.
 3. Keep that file outside the live application data directory if you want a
    separate recovery copy.
-4. To import it, choose **Import**, select the file, and review the add and
+4. To import it, choose **Import notes backup**, select the file, and review the add and
    replace counts.
 5. Confirm the Merge Import to apply it.
 
@@ -82,11 +86,10 @@ A desktop-transition file contains active Notes, Recently Deleted, Theme,
 and optional Backup Health. It does not contain window dimensions, Preview
 cache, or a full edit history.
 
-On Windows, choose **Export**, then **Export complete notebook state…** to
-create this file. The Linux Export button creates a notes Backup only. Both
-platforms can restore a desktop-transition file.
+Open **Notes**, then **Backup**, and choose **Export complete notebook** to
+create this file. Both platforms can export and restore a desktop-transition file.
 
-Choose **Restore** in the sidebar Backup controls and select the file. Both
+Choose **Restore complete notebook** in the Backup menu and select the file. Both
 the active collection and Recently Deleted must be empty. A restore into a
 non-empty collection is rejected without mutation. Use Merge Import to add
 Notes to an existing collection.

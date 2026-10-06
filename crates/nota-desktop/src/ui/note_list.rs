@@ -70,8 +70,6 @@ impl NoteLists {
                 &next.iter().map(|row| row.id).collect::<Vec<_>>(),
             );
             if update_in_place {
-                // Keep the existing row widgets so the sidebar does not jump to the
-                // top or steal focus when the user selects a Note.
                 for (index, row) in next.into_iter().enumerate() {
                     if let Some(current) = rows.get_mut(index) {
                         *current = row;
@@ -107,7 +105,6 @@ struct NoteRow {
     tag_highlights: Vec<Vec<HighlightSegment>>,
     pinned: bool,
     selected: bool,
-    /// Propagated onto the GTK popover so absolute theme tokens can match dark mode.
     dark: bool,
 }
 
@@ -168,37 +165,24 @@ impl FactoryComponent for NoteRow {
                             set_label: if self.pinned { "◆" } else { "" },
                         },
                     },
-                    gtk::Box {
-                        set_orientation: gtk::Orientation::Horizontal,
-                        set_spacing: 7,
-
-                        gtk::Label {
-                            set_css_classes: &["nota-note-date"],
-                            #[watch]
-                            set_label: &self.date,
-                        },
-                        gtk::Label {
-                            set_hexpand: true,
-                            set_halign: gtk::Align::Start,
-                            set_xalign: 0.0,
-                            set_ellipsize: gtk::pango::EllipsizeMode::End,
-                            set_css_classes: &["nota-note-preview"],
-                            set_use_markup: true,
-                            #[watch]
-                            set_label: &self.preview_markup,
-                        },
-                    },
-                    #[name(tag_list)]
-                    gtk::FlowBox {
-                        set_css_classes: &["nota-note-tag-list"],
+                    gtk::Label {
                         set_hexpand: true,
-                        set_halign: gtk::Align::Fill,
-                        set_selection_mode: gtk::SelectionMode::None,
-                        set_homogeneous: false,
-                        set_column_spacing: 4,
-                        set_row_spacing: 4,
+                        set_halign: gtk::Align::Start,
+                        set_xalign: 0.0,
+                        set_margin_top: 2,
+                        set_ellipsize: gtk::pango::EllipsizeMode::End,
+                        set_css_classes: &["nota-note-preview"],
+                        set_use_markup: true,
                         #[watch]
-                        set_visible: !self.tags.is_empty(),
+                        set_label: &self.preview_markup,
+                    },
+                    gtk::Label {
+                        set_halign: gtk::Align::Start,
+                        set_xalign: 0.0,
+                        set_margin_top: 5,
+                        set_css_classes: &["nota-note-date"],
+                        #[watch]
+                        set_label: &self.date,
                     },
                 },
             },
@@ -236,15 +220,17 @@ impl FactoryComponent for NoteRow {
                             } else {
                                 &["nota-note-menu-item"]
                             },
-                            #[watch]
-                            set_label: if self.pinned { "Unpin" } else { "Pin" },
                             connect_clicked[sender, id = self.id] => move |_| {
                                 let _send_result = sender.output(NoteRowOutput::TogglePin(id));
+                            },
+                            gtk::Label {
+                                set_xalign: 0.0,
+                                #[watch]
+                                set_label: if self.pinned { "Unpin" } else { "Pin" },
                             },
                         },
                         gtk::Button {
                             set_halign: gtk::Align::Fill,
-                            set_label: "Delete",
                             #[watch]
                             set_css_classes: if self.dark {
                                 &["nota-note-menu-item", "destructive-action", "nota-dark"]
@@ -254,6 +240,22 @@ impl FactoryComponent for NoteRow {
                             connect_clicked[sender, id = self.id] => move |_| {
                                 let _send_result = sender.output(NoteRowOutput::Delete(id));
                             },
+                            gtk::Label {
+                                set_xalign: 0.0,
+                                set_label: "Move to recently deleted",
+                            },
+                        },
+                        #[name(tag_list)]
+                        gtk::FlowBox {
+                            set_css_classes: &["nota-note-tag-list"],
+                            set_hexpand: true,
+                            set_halign: gtk::Align::Fill,
+                            set_selection_mode: gtk::SelectionMode::None,
+                            set_homogeneous: false,
+                            set_column_spacing: 4,
+                            set_row_spacing: 4,
+                            #[watch]
+                            set_visible: !self.tags.is_empty(),
                         },
                     },
                 },

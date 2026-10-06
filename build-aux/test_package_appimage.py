@@ -28,6 +28,18 @@ REQUIRED_RELATIVE_PATHS = (
     "usr/share/net.astrazds.Nota/fonts/source-sans-3-latin-wght-italic.woff2",
     "usr/share/net.astrazds.Nota/fonts/source-code-pro-latin-wght-normal.woff2",
     "usr/share/net.astrazds.Nota/fonts/source-code-pro-latin-wght-italic.woff2",
+    "usr/share/net.astrazds.Nota/fonts/Gelasio-Regular.woff2",
+    "usr/share/net.astrazds.Nota/fonts/Gelasio-Italic.woff2",
+    "usr/share/net.astrazds.Nota/fonts/Gelasio-Bold.woff2",
+    "usr/share/net.astrazds.Nota/fonts/Gelasio-BoldItalic.woff2",
+    "usr/share/net.astrazds.Nota/fonts/SourceSans3-Regular.ttf",
+    "usr/share/net.astrazds.Nota/fonts/SourceSans3-Semibold.ttf",
+    "usr/share/net.astrazds.Nota/fonts/SourceCodePro-Regular.ttf",
+    "usr/share/net.astrazds.Nota/fonts/Gelasio-Regular.ttf",
+    "usr/share/net.astrazds.Nota/fonts/Gelasio-Italic.ttf",
+    "usr/share/net.astrazds.Nota/fonts/Gelasio-Bold.ttf",
+    "usr/share/net.astrazds.Nota/fonts/Gelasio-BoldItalic.ttf",
+    "usr/share/net.astrazds.Nota/fonts/Gelasio-OFL.txt",
     "usr/lib/webkitgtk-6.0/WebKitWebProcess",
     "usr/lib/webkitgtk-6.0/WebKitNetworkProcess",
     "usr/lib/webkitgtk-6.0/WebKitGPUProcess",
@@ -93,6 +105,15 @@ class VerifyAppdirTests(unittest.TestCase):
             root = Path(raw)
             complete_appdir(root)
             verify_appdir(root)
+
+    def test_appdir_requires_the_reading_font_and_its_license(self) -> None:
+        for name in ("Gelasio-Regular.woff2", "Gelasio-Regular.ttf", "Gelasio-OFL.txt"):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as raw:
+                root = Path(raw)
+                complete_appdir(root)
+                (root / "usr/share/net.astrazds.Nota/fonts" / name).unlink()
+                with self.assertRaisesRegex(AppDirError, name):
+                    verify_appdir(root)
 
     def test_appdir_without_webkit_injected_bundle_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as raw:

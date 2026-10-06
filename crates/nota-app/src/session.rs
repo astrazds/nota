@@ -14,7 +14,7 @@ use uuid::Uuid;
 
 use crate::app::{AppModel, AppMsg, NotificationTone, SaveStatus};
 use crate::persistence::PersistenceWorker;
-use crate::preview::{external_navigation_target, preview_document};
+use crate::preview::{PreviewLayout, external_navigation_target, preview_document};
 use crate::storage::{
     CollectionEnvelope, LoadOutcome, NativeRecovery, NativeStore, Preferences, StorageError,
     write_atomic,
@@ -48,6 +48,9 @@ pub enum Request {
     FilterTag {
         tag: Option<String>,
     },
+    FilterPinned {
+        pinned: bool,
+    },
     TogglePin {
         id: Uuid,
     },
@@ -76,8 +79,8 @@ pub enum Request {
     Preview {
         title: String,
         content: String,
-        tags: Vec<String>,
         dark: bool,
+        layout: PreviewLayout,
     },
     ImportBackup {
         json: String,
@@ -114,6 +117,9 @@ pub enum ViewMode {
 pub enum FormatKind {
     Bold,
     Italic,
+    Heading,
+    BulletList,
+    Link,
     Strikethrough,
     TaskList,
     Table,
@@ -384,6 +390,9 @@ impl Session {
                 self.app
                     .apply(tag.map_or(AppMsg::ClearTag, AppMsg::SelectTag));
             }
+            Request::FilterPinned { pinned } => {
+                self.app.apply(AppMsg::SetPinnedFilter(pinned));
+            }
             Request::TogglePin { id } => {
                 self.require_note(id, false)?;
                 self.app.apply(AppMsg::TogglePin(id));
@@ -434,6 +443,9 @@ impl Session {
                 let command = match kind {
                     FormatKind::Bold => MarkdownCommand::Bold,
                     FormatKind::Italic => MarkdownCommand::Italic,
+                    FormatKind::Heading => MarkdownCommand::Heading,
+                    FormatKind::BulletList => MarkdownCommand::BulletList,
+                    FormatKind::Link => MarkdownCommand::Link,
                     FormatKind::Strikethrough => MarkdownCommand::Strikethrough,
                     FormatKind::TaskList => MarkdownCommand::TaskList,
                     FormatKind::Table => MarkdownCommand::Table,
@@ -447,10 +459,10 @@ impl Session {
             Request::Preview {
                 title,
                 content,
-                tags,
                 dark,
+                layout,
             } => {
-                return Ok(json!({"html": preview_document(&title, &tags, &content, dark)}));
+                return Ok(json!({"html": preview_document(&title, &content, dark, layout)}));
             }
             Request::ImportBackup { json } => {
                 self.app
@@ -564,6 +576,7 @@ impl Session {
             "revision": self.app.revision(), "edit_sequence": self.edit_sequence,
             "selected_note": self.app.workspace.selected_note(), "rows": rows, "recently_deleted": deleted,
             "search_input": self.app.note_list.search_input(), "active_tag": self.app.note_list.active_tag(),
+            "pinned_only": self.app.note_list.pinned_only(),
             "tags": collect_note_tags(self.app.workspace.notes()),
             "view_mode": match self.app.view_mode { EditorViewMode::Write => "write", EditorViewMode::Preview => "preview", EditorViewMode::Split => "split" },
             "theme": self.app.theme,

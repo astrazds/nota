@@ -1,6 +1,6 @@
 # Privacy
 
-Effective date: 2026-09-30
+Effective date: 2026-10-06
 
 Nota is a local-first Markdown note app. The native Linux and Windows apps store Notes on
 the device. This policy also covers legacy browser builds.
@@ -35,8 +35,8 @@ browser profile, with a fallback read of legacy `noter-*` keys.
 
 A Backup is a JSON file the user chooses to export. Merge Import reads a file
 the user chose. A Backup contains active Notes. A desktop-transition file
-also contains Recently Deleted, Theme, and optional Backup Health. Windows
-can export that format, and both frontends can restore it into an empty
+also contains Recently Deleted, Theme, and optional Backup Health. Both
+frontends can export that format and restore it into an empty
 collection. Browser-era desktop-transition files remain compatible.
 
 Nota does not upload those files. If you copy, email, or otherwise share an

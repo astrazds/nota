@@ -4,6 +4,17 @@
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>Nota.Windows</RootNamespace>
+    <Version>2.0.0-alpha.1</Version>
+    <AssemblyVersion>2.0.0.0</AssemblyVersion>
+    <FileVersion>2.0.0.0</FileVersion>
+    <Product>Nota</Product>
+    <Title>Nota</Title>
+    <AssemblyTitle>Nota</AssemblyTitle>
+    <Authors>Andrejs Strazds</Authors>
+    <Description>Local-first Markdown notes for Windows with search, tags, and local backups.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/astrazds/nota</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/astrazds/nota#readme</PackageProjectUrl>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>../../assets/icons/favicon.ico</ApplicationIcon>
     <Platforms>x64</Platforms>

@@ -5,6 +5,7 @@ Start with the guide that matches your task:
 | Task | Guide |
 | --- | --- |
 | Run Nota and understand its current release status | [README](../README.md) |
+| See the current Linux and Windows interface | [Screenshot gallery](screenshots.md) |
 | Build, package, or verify the Windows frontend | [Windows guide](windows.md) |
 | Inspect Windows package, editing, and recovery evidence | [Windows verification record](windows-verification.md) |
 | Write, search, back up, migrate, or recover Notes | [User guide](usage.md) |
@@ -26,11 +27,13 @@ Agent workflows use [domain guidance](agents/domain.md), the
 [GitHub issue tracker](agents/issue-tracker.md), and the
 [triage label vocabulary](agents/triage-labels.md).
 
-Current documentation describes the shared Rust workspace and the Linux GTK
-and Windows WinUI frontends. Older ADRs
+Current documentation describes the Focus layout in the Linux GTK and
+Windows WinUI frontends and their shared Rust workspace. Older ADRs
 retain the browser implementation and its rationale as history; their status
 notes point to the current owners. Generated API documentation comes from
 `mise run doc` and is not edited by hand.
 
 Verification records describe named runs and their coverage limits. They are
-evidence for those paths, not whole-app or release acceptance.
+evidence for those paths, not whole-app or release acceptance. The dated
+writing, Recently Deleted, and Windows records above predate the Focus
+redesign. Their screenshots preserve those runs rather than the current UI.

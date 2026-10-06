@@ -1,41 +1,45 @@
 <p align="center">
-  <img src="assets/icons/nota-192.png" width="112" height="112" alt="Nota folded-note icon">
+  <img src="assets/icons/nota-192.png" width="96" height="96" alt="Nota folded-note icon">
 </p>
 
 <h1 align="center">Nota</h1>
 
-<p align="center">
-  A local-first Markdown note app for Linux and Windows.
-</p>
+<p align="center">Local-first Markdown notes for Linux and Windows.</p>
 
 <p align="center">
   <a href="https://github.com/astrazds/nota/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/astrazds/nota/actions/workflows/ci.yml/badge.svg?branch=main"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 </p>
 
-Capture a Note, write Markdown, and find it again through Search and Tags.
-Nota keeps one Flat Collection on your device, with Recently Deleted for
-recovery and local Backup files you control. It has no accounts, telemetry,
-backend, or sync service.
+Write, read, and find your notes in one local collection. Nota has a centered
+writing area, Markdown Preview, Search, Tags, pinned notes, and recoverable
+deletion. Your notes stay on your computer. There are no accounts, telemetry,
+or sync services.
 
-<p align="center">
-  <img src="docs/assets/readme/nota-main-window.jpg" alt="Nota native window showing active Notes, the distinct Recently Deleted section, and the Writing Surface">
-</p>
+![Nota on Linux with the Focus writing layout](docs/assets/readme/nota-linux-write.jpg)
 
-The Linux GTK window is shown above. The Windows WinUI window in Dark Split
-view is shown below. Both captures use synthetic Notes.
+The Linux app uses GTK4 and Relm4. The Windows app uses WinUI 3. Both share the
+Rust note model, Markdown rendering rules, and storage formats.
 
-![Nota on Windows in Dark Split view](docs/assets/verification/windows-split-dark.jpg)
+![Nota on Windows in Preview](docs/assets/readme/nota-windows-preview.jpg)
 
-The Linux frontend uses Relm4/GTK4. The Windows frontend uses WinUI 3 and shares
-the Rust application logic and data formats. The current version is
-`2.0.0-alpha.1`. A stable release and retirement of any hosted browser build
-are separate steps.
+These screenshots show the current Focus interface with synthetic notes.
+[The screenshot gallery](docs/screenshots.md) includes more views and capture details.
 
-## Build and run
+## Run Nota
 
-Install [mise](https://mise.jdx.dev/) and the native dependencies listed in
-[CONTRIBUTING.md](CONTRIBUTING.md#prerequisites), then run:
+The current version is `2.0.0-alpha.1`. This is a native alpha, not a stable
+release. Linux packaging targets an x86_64 AppImage. Windows packaging produces
+an unsigned, self-contained x64 ZIP.
+
+On Windows, download the `Nota-windows-x64` artifact from a successful
+[CI run](https://github.com/astrazds/nota/actions/workflows/ci.yml).
+Extract the workflow artifact, then extract the app ZIP inside it and run
+`Nota.Windows.exe`. Keep its files together. Preview requires WebView2 Runtime.
+See [the Windows guide](docs/windows.md) for prerequisites and limitations.
+
+To build from source, install [mise](https://mise.jdx.dev/) and the platform
+dependencies in [Contributing](CONTRIBUTING.md#prerequisites), then run:
 
 ```sh
 git clone https://github.com/astrazds/nota.git
@@ -44,57 +48,63 @@ mise install
 mise run dev
 ```
 
-Preview and Split are included by default. The project pins Rust through
-`mise.toml`; Cargo declares Rust 1.95 as the minimum version. Windows also uses
-the .NET SDK pinned in `mise.toml`.
+`mise run dev` starts GTK on Linux and WinUI on Windows. Preview and Split are
+included in the normal build. `mise.toml` pins Rust and the Windows .NET SDK.
+Cargo declares Rust 1.95 as the minimum version.
 
-On Windows, `mise run dev` starts the WinUI app. See the
-[Windows guide](docs/windows.md) for system prerequisites, isolated profiles,
-and `mise run package:windows`, which produces an x64 ZIP.
-
-On Linux, build the x86_64 AppImage with the additional packaging prerequisites:
+On Linux, install the packaging prerequisites and build an AppImage:
 
 ```sh
 mise run package:appimage
 ./dist/Nota-x86_64.AppImage
 ```
 
-The packager downloads linuxdeploy tools and bundles the native app, fonts,
-and WebKitGTK helpers. See [the AppImage rehearsal](docs/agents/appimage-rehearsal.md)
-for a clean-profile check.
+On Windows, build the self-contained ZIP:
 
-## Use Nota
+```powershell
+mise run package:windows
+```
 
-- Create a Note with **New Note** or `Ctrl+N`.
-- Write Markdown and use **Write**, **Preview**, or **Split** in the editor
-  footer. Split is available in wide windows.
-- Focus Search with `Ctrl+F`. Search supports words, quoted phrases, `title:`,
-  `tag:`, and `is:pinned`.
-- Use Note actions to pin or delete a Note. Deleted Notes remain in
-  the separate **Recently Deleted** section below the active Note List until
-  you restore or permanently remove them.
-- Use **Export** for a Backup and **Import** for a Merge Import. Review the
-  add and replace counts before applying an import. On Windows, choose
-  **Export notes backup…** for this workflow.
+The Linux packager downloads linuxdeploy tools and bundles fonts and WebKitGTK
+helpers. The Windows output is `dist/Nota-windows-x64.zip`. See
+[the AppImage rehearsal](docs/agents/appimage-rehearsal.md) for package verification.
 
-[The user guide](docs/usage.md) covers Tags, saving, Backup, recovery, and
-migration from browser-era exports. Remote images and active content are
-blocked in Preview. Links you activate open through the system handler.
-The guide also covers Windows **Export complete notebook state…**, which
-includes Recently Deleted and restores into an empty notebook on either platform.
+## Use your notebook
 
-## Data and compatibility
+- Select **New note** or press `Ctrl+N` to start writing.
+- Switch between **Write**, **Preview**, and **Split** in the footer. Split
+  places the editor beside Preview in wide windows and stacks them in compact windows.
+- Open **Notes** to search, filter by Tags, or select a pinned note. `Ctrl+F`
+  opens the drawer and focuses Search. Queries support words, quoted phrases,
+  `title:`, `tag:`, and `is:pinned`.
+- Open **Settings** for Theme and Markdown help. **About Nota** is in the
+  Notes drawer footer and also in Windows Settings.
+- Expand **Recently deleted** in the Notes drawer to restore deleted notes.
+- Open **Notes**, then **Backup**, to export or import a notes Backup.
+  **Export complete notebook** also preserves Recently Deleted and Theme.
 
-The Linux app stores data under `$XDG_DATA_HOME/net.astrazds.Nota`, normally
+Notes save automatically. Existing collections open in Preview, and new notes
+open in Write. The Notes drawer overlays the page without shifting the reading column.
+[The user guide](docs/usage.md) explains editing, filtering, saving, backup
+confirmation, and recovery.
+
+## Keep your data
+
+Linux stores data under `$XDG_DATA_HOME/net.astrazds.Nota`, normally
 `~/.local/share/net.astrazds.Nota`. Windows uses
-`%LOCALAPPDATA%\net.astrazds.Nota`. Notes and Backup files are not encrypted by
-Nota. See [PRIVACY.md](PRIVACY.md) for storage and network details, and
-[SECURITY.md](SECURITY.md) to report a vulnerability.
+`%LOCALAPPDATA%\net.astrazds.Nota` and supports an isolated `--data-dir`.
+Nota does not encrypt its collection or exported files.
 
-Backup v1 and desktop-transition v1 remain supported, including legacy
-`noter.*` format identifiers. A native build cannot read another browser's
-LocalStorage directly. Use a previously exported Backup or desktop-transition
-file to move that collection into Nota.
+Notes Backups merge into an existing collection. Complete-notebook exports
+restore into an empty notebook on either platform. Backup v1 and
+desktop-transition v1 remain compatible with legacy `noter.*` identifiers.
+To migrate from a browser-era build, use a previously exported file. Native
+Nota cannot read browser LocalStorage directly.
+
+Preview blocks scripts, remote images, and network resource loads. Allowed
+links you activate open through the system handler. Read
+[Privacy](PRIVACY.md) for storage and network details, or
+[Security](SECURITY.md) to report a vulnerability.
 
 ## Contribute
 
@@ -103,10 +113,10 @@ mise run setup:rust
 mise run verify
 ```
 
-On Linux, the GTK widget regression requires a display and runs separately with
-`mise run test:gtk`. [CONTRIBUTING.md](CONTRIBUTING.md) describes the toolchain,
-feature checks, packaging, and evidence expected in a pull request.
-Windows `verify` includes the WinUI build and C# checks against the Rust DLL.
+Windows verification includes the WinUI build and C# checks against the actual
+Rust library. Linux GTK editing and font checks need a display and run separately
+with `mise run test:gtk` and `mise run test:gtk:fonts`.
 
-[Documentation](docs/README.md) links the architecture, domain, design, and
-decision records. Nota is licensed under [MIT](LICENSE).
+[Contributing](CONTRIBUTING.md) covers feature checks, packaging, and pull request
+evidence. [Documentation](docs/README.md) links the architecture, design,
+domain reference, and historical decisions. Nota is licensed under [MIT](LICENSE).

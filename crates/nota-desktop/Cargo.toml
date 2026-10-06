@@ -6,7 +6,11 @@ rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Linux-first Relm4/GTK4 desktop application for Nota"
+homepage.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Native Linux GTK4 frontend for Nota, a local-first Markdown note app"
 
 [features]
 default = ["preview-webkit"]

@@ -14,7 +14,7 @@ Keep design intent here and exact implementation values in their owners:
 | GTK palette, controls, focus, and Light and Dark Themes | [nota.css](crates/nota-desktop/resources/nota.css) |
 | GTK window composition and widget behavior | [workspace.rs](crates/nota-desktop/src/ui/workspace.rs) |
 | GTK layout dimensions | [visual_contract.rs](crates/nota-desktop/src/visual_contract.rs) |
-| Pango-based reading measure | [writing_plane.rs](crates/nota-desktop/src/ui/writing_plane.rs) and [style.rs](crates/nota-desktop/src/ui/style.rs) |
+| Centered GTK reading column | [writing_plane.rs](crates/nota-desktop/src/ui/writing_plane.rs) and [workspace.rs](crates/nota-desktop/src/ui/workspace.rs) |
 | Preview HTML, typography, and content policy | [preview.rs](crates/nota-app/src/preview.rs) |
 | Windows composition and native input | [MainWindow.xaml](windows/Nota.Windows/MainWindow.xaml) and [MainWindow.xaml.cs](windows/Nota.Windows/MainWindow.xaml.cs) |
 | Windows palette and control styles | [App.xaml](windows/Nota.Windows/App.xaml) |
@@ -41,28 +41,34 @@ Selected Notes must also have a visible border or other non-color cue.
 
 ## Typography and reading measure
 
-Use bundled Source Sans 3 for app controls and reading text. Use Source Code
-Pro for Markdown editing and code examples. Register the local fonts through
-Pango for GTK and include their installed files in the AppImage.
-Windows bundles the TrueType versions for native controls. Preserve the
-upstream font licenses in both distribution formats.
+Use bundled Gelasio for the Note Title, Write body, and Preview prose. Use
+Source Sans 3 for app controls and Preview headings. Split uses Source Code
+Pro for the Markdown editor; Preview code uses the same monospace family.
+Write remains a plain Markdown editor even though it uses a reading font.
 
-Keep the Note Title, Tags, body, and footer aligned across Write, Preview, and
-Split. The GTK writing plane is left-aligned and capped at a Pango-measured `72ch`.
+Both frontends load bundled TrueType fonts for native controls. The shared
+Preview document embeds WOFF2 fonts without network requests. Preserve the
+upstream font licenses in both distribution formats. See the
+[font sources](assets/fonts/SOURCES.md) for the exact files and origins.
+
+Center the reading column while keeping its text left-aligned. The GTK
+`WritingPlane` and Windows XAML cap the Write and Preview body measure at
+600 logical pixels, with surrounding insets owned by the native layout.
 GTK does not support CSS `max-width`, so `WritingPlane` enforces the widget
-allocation. Preview owns its HTML reading measure; the outer GTK layout owns
-its horizontal inset. Avoid adding the inset again inside Preview HTML.
-Windows measures a Source Code Pro glyph through WinUI and limits the editor
-to 72 glyph widths. Its XAML layout owns the surrounding inset.
+allocation. Avoid adding the outer inset again inside Preview HTML.
+Split expands the body area across the available window width. The Note
+Title, metadata, and formatting tools keep their centered column.
 
 Use size and weight to establish hierarchy. Keep utility labels secondary to
 the Note and avoid decorative letter spacing or a monospace product identity.
 
 ## Layout and controls
 
-The Note List stays visible in wide windows. Compact windows switch between
-the Note List and editor through a normal navigation control. Split divides
-the editor area equally and is available only in wide windows.
+The **Notes** control opens an overlay drawer without shifting the reading
+column. The drawer covers the full content width in compact windows. The
+editor is unavailable until the drawer closes. Selecting a Note closes it.
+Split divides the body area equally in wide windows and stacks the editor
+above Preview in compact windows.
 
 Keep View Mode controls in one stable editor footer. Split uses one footer
 across both panes. The sidebar footer holds Backup controls. Exact dimensions
@@ -73,12 +79,12 @@ Formatting controls sit between Note Metadata and the Markdown body. They
 appear only when writing is available. Preserve native selection and undo history
 when a formatting action changes text.
 
-Tag chips remain compact metadata. GTK Note List Tags are filter buttons
-and show every matching Tag. Their FlowBox children must not add default
-padding that changes chip spacing. Keep existing row and Tag widgets when
-identities are unchanged so updates preserve focus and scroll position.
-Windows exposes Tag filters above the Note List in a horizontally scrollable
-row and uses an editable comma-separated field below the Note Title.
+Tags appear as links below the Note Title. Selecting a Tag opens Notes with
+that filter. The drawer shows the active Tag filter beside **All notes** and
+**Pinned**. GTK also exposes each Note's Tags in its row actions menu.
+Keep existing row widgets when identities are unchanged so updates preserve
+focus and scroll position. GTK edits comma-separated Tags inline and offers
+suggestions and collection-wide cleanup. Windows edits Tags in a dialog.
 
 GTK's Search Hint appears temporarily below Search. Global Notifications provide
 short-lived save, Backup, import, and error feedback without adding permanent
@@ -88,19 +94,18 @@ inside the workspace; Windows uses a dialog while the workspace is disabled.
 
 ### Recently Deleted
 
-Keep Recently Deleted visibly separate from the active Note List. Its header
-spans the sidebar width on a contrasting neutral band. The deleted rows use
-the theme's surface background, with a fine separator between rows. Leave
-space above the section so the boundary remains clear without relying on color.
+Keep Recently Deleted below the active Note List, separated by space and a
+top border. Its header shows the deleted count and expands the recovery
+rows. Both frontends start with the section collapsed.
 
-Use a stronger heading and readable utility text while keeping the Writing
-Surface primary. Place **Restore** and **Delete** beside each deleted Note,
-and **Clear All** in the section header. Restore is neutral; destructive
-actions use the theme's red. Preserve these distinctions in both themes.
+Place **Restore** and **Delete** beside each deleted Note. Put **Clear All**
+below the rows on GTK and **Clear all** below them on Windows. Restore is
+neutral; destructive actions use the theme's red. Preserve these distinctions
+in both themes.
 
-The header remains visible when Recently Deleted is empty; Clear All appears
-only when it contains Notes. The section remains part of the sidebar's scroll
-content rather than a separate navigation destination. Exact values belong
+The header remains visible when Recently Deleted is empty. The clear action
+appears only when it contains Notes. The section remains part of the drawer's
+scroll content rather than a separate navigation destination. Exact values belong
 to the `.nota-deleted-*` rules in `nota.css` for GTK and to `MainWindow.xaml`
 and `ReconcileDeleted` in `MainWindow.xaml.cs` for Windows.
 
@@ -134,4 +139,5 @@ layout, and passing C# binding tests does not establish rendered UI behavior.
 See [CONTRIBUTING.md](CONTRIBUTING.md#verify-a-change) for commands and
 [the brand toolkit](docs/brand-toolkit.md) for screenshot and external copy rules.
 The [Recently Deleted verification record](docs/recently-deleted-verification.md)
-contains native light and dark captures and the exercised recovery paths.
+records the earlier section layout and the recovery paths exercised at that time.
+Use current captures to assess the drawer and collapsible section.

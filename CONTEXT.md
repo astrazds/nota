@@ -1,374 +1,132 @@
-# Nota
+# Nota domain context
 
-Nota is a local-first Markdown note app focused on writing, finding, and organising personal notes. Markdown powers note content, but the primary product experience is a note app rather than a Markdown workbench.
+Nota is a local-first Markdown note app for writing, finding, and organising
+personal Notes. Linux and Windows share the domain model and storage formats.
+The [user guide](docs/usage.md) describes current controls and platform
+differences. [DESIGN.md](DESIGN.md) defines the visual system.
 
-This vocabulary defines product concepts and interaction goals. Linux and
-Windows share the domain model but differ in some controls. The
-[user guide](docs/usage.md) describes those current differences.
+## Note vocabulary
 
-## Language
+| Term | Meaning |
+| --- | --- |
+| Note | A personal Markdown document with a stable UUID, a separate title, Tags, a pin state, and timestamps. Use Note in product copy rather than document or file. |
+| Note Title | The Note's explicit name. It is not derived from the first Markdown heading. |
+| Markdown Note App | A note-taking product where Markdown supports writing. It is not a developer editor or Markdown workbench. |
+| Flat Collection | One active collection discovered through Search, the Note List, and Tags. There are no folders or separate notebooks. |
+| Empty Collection | A collection with no active Notes. The editor offers New note. A complete notebook restore also requires Recently Deleted to be empty. |
+| Quick Capture | Create a Note, select it, close the Notes drawer, switch to Write, and focus the Note Title. |
+| Note Actions | Explicit controls for pinning, editing Tags, and moving a Note to Recently Deleted. They remain available without hover. |
+| Delete Confirmation | A confirmation that names the Note before moving it to Recently Deleted. |
+| Recently Deleted | Recoverable Notes outside the active collection. Expand the section in the Notes drawer to restore Notes or delete them permanently. |
+| Clear All | Permanently delete every Note in Recently Deleted after confirmation. The action is below the expanded deleted rows. |
+| Tag | A lightweight label used for secondary organisation and filtering. It is not a folder or a primary navigation item. |
+| Note Metadata | Tags and the modification date shown below the Note Title. |
 
-**Note**:
-A personal Markdown document that can be quickly captured, written, found, organised, pinned, previewed, and deleted.
-_Avoid_: Document, file
+## Workspace vocabulary
 
-**Note Title**:
-A distinct name for a Note used for recognition, selection, and editing context.
-_Avoid_: Derived heading
+| Term | Meaning |
+| --- | --- |
+| Focus | The current layout. One Note occupies the main workspace, and navigation opens in an overlay drawer. |
+| Local-First Note Identity | Nota's visual identity, with paper colours, warm accents, a serif reading face, and native controls. |
+| Notes Drawer | The on-demand navigation panel containing Search, filters, the Note List, Recently Deleted, Backup, and About Nota. |
+| Writing Surface | The editable Markdown body in Write or Split. |
+| Preview | The rendered Markdown body below the shared native Note Title and metadata header. Preview does not duplicate that header inside the webview. |
+| View Mode | Write, Preview, or Split. A nonempty collection opens in Preview. Quick Capture opens Write. |
+| View Mode Controls | Write, Preview, and Split controls in the editor footer. Markdown help lives in Settings. |
+| Pane Rhythm | The shared alignment, spacing, and reading width across view modes. Split has its own compact body typography. |
+| Formatting Tools | Controls between the Note header and Markdown body, visible while the Writing Surface is available. |
+| Save Status | The editor footer's Saved locally, Saving, or Save failed indicator. |
+| Global Notification | Transient operation feedback separate from the editor's Save Status. Linux shows an overlay; Windows uses an InfoBar below the top bar. |
+| Theme | A separately tuned treatment of surfaces, text, borders, selection, and accents. Light and Dark are not colour inversions. |
+| Responsive Navigation | The Notes drawer adapts to window width. It overlays the editor on larger windows and occupies the full width on compact windows. |
+| Product Metadata | Version or build information for support, outside the main writing workflow. |
+| Diagnostics Surface | A secondary support view for product and storage details. The available details differ by frontend. |
 
-**Markdown Note App**:
-A note-taking product where Markdown support is part of the writing experience, not the dominant product frame.
-_Avoid_: Markdown workbench, developer editor
+## Discovery vocabulary
 
-**Local-First Note Identity**:
-The product's quiet visual identity: familiar note-app structure, warm accents, and calm surfaces without cloning another app.
-_Avoid_: Apple Notes clone
+| Term | Meaning |
+| --- | --- |
+| Search | The primary way to find Notes by title, content, Tags, or pin state. It is not a command palette. |
+| Note List | Rows that help users recognise and select Notes. Each row includes a title, preview text, and modification date. |
+| Discovery Depth | Improvements that explain Search results within the Flat Collection, before introducing a new organisation model. |
+| Match Snippet | A compact body excerpt around matched plain or quoted Search terms when the title or Tags do not already explain the match. |
+| Search Hint | Syntax help associated with Search. GTK shows a focus-time popover; Windows provides a tooltip. |
 
-**Preview**:
-A rendered view of a Note that shows the Note Title, read-only Note Metadata, and Markdown body.
-_Avoid_: Output pane
+Search, the Note List, and lightweight Tags remain the primary discovery
+model. All notes and Pinned filters live above the list. A selected Tag adds
+a removable filter. Creating a Note clears Search and filters so the new Note
+is discoverable.
 
-**Writing Surface**:
-The primary single-pane view where a Note is edited.
-_Avoid_: Source pane
+The shared core computes match snippets and highlight ranges. GTK renders
+highlighted matches; Windows currently shows plain result text. Do not infer
+identical frontend presentation from shared Search behavior. See the
+[user guide](docs/usage.md#write-and-find-notes) for supported syntax.
 
-**Pane Rhythm**:
-The shared inset, reading measure, type scale, and footer height that make Write, Preview, and Split feel like one workspace.
-_Avoid_: Per-mode layout personality
+## Storage vocabulary
 
-**View Mode**:
-A user-selected way to see a Note, such as Write, Preview, or Split in a wide native window.
-_Avoid_: Layout toggle
+| Term | Meaning |
+| --- | --- |
+| Native Collection | Active Notes and Recently Deleted stored together in one validated, versioned `collection.json`. Preferences and Backup Health are separate. |
+| Backup | A versioned local export of active Notes. It is distinct from sync and from a complete notebook export. |
+| Backup Health | Metadata about the last successful notes Backup export. It describes a local recovery point, not cloud status. |
+| Backup Controls | The Backup menu in the Notes drawer footer. Both frontends offer notes Backup export and import, complete notebook export, and complete notebook restore. |
+| Backup Import Preview | Validation and a count of Notes to add or replace, shown before Merge Import. |
+| Merge Import | Add missing identities and replace matching identities without clearing unrelated Notes. A matching Recently Deleted Note returns to the active collection. |
+| Desktop Transition | A versioned complete notebook file containing active Notes, Recently Deleted, Theme, and optional Backup Health. Restore requires both destination collections to be empty. |
+| Storage Recovery | The startup state when the saved collection cannot be read or validated. Editing stays blocked until an explicit recovery action succeeds. |
+| Previous Snapshot | The last valid active and Recently Deleted collection pair retained before the next save. It is one recovery point, not version history. |
+| Corrupt Payload Quarantine | The unreadable saved bytes preserved before an explicit recovery action replaces the current collection. It is diagnostic evidence, not a Backup. |
 
-**View Mode Controls**:
-The compact controls for switching between Write, Preview, Split, and Markdown help, kept with the editor area at a stable height.
-_Avoid_: Primary app header
+## Interaction contracts
 
-**Tag**:
-A lightweight label on a Note used for secondary organisation and filtering.
-_Avoid_: Folder, primary navigation item
+The Notes drawer starts closed at every window width. The top bar provides
+Notes, New note, the Nota wordmark, and Settings. Selecting a Note closes the
+drawer. Opening the drawer blocks editor input, and dismissing it restores
+the previous focus when that control is still available.
 
-**Empty Collection**:
-The state where the user has no Notes yet and needs a clear path to create the first one.
-_Avoid_: No selection
+The Note Title and metadata stay above the body in Write, Preview, and Split.
+The title remains a native editable control in Preview. Tags link to filters,
+and the adjacent add control opens Tag editing. A leading top-level Markdown heading
+that repeats the Note Title is suppressed in Preview to avoid a duplicate
+heading.
 
-**Flat Collection**:
-The organisation model where Notes are kept in one collection and discovered through Search, the Note List, and lightweight Tags.
-_Avoid_: Folders, notebooks
+Write and Preview use a centered reading area. Split divides the available
+body area into equal columns on larger windows. At 560 logical pixels or
+less, the editor appears above Preview. Both panes share the native Note
+header and one editor footer. The footer contains the word count, View Mode
+Controls, and Save Status.
 
-**Note Actions**:
-The explicit controls for secondary Note operations such as pinning or deleting.
-_Avoid_: Hover-only row controls
+Formatting Tools appear only in Write or Split. Settings contains Theme
+controls and Markdown help. Backup and About Nota remain secondary utilities
+in the Notes drawer footer. Recently Deleted is a collapsed section below
+the active Note List in the same scroll area.
 
-**Quick Capture**:
-A fast creation path that starts a new Note, selects it, and focuses the Note Title without making the user manage navigation first.
-_Avoid_: New document wizard
+Selection must preserve Note identity and keep the chosen row in view.
+Editing a Note must not reset its native selection or undo history when a
+save response arrives. Destructive confirmations identify their target or
+impact and put default focus on Cancel.
 
-**Delete Confirmation**:
-A note-specific confirmation that names the Note before it moves to Recently Deleted.
-_Avoid_: Generic destructive modal
+## Data contracts
 
-**Recently Deleted**:
-A recoverable holding area for Notes deleted from the Flat Collection, with Restore and permanent Delete beside each Note, and Clear All in the section header.
-_Avoid_: Hidden undo state, Trash as primary navigation
+Notes stay local. The app has no accounts, telemetry, cloud sync, or remote
+Note store. Exported files are user-managed recovery and transfer tools.
 
-**Clear All**:
-An explicit Recently Deleted action that permanently clears all recoverable Notes after confirmation.
-_Avoid_: Empty, silent purge
+A notes Backup includes active Notes only. Merge Import requires an import
+preview and preserves unrelated Notes. Complete notebook export includes
+Recently Deleted, Theme, and optional Backup Health. It excludes window
+geometry, Preview cache, and the profile lock.
 
-**Note Metadata**:
-Lightweight descriptive information about a Note, such as its Tags.
-_Avoid_: Permanent bottom bar
+Storage Recovery never silently resets unreadable data. Restoring a Previous
+Snapshot recovers both collections. Starting empty preserves the corrupt
+payload in quarantine. Linux also offers Backup import within recovery.
+Windows requires recovery to finish before Import opens; Start empty provides
+a path when the user has only a notes Backup.
 
-**Search Hint**:
-A temporary helper shown while Search is focused to explain scoped Search syntax without permanently adding sidebar noise.
-_Avoid_: Permanent syntax block
+The product name is Nota, the repository is `astrazds/nota`, the application
+ID is `net.astrazds.Nota`, and Rust crates use the `nota-` prefix. Legacy
+`noter.flat_collection` Backup files and `noter.desktop_transition` files
+remain accepted. Browser LocalStorage belongs to the historical migration
+source, not the current runtime.
 
-**Save Status**:
-A small editing-state indicator that tells the user whether Note changes are saved.
-_Avoid_: Sidebar footer metadata
-
-**Global Notification**:
-A short-lived floating message for save, Backup, and import feedback that does not create persistent header chrome.
-_Avoid_: Permanent footer status text, app header status
-
-**Formatting Tools**:
-Contextual controls that help users insert or wrap Markdown while writing.
-_Avoid_: Primary toolbar
-
-**Product Metadata**:
-Version or build information that helps with support or diagnostics but is not part of the main note workflow.
-_Avoid_: Sidebar footer content
-
-**Search**:
-The primary discovery control for finding Notes by title, content, or Tags.
-_Avoid_: Command palette
-
-**Discovery Depth**:
-Improvements that help users find a Note they vaguely remember inside the Flat Collection, led by Search and supported by richer Note List feedback.
-_Avoid_: Folder hierarchy, semantic search by default
-
-**Match Snippet**:
-A compact Note List preview excerpt shown around a body Search match when the Note Title or visible Tags do not already explain why a Note matched. Match Snippets use plain and quoted Search terms, not scoped title or Tag terms, and should prefer the snippet window that explains the most matched terms while keeping the Note List scannable.
-_Avoid_: Full result excerpt, multiple expanded matches
-
-**Note List**:
-A scannable list of Notes optimised for recognition, selection, and lightweight filtering.
-_Avoid_: Card grid, tag dashboard
-
-**Theme**:
-A tuned visual treatment for the app's surfaces, text, borders, selection states, and accent colours.
-_Avoid_: Inverted colours
-
-**Responsive Navigation**:
-The sidebar behaviour that adapts note navigation for smaller screens.
-_Avoid_: Floating expand handle
-
-**Backup**:
-A versioned local export of the Flat Collection that preserves Notes and can be stored outside the live collection.
-_Avoid_: Sync, cloud backup
-
-**Backup Health**:
-Lightweight metadata about the last successful Backup export, used to show whether the user has a recent local recovery point.
-_Avoid_: Sync status
-
-**Storage Recovery**:
-The startup state shown when the saved collection cannot be read or validated. Normal editing remains blocked until an explicit recovery action succeeds. Linux offers Backup import within recovery; Windows resolves recovery before opening Import.
-_Avoid_: Silent reset, automatic data loss
-
-**Previous Snapshot**:
-The last valid active Notes and Recently Deleted collection pair preserved before a safe save writes the next collection.
-_Avoid_: Undo history, version history
-
-**Corrupt Payload Quarantine**:
-The preserved copy of unreadable saved data made before recovery replaces the current collection, used for diagnostics rather than normal app loading.
-_Avoid_: Backup, recovery point
-
-**Diagnostics Surface**:
-A secondary support surface for Product Metadata, storage mode, Backup Health, and corrupt-payload quarantine state.
-_Avoid_: Sidebar footer metadata, primary navigation
-
-**Backup Controls**:
-Compact Export, Import, and Restore actions in the sidebar footer. Windows Export distinguishes a notes Backup from a complete notebook export.
-_Avoid_: Sync controls
-
-**Backup Import Preview**:
-A confirmation step that validates a Backup and shows how many Notes a Merge Import will add or replace before applying it.
-_Avoid_: Blind import
-
-**Merge Import**:
-The restore behaviour that adds Notes from a Backup and replaces same-identity Notes without clearing unrelated Notes. A matching Recently Deleted Note returns to the active collection.
-_Avoid_: Replace import by default
-
-**Desktop Transition**:
-A versioned migration file containing active Notes, Recently Deleted, Theme,
-and optional Backup Health. Restore requires both native collections to be
-empty. It is distinct from a Backup and from Previous Snapshot recovery.
-_Avoid_: Sync, Merge Import, full application profile
-
-**Native Collection**:
-The active Notes and Recently Deleted pair saved in one validated,
-versioned `collection.json`. Preferences and Backup Health are stored separately.
-_Avoid_: Browser LocalStorage, individual Markdown files
-
-## Relationships
-
-- A **Native Collection** contains active **Notes** and **Recently Deleted**.
-- A **Desktop Transition** restores those collections plus Theme and optional Backup Health into an empty native collection.
-- A **Backup** exports active Notes only and enters the app through **Merge Import**.
-- A **Note** has one **Preview** when rendered.
-- A **Note** has one **Note Title**.
-- A **Note** can have zero or more **Tags**.
-- A **Note** exposes **Note Actions** through a stable control.
-- A **Note** should be named in its **Delete Confirmation**.
-- A **Note** can move to **Recently Deleted** before it is explicitly cleared.
-- **Clear All** permanently removes every Note in **Recently Deleted** and should confirm the count before applying.
-- **Clear All** should be visible in the **Recently Deleted** section header when recoverable Notes exist.
-- A **Note** shows **Note Metadata** near its header or details surface.
-- A **Preview** shows the **Note Title**, then read-only **Note Metadata**, then the Markdown body so Preview and Split view match the Writing Surface header order.
-- **Pane Rhythm** keeps the **Writing Surface**, full **Preview**, and Split panes aligned to the same content origin and readable measure.
-- In Split, the editor area is divided equally (50/50 of the current viewport) while each pane keeps **Pane Rhythm**.
-- A **Note** has a **Save Status** while it is being edited.
-- A **Global Notification** can show save, Backup, and import outcomes above the app chrome, then clear itself after a short delay.
-- A **Markdown Note App** prioritises creating, writing, finding, and organising **Notes** over exposing Markdown tooling.
-- **Quick Capture** creates a **Note** and returns the user to the **Writing Surface**.
-- A **Flat Collection** contains all **Notes** without folders or notebooks.
-- **Recently Deleted** is a visually distinct section below the active **Note List**, with a full-width header and separated rows. It shares the sidebar's scroll content.
-- A **Local-First Note Identity** can borrow familiar note-app structure without copying Apple Notes exactly.
-- A **Writing Surface** is the default **View Mode** for a **Note**.
-- **View Mode Controls** belong in a consistent editor-area footer and should keep a stable height across Write, Preview, and Split.
-- In Split, one editor-area footer should span the editor/preview area because both panes are one **View Mode** for the same **Note**.
-- Selecting a **Note** in the **Note List** should keep that row in view; the list should not jump to the top.
-- **Note List** Tag pills and **Writing Surface** Tag pills share compact chip sizing.
-- About, Markdown help, **Delete Confirmation**, **Clear All**, and **Backup Import Preview** use paper-neutral product windows, not stock toolkit alerts.
-- Desktop should avoid a persistent editor header when the editor-area footer can carry **View Mode Controls**.
-- Compact viewports may keep a minimal **Responsive Navigation** toggle so the user can return to the **Note List**.
-- **Formatting Tools** support the **Writing Surface** but should not dominate the app chrome.
-- **Formatting Tools** should only appear when the **Writing Surface** is available.
-- In the **Writing Surface**, **Formatting Tools** sit after the Note header metadata and before the Markdown body.
-- A **Preview** is a **View Mode**, not the default workspace.
-- A **Tag** supports filtering but does not define the primary navigation model.
-- **Search** is the primary way to discover existing **Notes**.
-- **Discovery Depth** should improve Search-led recognition inside the **Flat Collection** before adding new organisation models.
-- A **Match Snippet** should explain body Search matches when the normal **Note List** preview would not show why a **Note** matched.
-- A **Match Snippet** should not replace the normal **Note List** preview when the **Note Title** or visible **Tags** already explain the Search match.
-- A **Match Snippet** should replace the normal preview line with one compact excerpt, clipped with ellipses when needed, with matched terms highlighted and no extra body-match label.
-- Search match highlighting belongs in the **Note List** for this direction; selecting a **Note** should open the normal editor or preview without carrying highlight state into the document surface.
-- Matched **Tags** should be visibly explanatory in the **Note List** row without becoming primary navigation.
-- Active **Search** can show lightweight result status and empty-state explanation, but should not become a separate results page or filter dashboard.
-- Recent Search memory is out of scope for **Discovery Depth** until current Search results explain themselves clearly.
-- Keyboard navigation across filtered results is a later workflow slice, separate from first improving why each Search result matched.
-- **Discovery Depth** should have mobile parity for snippets, matched Tags, result status, and empty states, with compact rendering allowed to preserve **Note List** scan density.
-- The success bar for **Discovery Depth** is that a user can search a remembered phrase or Tag and understand every visible result without opening **Notes**.
-- A **Search Hint** can explain scoped syntax while Search is focused, but should not become permanent sidebar content.
-- The **Note List** should remain dense enough to scan several **Notes** at once.
-- An **Empty Collection** should lead to creating the first **Note**.
-- **Product Metadata** belongs outside the primary note workflow.
-- Each **Theme** needs coherent surface, text, border, selection, and accent treatment.
-- **Responsive Navigation** keeps the **Note List** available without interrupting the **Writing Surface**.
-- A **Backup** preserves the **Flat Collection** outside the live collection.
-- **Backup Health** describes the recency of the user's last successful **Backup** export without implying sync.
-- Missing or stale **Backup Health** should be actionable in **Backup Controls** without becoming a warning banner.
-- **Storage Recovery** should block normal editing until the user chooses an explicit recovery path.
-- A **Previous Snapshot** covers active Notes and **Recently Deleted** together.
-- **Corrupt Payload Quarantine** preserves unreadable saved data before an explicit recovery action replaces the collection.
-- **Diagnostics Surface** owns **Product Metadata** and storage diagnostics outside the primary note workflow.
-- **Storage Recovery** keeps a path to **Backup Import Preview** and **Merge Import**. Windows resolves recovery before opening Import; use **Start empty** when recovering solely from a Backup. Linux also offers Import within recovery.
-- **Backup Controls** belong in the sidebar footer as secondary utilities, not in primary navigation.
-- A **Backup Import Preview** should appear before a **Merge Import** changes the **Flat Collection**.
-- A **Merge Import** restores Notes from a **Backup** without destructively replacing the current **Flat Collection**.
-
-## Example dialogue
-
-> **Dev:** "Should the split Markdown preview be the default workspace?"
-> **Domain expert:** "No. Nota is a **Markdown Note App**, so the default should foreground the **Note** and keep Markdown tooling contextual."
->
-> **Dev:** "Should preview live beside the editor all the time?"
-> **Domain expert:** "No. make the **Writing Surface** the default and let preview be an explicit **View Mode**."
->
-> **Dev:** "Should the sidebar lead with every available tag?"
-> **Domain expert:** "No. **Tags** are lightweight filters; search and the note list remain primary."
->
-> **Dev:** "When there are no notes, should we show 'No Note Selected'?"
-> **Domain expert:** "No. that is an **Empty Collection**, so show a direct path to create the first **Note**."
->
-> **Dev:** "Should pin and delete only appear when hovering over a note row?"
-> **Domain expert:** "No. **Note Actions** need a stable control so touch and keyboard users can discover them."
->
-> **Dev:** "Should creating a note leave mobile users in the Note List?"
-> **Domain expert:** "No. **Quick Capture** should create the **Note**, select it, and return to the **Writing Surface** with the **Note Title** ready."
->
-> **Dev:** "Should the UI copy Apple Notes as closely as possible?"
-> **Domain expert:** "No. use a **Local-First Note Identity** that feels familiar but belongs to Nota."
->
-> **Dev:** "Should save feedback live in the sidebar footer?"
-> **Domain expert:** "No. **Save Status** belongs near the active **Note** and editing context."
->
-> **Dev:** "Should Backup status stay in the sidebar footer?"
-> **Domain expert:** "No. use a **Global Notification** for transient save, Backup, and import feedback, then let it clear itself."
->
-> **Dev:** "Should Markdown commands always fill the top bar?"
-> **Domain expert:** "No. **Formatting Tools** should be available while writing, but secondary to the **Writing Surface**."
->
-> **Dev:** "Should the app version stay visible in the sidebar footer?"
-> **Domain expert:** "No. **Product Metadata** belongs in a support or about surface, not primary navigation."
->
-> **Dev:** "Should search become a command palette?"
-> **Domain expert:** "No. **Search** is the primary discovery control for **Notes**, but not a general command system."
->
-> **Dev:** "Should tags stay in a permanent bottom bar?"
-> **Domain expert:** "No. **Note Metadata** belongs near the **Note** header or details, not below the writing area."
->
-> **Dev:** "Should tags disappear when previewing?"
-> **Domain expert:** "No. show read-only **Note Metadata** under the **Note Title** in **Preview** and Split view so organising context stays visible and matches the **Writing Surface**."
->
-> **Dev:** "Should Preview be centred because it is read-only?"
-> **Domain expert:** "No. keep the same **Pane Rhythm** as the **Writing Surface** so changing **View Mode** does not feel like moving to a separate document."
->
-> **Dev:** "In Split, should one pane keep a fixed 72ch strip while the other takes leftover space?"
-> **Domain expert:** "No. split the editor area 50/50 of the current viewport, then keep **Pane Rhythm** inside each pane."
->
-> **Dev:** "Can native About and Delete Confirmation use the stock GTK alert?"
-> **Domain expert:** "No. those are product windows. Use the paper-neutral popup model, name the **Note** or impact, and keep Cancel as the default confirmation focus."
->
-> **Dev:** "When the user selects a Note further down the list, can the sidebar jump to the top?"
-> **Domain expert:** "No. keep that **Note** in view. Selection is not a reason to rebuild or re-scroll the **Note List**."
->
-> **Dev:** "Should Search syntax be permanently visible below Search?"
-> **Domain expert:** "No. use a **Search Hint** while Search is focused, then give the space back to the **Note List**."
->
-> **Dev:** "Should Backup use a disclosure dropdown?"
-> **Domain expert:** "No. **Backup Controls** are compact secondary utilities and fit in the sidebar footer."
->
-> **Dev:** "Should each note row expand to show all tags by default?"
-> **Domain expert:** "No. the **Note List** should stay scannable, with **Tags** shown only when they help recognition or filtering."
->
-> **Dev:** "Can dark mode just invert the light colours?"
-> **Domain expert:** "No. each **Theme** needs separately tuned surfaces, borders, selection states, and accents."
->
-> **Dev:** "Should collapsed sidebar use a floating mid-page expand tab?"
-> **Domain expert:** "No. sidebar collapse is **Responsive Navigation**, so mobile should use normal top-bar navigation."
->
-> **Dev:** "Is 'Delete Note?' enough confirmation?"
-> **Domain expert:** "No. the **Delete Confirmation** should name the **Note** so the user can verify what is moving to **Recently Deleted**."
->
-> **Dev:** "Should the title be inferred from the first Markdown heading?"
-> **Domain expert:** "No. keep a **Note Title** as a distinct name, but present it as part of the **Note** rather than a form field."
->
-> **Dev:** "Should the redesign introduce notebooks?"
-> **Domain expert:** "No. keep a **Flat Collection** and improve **Search**, the **Note List**, and **Tags** first."
->
-> **Dev:** "Should importing a backup replace the current collection by default?"
-> **Domain expert:** "No. use **Merge Import** for the first backup flow so restore remains safe by default."
->
-> **Dev:** "Should Backup import apply as soon as a file is selected?"
-> **Domain expert:** "No. show a **Backup Import Preview** first so the user can confirm the add/replace impact."
->
-> **Dev:** "Should Backup Health behave like sync status?"
-> **Domain expert:** "No. **Backup Health** only reflects the last successful local export recovery point."
->
-> **Dev:** "Should corrupt saved Notes fall back to starter notes or an empty collection?"
-> **Domain expert:** "No. show **Storage Recovery** so the user explicitly restores a **Previous Snapshot**, starts empty, or imports a **Backup**."
->
-> **Dev:** "Should starting empty discard corrupt saved payloads immediately?"
-> **Domain expert:** "No. use **Corrupt Payload Quarantine** so diagnostics can still explain that recovery happened."
->
-> **Dev:** "Should app version and storage mode live in the Backup footer?"
-> **Domain expert:** "No. put **Product Metadata** and storage details in a **Diagnostics Surface**."
-
-## Flagged ambiguities
-
-- "Markdown workbench" was considered as the product shape. resolved: Nota should be framed as a **Markdown Note App**.
-- "Preview toggle" sounded like a layout control. resolved: preview is a **View Mode** for a **Note**.
-- Split leftover-space allocation. resolved: Split divides the editor area 50/50 of the current viewport, then keeps **Pane Rhythm** inside each pane.
-- Stock GTK alerts for About/help/confirmations. resolved: use paper-neutral product windows.
-- Selecting a Note rebuilt the **Note List**. resolved: keep the selected row in view.
-- "Tag navigation" implied a primary organising model. resolved: a **Tag** is secondary filtering metadata.
-- "No Note Selected" was used for both no selection and no notes. resolved: no notes is an **Empty Collection** with a creation path.
-- "Hover controls" hid secondary operations. resolved: **Note Actions** should be exposed through a stable control.
-- "New note" behaved like a generic creation action. resolved: **Quick Capture** should start a selected Note and focus the Note Title.
-- "Apple Notes clone" was too restrictive as a design target. resolved: use a **Local-First Note Identity**.
-- "Saved" was treated as sidebar metadata. resolved: **Save Status** belongs with the active editing context.
-- "Backup exported" was treated as persistent footer metadata. resolved: transient Backup and import feedback belongs in a floating **Global Notification**.
-- "Toolbar" implied primary app chrome. resolved: **Formatting Tools** are contextual writing affordances.
-- "Version" was treated as primary sidebar content. resolved: **Product Metadata** belongs outside the main note workflow.
-- "Search" could imply global commands. resolved: **Search** is scoped to discovering **Notes**.
-- "Tags input" was placed as a bottom bar. resolved: Tags are **Note Metadata** and belong near the Note header or details surface.
-- "Tags" were visible only while writing. resolved: read-only **Note Metadata** should also appear under the **Note Title** in **Preview** and Split view.
-- "Search syntax" was persistent sidebar content. resolved: use a focus-time **Search Hint**.
-- "Backup dropdown" added extra interaction for a utility feature. resolved: use compact sidebar-footer **Backup Controls**.
-- "Note rows" were drifting toward card-like metadata blocks. resolved: the **Note List** should be dense and scannable.
-- "Dark mode" was treated as inverted light styling. resolved: dark mode is a separately tuned **Theme**.
-- "Collapsed sidebar" looked like a desktop feature. resolved: sidebar behaviour is **Responsive Navigation**.
-- "Delete Note?" was generic. resolved: **Delete Confirmation** should identify the target **Note** and clarify that it moves to **Recently Deleted**.
-- "Deleted" implied immediate permanent loss. resolved: deleted Notes move to **Recently Deleted** until restored or explicitly cleared.
-- "Title" could be confused with the first Markdown heading. resolved: **Note Title** is a distinct Note property.
-- "Folders" and "notebooks" imply a new primary organisation model. resolved: Nota uses a **Flat Collection** for now.
-- "Backup import" could imply destructive replacement. resolved: backup v1 uses **Merge Import** and leaves replace import out of scope until a clear workflow needs it.
-- "Backup import" could feel blind. resolved: use **Backup Import Preview** to confirm add/replace impact before applying a **Merge Import**.
-- "Backup status" could imply cloud sync. resolved: **Backup Health** only tracks last successful local export metadata.
-- "Corrupt startup" could silently reset user data. resolved: use **Storage Recovery** with explicit Restore previous snapshot, Start empty, and Import Backup paths.
-- "Previous notes" could imply full history. resolved: a **Previous Snapshot** is one last-known-good active/Recently Deleted collection pair, not version history.
-- "Start empty" could destroy evidence of the corrupt payload. resolved: use **Corrupt Payload Quarantine** for diagnostics after the user chooses that path.
-- "Diagnostics" could become persistent app chrome. resolved: keep Product Metadata and storage diagnostics in a secondary **Diagnostics Surface**.
-- "Noter" and `noter-leptos-md` were the previous product and repository names. resolved: the product, repository, application ID, crates, CSS prefixes, and binary are **Nota** / `astrazds/nota` / `net.astrazds.Nota` / `nota-*`. Backup v1 still imports `noter.flat_collection`, and Desktop Transition still imports `noter.desktop_transition`. Legacy browser builds keep their LocalStorage compatibility.
+See [the architecture guide](docs/architecture.md) for code ownership and
+[the ADR index](docs/adr/README.md) for decisions and their original context.

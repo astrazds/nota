@@ -22,6 +22,12 @@ WinUI controls, file pickers, and WebView2. The browser frontend is no longer
 in tree. Shared data formats do not imply identical frontend controls; check
 [the user guide](../usage.md) for platform differences.
 
+The current Focus layout opens saved Notes in Preview, creates Notes in Write,
+and keeps navigation in an on-demand Notes drawer. Follow the current
+[architecture map](../architecture.md#focus-layout-ownership) and
+[design system](../../DESIGN.md) when changing these controls. Older ADRs and
+verification screenshots preserve the earlier layouts.
+
 When a task exposes missing or ambiguous terminology, record the question and
 resolve it in the existing domain document. When a decision changes, add or
 amend an ADR with its rationale and link the superseded decision. Preserve the

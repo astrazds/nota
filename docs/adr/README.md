@@ -11,7 +11,7 @@ and [CONTRIBUTING.md](../../CONTRIBUTING.md) for commands.
 | [0002: Merge-only Backup import](0002-merge-only-backup-import.md) | Active. Native Merge Import also recovers matching Recently Deleted identities. |
 | [0003: Browser audit polish](0003-browser-audit-polish.md) | Historical browser implementation. Product behavior carries into native Nota. |
 | [0004: Capture and recovery](0004-fast-capture-and-local-recovery.md) | Product rules remain active. Native persistence replaces the LocalStorage implementation. |
-| [0005: Editor controls and Clear All](0005-editor-first-controls-and-clear-all.md) | Product rules remain active. GTK and WinUI replace the browser implementation. |
+| [0005: Editor controls and Clear All](0005-editor-first-controls-and-clear-all.md) | Explicit editing and deletion controls remain. Focus moves navigation into a drawer, Markdown help into Settings, and Clear All below the expanded Recently Deleted rows. |
 | [0006: Core modules and browser tests](0006-deep-core-modules-and-browser-visual-contracts.md) | Domain ownership principles remain. Browser modules and Playwright tooling were removed. |
 | [0007: Visual system](0007-local-notebook-visual-system.md) | Visual intent remains. GTK CSS, Pango, WinUI resources, and packaged fonts replace Tailwind and Trunk. |
 | [0008: Browser storage for 1.0](0008-static-browser-storage-for-1-0.md) | Superseded for the native product by ADR-0009. Describes the browser migration source. |

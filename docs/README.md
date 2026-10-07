@@ -15,6 +15,7 @@ Start with the guide that matches your task:
 | Understand the product's users and scope | [Product](../PRODUCT.md) |
 | Change native layout, typography, or controls | [Design system](../DESIGN.md) |
 | Prepare screenshots, icons, or external copy | [Brand toolkit](brand-toolkit.md) |
+| Use the current logo and platform icon assets | [Focus logo](brand-toolkit.md#application-icon-assets) |
 | Find the reason for an architectural choice | [Decision records](adr/README.md) |
 | Check the Linux AppImage and migration compatibility | [AppImage rehearsal](agents/appimage-rehearsal.md) |
 | Drive the Linux GTK interface with an isolated profile | [GTK verification procedure](../.agents/skills/verify-nota/SKILL.md) |

@@ -9,6 +9,10 @@ Source documents:
 - [`CONTEXT.md`](../CONTEXT.md): domain language and product relationships.
 - [`docs/adr/0007-local-notebook-visual-system.md`](adr/0007-local-notebook-visual-system.md): accepted visual-system decisions.
 
+Current logo assets:
+
+- [Focus identity](#application-icon-assets): production marks, app icons, platform exports, and a visual preview.
+
 Historical concept artifacts:
 
 - [`docs/assets/brand/nota-brand-toolkit-concepts.png`](assets/brand/nota-brand-toolkit-concepts.png): exploratory brand toolkit image covering mark direction, README hero, social preview, mood board, and screenshot frames.

@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" color="#25221F" role="img" aria-labelledby="title desc">
   <title id="title">Nota app icon</title>
   <desc id="desc">A folded note with one open writing line and a detached capture corner.</desc>
-  <path fill="#F7F5F1" d="M0 0H64V64H0Z"/>
-  <g transform="translate(11.52 11.52) scale(.64)">
-    <path fill="#25221F" fill-rule="evenodd" d="M16 6H36L52 22V52Q52 58 46 58H18Q12 58 12 52V12Q12 6 16 6Z M22 30A2 2 0 0 0 22 34H42A2 2 0 0 0 42 30Z"/>
+  <rect x="1" y="1" width="62" height="62" rx="14" fill="#25221F" stroke="#49443E" stroke-width=".5"/>
+  <g transform="translate(8 8) scale(.75)">
+    <path fill="#FDFCF9" fill-rule="evenodd" d="M16 6H36L52 22V52Q52 58 46 58H18Q12 58 12 52V12Q12 6 16 6Z M22 30A2 2 0 0 0 22 34H42A2 2 0 0 0 42 30Z"/>
     <path fill="#DBA756" d="M40 6H46Q52 6 52 12V18Z"/>
   </g>
 </svg>

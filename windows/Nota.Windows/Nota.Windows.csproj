@@ -16,7 +16,7 @@
     <RepositoryUrl>https://github.com/astrazds/nota</RepositoryUrl>
     <PackageProjectUrl>https://github.com/astrazds/nota#readme</PackageProjectUrl>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>../../assets/icons/favicon.ico</ApplicationIcon>
+    <ApplicationIcon>../../assets/icons/nota.ico</ApplicationIcon>
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -30,7 +30,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260921001" />
-    <Content Include="../../assets/icons/favicon.ico" Link="Assets/nota.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../assets/icons/nota.ico" Link="Assets/nota.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../../assets/icons/lucide-LICENSE.txt" Link="Assets/Icons/lucide-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../../assets/fonts/*.woff2" Link="Assets/Fonts/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../../assets/fonts/SourceSans3-Regular.ttf" Link="Assets/Fonts/SourceSans3-Regular.ttf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

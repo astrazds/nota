@@ -3,7 +3,7 @@
   <desc id="desc">A folded note with one open writing line and a detached capture corner.</desc>
 
   <g>
-    <path fill="currentColor" fill-rule="evenodd" d="M16 6H36L52 22V52Q52 58 46 58H18Q12 58 12 52V12Q12 6 16 6Z M22 30A2 2 0 0 0 22 34H42A2 2 0 0 0 42 30Z"/>
-    <path fill="currentColor" d="M40 6H46Q52 6 52 12V18Z"/>
+    <path fill="#25221F" fill-rule="evenodd" d="M16 6H36L52 22V52Q52 58 46 58H18Q12 58 12 52V12Q12 6 16 6Z M22 30A2 2 0 0 0 22 34H42A2 2 0 0 0 42 30Z"/>
+    <path fill="#DBA756" d="M40 6H46Q52 6 52 12V18Z"/>
   </g>
 </svg>

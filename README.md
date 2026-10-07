@@ -1,5 +1,10 @@
 <p align="center">
-  <img src="assets/icons/nota-192.png" width="96" height="96" alt="Nota folded-note icon">
+  <a href="docs/brand-toolkit.md#application-icon-assets">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="assets/icons/nota-icon-dark.svg">
+      <img src="assets/icons/nota-icon.svg" width="96" height="96" alt="Nota note icon with an amber folded corner">
+    </picture>
+  </a>
 </p>
 
 <h1 align="center">Nota</h1>

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/icons/nota-192.png" width="96" height="96" alt="Nota folded-note icon">
+  <img src="assets/icons/nota-192.png" width="96" height="96" alt="Nota note icon with an amber folded corner">
 </p>
 
 <h1 align="center">Nota</h1>

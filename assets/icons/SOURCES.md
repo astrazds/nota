@@ -1,5 +1,15 @@
 # Interface icon sources
 
+## Nota logo
+
+The Focus logo is original Nota artwork. The concept was created with the
+built-in imagegen tool and redrawn as flat SVG geometry for production.
+The mark has a note silhouette, one open writing line, and an amber corner.
+See the [brand toolkit](../../docs/brand-toolkit.md#application-icon-assets)
+for the source variants, exports, and generation prompt.
+
+## Interface controls
+
 The Focus interface uses Lucide outlines from
 [commit 500620a2e8123f8d1db191538886dc0c223f69a9](https://github.com/lucide-icons/lucide/tree/500620a2e8123f8d1db191538886dc0c223f69a9/icons).
 The stroke width is 1.5 units in a 24-unit view box, matching the approved design.

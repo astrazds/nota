@@ -1,0 +1,9 @@
+Mode: built-in imagegen. Concept generation with transparent_background=true.
+
+Use case: logo-brand
+Asset type: finished logo symbol for Nota, a minimal local-first notebook app.
+Primary request: Design an exceptionally simple, distinctive folded-note logo to accompany Nota's new Focus UI. The UI is almost empty warm white paper, charcoal text, literary serif reading typography, tiny amber details, quiet sans-serif controls. This is a new professional identity replacing a fussy pixel-art document icon.
+Subject: a single upright note silhouette, charcoal ink #25221F, with one clean diagonal cut at the upper-right and a small separate warm amber #DBA756 folded-corner triangle. Within the solid charcoal paper is just ONE generous warm transparent negative-space horizontal writing stroke, a little above the vertical center. The silhouette has modest softly rounded lower corners, precise geometry, substantial weight and open negative space. The detached amber corner and cut should visually describe the very same sheet of paper. Keep it simple enough to redraw with a handful of geometric paths. Elegant flat graphic, optically balanced, no hairline details.
+Composition: single isolated symbol centered in a square canvas, symbol occupies about 70 percent height, ample clear space. Actual transparent background, including the negative-space writing stroke.
+Text: none.
+Constraints: two flat solid colors only, crisp smooth antialiased edges. No pixel art, no shadows, no gradients, no texture, no 3D, no lighting, no surrounding tile, no frame, no mockup, no pencil, no ruled notepad, no cloud, no sparkle, no checkmark. The result should feel as quiet and assured as the app.

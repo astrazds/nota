@@ -265,14 +265,41 @@ Rules:
 
 ### Application Icon Assets
 
-Nota now ships a practical app icon set based on the folded-note mark direction. Keep these assets in sync when the mark changes:
+The Focus identity uses a solid note silhouette, one open writing line, and a
+detached amber corner. Smooth curves and flat fills replace the earlier pixel
+art. The master colors are graphite `#25221F`, paper `#FDFCF9`, and amber
+`#DBA756`. App tiles use the quiet frame color `#F7F5F1`.
+
+![Focus logo in light, dark, app, and small-size uses](assets/brand/focus/nota-identity-preview.png)
+
+Keep these assets in sync when the mark changes:
 
 - `assets/icons/nota-icon.svg`: full rounded-square app icon source for install and larger surfaces.
+- `assets/icons/nota-icon-dark.svg`: dark app tile for surfaces that explicitly support an alternate icon.
+- `assets/icons/nota-mark.svg` and `nota-mark-dark.svg`: transparent marks for light and dark backgrounds.
 - `assets/icons/nota-maskable.svg`: mask-safe source with generous background coverage.
 - `assets/icons/nota-monochrome.svg`: single-color documentation and mask source.
 - `assets/icons/nota-favicon.svg`: favicon-safe note-only source, cropped to the mark with no outer app tile.
 - `assets/icons/nota-16.png`, `nota-32.png`, `nota-48.png`, and `favicon.ico`: browser favicon rasters generated from the favicon-safe source.
 - `assets/icons/apple-touch-icon.png`, `nota-192.png`, `nota-512.png`, `nota-maskable-192.png`, and `nota-maskable-512.png`: platform install rasters generated from the app and maskable sources.
+- `assets/icons/nota-1024.png`: large app tile export.
+- `assets/icons/nota.ico`: Windows app icon with 16, 20, 24, 32, 40, 48, 64, 128, and 256px entries. Windows embeds this file and copies it for the runtime window icon.
+
+The Apple touch export uses the opaque maskable source so the device can apply
+its own corner mask. Maskable artwork stays inside the central safe circle.
+These retained web and mobile exports do not imply native mobile app support.
+Linux installs the shared app SVG. Keep the GTK resource copy identical to it.
+
+The detached corner remains visible in monochrome through the diagonal gap.
+Use the light mark on a dark background. Keep text separate from app icons.
+The Source Sans 3 wordmark stays `Nota` in external layouts; the existing
+lowercase `nota` labels remain in the native app headers.
+
+The [generated concept](assets/brand/focus/nota-generated-concept.png) records
+the imagegen exploration. Production SVGs replace its raster shading with
+flat geometry. The [generation prompt](assets/brand/focus/imagegen-prompt.txt)
+records the brief. PNG and ICO exports were rendered from the SVGs with
+Sharp 0.35.5. The SVGs are the editable sources.
 
 Minimum-size rule: the 16px favicon must use the note mark itself and fill the canvas. Do not put the full rounded-square app icon inside the 16px favicon.
 

@@ -49,18 +49,12 @@ public sealed partial class MainWindow
     private void Backup_Click(object sender, RoutedEventArgs args)
     {
         var menu = new MenuFlyout();
-        var export = new MenuFlyoutItem { Text = "Export notes backup…" };
-        export.Click += async (_, _) => await ExportAsync(false);
-        var import = new MenuFlyoutItem { Text = "Import notes backup…" };
+        var export = new MenuFlyoutItem { Text = "Backup / Export…" };
+        export.Click += async (_, _) => await ExportAsync();
+        var import = new MenuFlyoutItem { Text = "Import / Restore…" };
         import.Click += Import_Click;
-        var complete = new MenuFlyoutItem { Text = "Export complete notebook…" };
-        complete.Click += async (_, _) => await ExportAsync(true);
-        var restore = new MenuFlyoutItem { Text = "Restore complete notebook…" };
-        restore.Click += Restore_Click;
         menu.Items.Add(export);
         menu.Items.Add(import);
-        menu.Items.Add(complete);
-        menu.Items.Add(restore);
         menu.Items.Add(new MenuFlyoutSeparator());
         var status = new MenuFlyoutItem { Text = "Backup status" };
         status.Click += async (_, _) =>
@@ -114,15 +108,18 @@ public sealed partial class MainWindow
         await dialog.ShowAsync();
     }
 
-    private async Task ExportAsync(bool transition)
+    private async Task ExportAsync()
     {
         try
         {
-            var picker = new FileSavePicker { SuggestedStartLocation = PickerLocationId.DocumentsLibrary, SuggestedFileName = $"nota-{(transition ? "notebook" : "backup")}-{DateTime.Now:yyyy-MM-dd}" };
+            var suggested = snapshot?.SuggestedExportName ?? "nota-backup.json";
+            if (suggested.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                suggested = suggested[..^5];
+            var picker = new FileSavePicker { SuggestedStartLocation = PickerLocationId.DocumentsLibrary, SuggestedFileName = suggested };
             picker.FileTypeChoices.Add("JSON backup", [".json"]);
             WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
             var file = await picker.PickSaveFileAsync();
-            if (file is not null) await RunAsync(new { command = transition ? "export_transition" : "export_backup", path = file.Path });
+            if (file is not null) await RunAsync(new { command = "export_notebook", path = file.Path });
         }
         catch (Exception exception) { ShowError(exception.Message); }
     }
@@ -143,32 +140,11 @@ public sealed partial class MainWindow
         {
             var json = await PickJsonAsync();
             if (json is null) return;
-            var reply = await RunAsync(new { command = "import_backup", json });
-            if (reply?.Snapshot.PendingImport is not { } import) return;
-            var confirmed = await ConfirmAsync("Import backup?", $"Notes in this backup: {import.TotalImportedNotes}\n\nNotes to add: {import.NotesToAdd}\nNotes to replace: {import.NotesToReplace}\n\nExisting notes with the same identity will be replaced. Other notes will stay in your notebook.", "Import");
-            if (confirmed) await TransitionAsync(new { command = "confirm_import" }, replaceEditor: true);
+            var reply = await RunAsync(new { command = "import_notebook", json });
+            if (reply?.Snapshot.PendingImport is not { } pending) return;
+            if (await ConfirmAsync(pending.Title, pending.Body, pending.Action))
+                await TransitionAsync(new { command = "confirm_import" }, replaceEditor: true);
             else await RunAsync(new { command = "cancel_import" });
-        }
-        catch (Exception exception) { ShowError(exception.Message); }
-    }
-
-    private async void Restore_Click(object sender, RoutedEventArgs args) => await RestoreFileAsync();
-
-    private async Task RestoreFileAsync()
-    {
-        try
-        {
-            if (snapshot is not null && (snapshot.Rows.Length > 0 || snapshot.SelectedNote is not null || snapshot.RecentlyDeleted.Length > 0))
-            {
-                var unavailable = Dialog("Restore requires an empty notebook", "Use Import notes backup to combine notes with this notebook. To restore a complete notebook, open Nota with an empty data folder using --data-dir.");
-                unavailable.CloseButtonText = "Close";
-                await unavailable.ShowAsync();
-                return;
-            }
-            var json = await PickJsonAsync();
-            if (json is null) return;
-            if (await ConfirmAsync("Restore this notebook?", "This brings the saved notes, Recently Deleted, and settings into this empty notebook.", "Restore"))
-                await TransitionAsync(new { command = "import_transition", json }, replaceEditor: true);
         }
         catch (Exception exception) { ShowError(exception.Message); }
     }

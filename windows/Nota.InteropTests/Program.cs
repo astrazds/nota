@@ -91,12 +91,14 @@ await using (var session = opened.Session)
     await session.ExecuteAsync(new { command = "delete_note", id = next.Snapshot.SelectedNote.Id });
     await session.ExecuteAsync(new { command = "toggle_pin", id = savedId });
     var backupPath = Path.Combine(directory, "export.json");
-    var exported = await session.ExecuteAsync(new { command = "export_backup", path = backupPath });
+    var exported = await session.ExecuteAsync(new { command = "export_notebook", path = backupPath });
     Check(File.Exists(backupPath), "Backup export writes the chosen file");
+    Check(exported.Snapshot.BackupHealth == "Up to date", "Backup export updates Backup Health after the file is written");
     var backup = await File.ReadAllTextAsync(backupPath);
+    Check(backup.Contains("\"kind\": \"nota.desktop_transition\""), "Backup export writes a complete notebook");
     await session.ExecuteAsync(new { command = "edit_note", id = savedId, edit_sequence = exported.Snapshot.EditSequence + 1, title = "Changed after export", content = "replacement", tags_input = "" });
-    var staged = await session.ExecuteAsync(new { command = "import_backup", json = backup });
-    Check(staged.Snapshot.PendingImport is { NotesToReplace: > 0 }, "Backup import previews same-identity replacements");
+    var staged = await session.ExecuteAsync(new { command = "import_notebook", json = backup });
+    Check(staged.Snapshot.PendingImport is { Action: "Import", Body: var importBody } && importBody.Contains("Notes to replace: 1"), "Import of a complete file into a nonempty notebook offers a merge");
     var imported = await session.ExecuteAsync(new { command = "confirm_import" });
     Check(imported.Snapshot.SelectedNote?.Id == savedId && imported.Snapshot.SelectedNote.Title == "Unicode notebook", "Confirmed import replaces the selected note with the same identity");
 
@@ -110,17 +112,21 @@ await using (var session = opened.Session)
 
     await session.ExecuteAsync(new { command = "set_theme", theme = "dark" });
     var transitionPath = Path.Combine(directory, "transition.json");
-    await session.ExecuteAsync(new { command = "export_transition", path = transitionPath });
+    await session.ExecuteAsync(new { command = "export_notebook", path = transitionPath });
     await session.ExecuteAsync(new { command = "delete_note", id = savedId });
     var deleted = await session.ExecuteAsync(new { command = "snapshot" });
     Check(deleted.Snapshot.RecentlyDeleted.Any(note => note.Id == savedId), "Deleted notes remain recoverable");
     var transition = await File.ReadAllTextAsync(transitionPath);
-    await RejectAsync(session, new { command = "import_transition", json = transition }, "Complete notebook restore refuses a nonempty profile");
+    var merge = await session.ExecuteAsync(new { command = "import_notebook", json = transition });
+    Check(merge.Snapshot.PendingImport is { Action: "Import" }, "A complete file merges when the notebook is not empty");
+    await session.ExecuteAsync(new { command = "cancel_import" });
     var destination = await NativeSession.OpenAsync(Path.Combine(directory, "restored"));
     await using (var target = destination.Session)
     {
-        var restored = await target.ExecuteAsync(new { command = "import_transition", json = transition });
-        Check(restored.Snapshot.Rows.Any(note => note.Id == savedId) && restored.Snapshot.Theme == "dark", "Complete notebook restore preserves notes and theme in an empty profile");
+        var stagedRestore = await target.ExecuteAsync(new { command = "import_notebook", json = transition });
+        Check(stagedRestore.Snapshot.PendingImport is { Action: "Restore" }, "An empty notebook offers an exact restore");
+        var restored = await target.ExecuteAsync(new { command = "confirm_import" });
+        Check(restored.Snapshot.Rows.Any(note => note.Id == savedId) && restored.Snapshot.Theme == "dark", "Exact restore preserves notes and theme in an empty profile");
     }
     await session.ExecuteAsync(new { command = "restore_note", id = savedId });
     await session.ExecuteAsync(new { command = "select_note", id = savedId });

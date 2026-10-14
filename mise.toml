@@ -41,6 +41,10 @@ run_windows = "cargo test -p nota-core -p nota-app -p nota-ffi --locked"
 description = "Verify the AppImage directory contract"
 run = "python3 build-aux/test_package_appimage.py"
 
+[tasks."check:no-wasm"]
+description = "Fail if crates/ still target wasm32"
+run = "python3 build-aux/check_no_wasm_residue.py"
+
 [tasks.doc]
 description = "Build Rust API documentation"
 run = "cargo doc --workspace --all-features --no-deps --locked"
@@ -54,6 +58,7 @@ run = [
   "mise run clippy",
   "mise run test",
   "mise run test:package",
+  "mise run check:no-wasm",
 ]
 run_windows = [
   "mise run fmt",
@@ -62,6 +67,7 @@ run_windows = [
   "mise run test",
   "mise run build:windows",
   "mise run test:windows",
+  "mise run check:no-wasm",
 ]
 
 [tasks."dev:desktop"]

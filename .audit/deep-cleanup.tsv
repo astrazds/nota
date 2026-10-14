@@ -1,0 +1,19 @@
+ts	phase	decision	why	evidence	result
+2026-10-14T22:19:54Z	start	deep cleanup sweep run begins	operator asked for /poteto-mode deep codebase cleanup	agent run	open
+2026-10-14T22:19:54Z	frame	done = native Rust green after subtractive deletions only	prove it against cargo test/clippy not vibes	PRODUCT.md browser-gone claim	open
+2026-10-14T22:19:54Z	frame	scope ~12k LOC Rust, 4 crates; delete dead sample_notes and unused recovery APIs; keep ADRs and legacy backup kinds	subtract before add; historical ADRs are records not cruft	crates/nota-core/src/sample_notes.rs, storage_recovery.rs:1	open
+2026-10-14T22:19:54Z	frame	rigor medium-high: per-unit cargo test + clippy -D warnings; trail committed	cleanup can silently break recovery/import	mise.toml verify tasks	open
+2026-10-14T22:20:24Z	harness	captured pre-change cargo test/clippy/fmt green for nota-core/app/ffi	old vs new needs a known-good baseline	/tmp/cleanup-baseline-test.txt	tests green
+2026-10-14T22:20:24Z	design	wrote subtractive 4-unit playbook; no fan-out (same files)	shared state on storage_recovery and lib.rs	.audit/cleanup-playbook.md	open
+2026-10-14T22:20:47Z	unit1	deleted nota-core sample_notes (zero callers)	dead debug starter notes left from browser era	crates/nota-core/src/lib.rs	tests green
+2026-10-14T22:21:37Z	unit2	removed unused recovery APIs, quarantine field, and wasm dead_code allow	native storage owns load/save; core only resolves the user choice	crates/nota-core/src/storage_recovery.rs	tests green
+2026-10-14T22:22:11Z	unit2b	judged YES: delete NoteWorkspace storage_recovery path and storage_recovery module	production recovery is NativeRecovery+AppModel bool; workspace path has zero callers	session.rs:611-641, note_workspace.rs:74-84	open
+2026-10-14T22:22:42Z	unit2b	deleted storage_recovery module and NoteWorkspace recovery field/methods/tests	zero production callers; AppModel bool + NativeStore remain	crates/nota-core/src/note_workspace.rs	tests green
+2026-10-14T22:23:00Z	unit3	no active false browser claims outside ADRs	PRODUCT/architecture already say browser removed; ADRs stay historical	rg nota-web outside docs/adr	VERIFIED
+2026-10-14T22:23:30Z	unit2c	removed WorkspaceDisplayState and markdown_cheatsheet_text	display_state was test-only; UI uses MARKDOWN_CHEATSHEET_SECTIONS directly	note_workspace.rs, markdown_editing.rs	tests green
+2026-10-14T22:24:04Z	unit2c	removed WorkspaceDisplayState and markdown_cheatsheet_text	display_state was test-only; UI uses MARKDOWN_CHEATSHEET_SECTIONS directly	note_workspace.rs, markdown_editing.rs	tests green
+2026-10-14T22:24:04Z	encode	added build-aux/check_no_wasm_residue.py	catch browser-target residue returning to crates/	build-aux/check_no_wasm_residue.py	script green
+2026-10-14T22:24:31Z	verify	predicate green: fmt, clippy -D warnings, test nota-core/app/ffi, wasm residue check	Phase A done predicate on real cargo output	/tmp/cleanup-final-test.txt	VERIFIED
+2026-10-14T22:24:43Z	commit	landed two commits on cursor/deep-cleanup-sweep-64cb	story order: subtract dead APIs, then encode the gate	git log -2	open
+2026-10-14T22:25:04Z	commit	rebuilt commits as refactor then verify gate	first attempt staged incompletely; soft-reset and restaged full core deletion	76648c9,a4b8ad4	tests green
+2026-10-14T22:25:04Z	verify	final predicate: core/app/ffi tests green, clippy -D warnings, no wasm residue	Phase A done check on real artifacts	/tmp/cleanup-final-test.txt	VERIFIED

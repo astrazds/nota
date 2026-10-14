@@ -5,18 +5,20 @@ description: Verify Nota's native GTK desktop UI after behavior or visual change
 
 # Verify Nota
 
-Drive the real GTK app through its Broadway display backend and the Codex CUA browser tool. Read [the feature index](features/README.md), then the requested feature. This checkout has no browser frontend or product CLI. Cargo tests supplement UI proof.
+Drive the real GTK app through its Broadway display backend and a browser driver (Codex CUA when available, otherwise Cursor `cursor-ide-browser`). Read [the feature index](features/README.md), then the requested feature. This checkout has no browser frontend or product CLI. Cargo tests supplement UI proof.
 
 This procedure covers Linux GTK only. For WinUI, follow the
 [Windows verification procedure](../../../docs/windows.md#keep-verification-separate-from-personal-notes)
 and drive the native Windows window. Shared Rust tests do not establish
 platform UI parity.
 
+On a Windows host, build and run Broadway under WSL2 against this checkout (`/mnt/c/...`). Windows can reach `http://127.0.0.1:<port>/` when `gtk4-broadwayd` listens on loopback. The Cursor browser driver lives on the Windows side.
+
 For packaging or migration checks, also use [the AppImage rehearsal](../../../docs/agents/appimage-rehearsal.md). Broadway does not prove Wayland integration, GPU rendering, desktop portals, or the packaged runtime.
 
 ## Launch
 
-Run from the repository root. Use `mise.toml` and the prerequisites in `CONTRIBUTING.md`. Require `gtk4-broadwayd`, `dbus-run-session`, `curl`, `ss`, `grep`, `readlink`, `sha256sum`, `file`, and a CUA-controlled browser. Report missing prerequisites explicitly.
+Run from the repository root. Use `mise.toml` and the prerequisites in `CONTRIBUTING.md`. Require `gtk4-broadwayd`, `dbus-run-session`, `curl`, `ss`, `grep`, `readlink`, `sha256sum`, `file`, and a browser driver (CUA or `cursor-ide-browser`). Report missing prerequisites explicitly.
 
 Build with the same features as `mise run dev`, then launch the binary directly to track its PID:
 
@@ -50,37 +52,40 @@ For a Windows-managed worktree built in WSL, run the two Git receipt commands in
 Require `ss -ltnp "sport = :$nota_port"` to show no listener. If occupied, choose another port and update the browser URL. Runs have private profiles, runtime directories, and D-Bus sessions. Never attach to an existing listener or drive one run from two tabs.
 
 ```bash
-XDG_RUNTIME_DIR="$nota_profile/runtime" gtk4-broadwayd \
+nohup env XDG_RUNTIME_DIR="$nota_profile/runtime" gtk4-broadwayd \
   --address=127.0.0.1 --port="$nota_port" "$nota_display" \
   >"$nota_run/broadway.log" 2>&1 &
 nota_broadway_pid=$!
+echo "$nota_broadway_pid" >"$nota_run/broadway.pid"
+disown || true
 ```
+
+Daemonize with `nohup`/`disown` (or keep one long-lived PTY). A launch script that backgrounds jobs and exits will SIGHUP Broadway and Nota.
 
 Require that PID to remain alive and `curl --fail --silent --max-time 3 "http://127.0.0.1:$nota_port/"` to return the Broadway page. Then start Nota:
 
 ```bash
-env HOME="$nota_profile/home" XDG_DATA_HOME="$nota_profile/data" \
+nohup env HOME="$nota_profile/home" XDG_DATA_HOME="$nota_profile/data" \
   XDG_CONFIG_HOME="$nota_profile/config" XDG_CACHE_HOME="$nota_profile/cache" \
   XDG_RUNTIME_DIR="$nota_profile/runtime" GDK_BACKEND=broadway \
   BROADWAY_DISPLAY="$nota_display" dbus-run-session -- \
-  sh -c 'echo $$ > "$nota_run/app.pid"; exec "$1"' sh "$nota_binary" \
+  sh -c 'echo $$ > "$0/app.pid"; exec "$1"' "$nota_run" "$nota_binary" \
   >"$nota_run/app.log" 2>&1 &
 nota_session_pid=$!
+echo "$nota_session_pid" >"$nota_run/session.pid"
+disown || true
 ```
 
 Apply profile overrides only to the runtime command, after mise builds. Outer `HOME` or `XDG_DATA_HOME` overrides can redirect mise's tool installation.
 
-In `mcp__cua_repl.js`, follow the tool's first-call and browser-selection rules. Use an available browser and retain one tab. For the in-app browser:
+**CUA:** In `mcp__cua_repl.js`, follow the tool's first-call and browser-selection rules. Use an available browser and retain one tab:
 
 ```javascript
 var notaTab = await cua.createBrowserTab('iab', 'http://127.0.0.1:18085', { visible: false });
-```
-
-In the next tool call, inspect the window:
-
-```javascript
 await notaTab.getScreenshot();
 ```
+
+**cursor-ide-browser:** Navigate to `http://127.0.0.1:18085/`, lock the tab, and drive with screenshots plus `browser_mouse_click_xy` / `browser_press_key`. Take a fresh screenshot immediately before each coordinate click. Pass screenshot-space coordinates (the tool maps them to the viewport). Keep one tab for the run.
 
 Ready means the native window shows `nota`, Notes, the New note control, and the empty editor. Open Notes and require a zero count with `No notes yet.` The browser title is `broadway 2.0`. Capture this state before mutation. On failure, inspect logs and run Cleanup before retrying.
 
@@ -105,13 +110,13 @@ Also inspect `app.log` and the screenshot. HTTP success alone does not prove GTK
 
 ## Drive
 
-Broadway paints GTK controls as rendered surfaces, including DOM images. Its AX tree may contain only `AXWebArea`; GTK labels are not DOM selectors. Prefer accessible handles when exposed. Otherwise take a fresh screenshot and use `notaTab.click([x, y])` at the visible control. Derive coordinates from that screenshot, never from an earlier run.
+Broadway paints GTK controls as rendered surfaces, including DOM images. Its AX tree may contain only `AXWebArea`; GTK labels are not DOM selectors. Prefer accessible handles when exposed. Otherwise take a fresh screenshot and click the visible control (`notaTab.click([x, y])` or `browser_mouse_click_xy`). Derive coordinates from that screenshot, never from an earlier run.
 
 Broadway's `getSurfaceId` only resolves when the event target is a DOM node with a `.surface` property. Desktop or CUA clicks that land on the page without that target send `surface id 0` and do nothing. If clicks pass through or never mutate the UI, stop retrying coordinates. Drive input through Broadway `sendInput` opcodes on an open `/socket` websocket (button press `3`, release `4`, key press `7`, key release `8`), or dispatch mouse events whose `target` is the surface node. Keep screenshots as the pass/fail oracle.
 
-If CUA rejects a click on a rendered text image, run Doctor, inspect the current screenshot, and target the same visible control's background. Keyboard focus and activation are another supported path. Record which path worked. If the browser clips the GTK window, use the browser's documented viewport capability to expose it and reset that override during Cleanup. Changing the browser viewport does not prove GTK's compact layout.
+If a click on a rendered text image fails, run Doctor, inspect the current screenshot, and target the same visible control's background. Keyboard focus and activation are another supported path. Record which path worked. If the browser clips the GTK window, use the browser's documented viewport capability to expose it and reset that override during Cleanup. Changing the browser viewport does not prove GTK's compact layout.
 
-Use `pressKey(null, key)` for GTK text, with `null` retaining the current focus. Browser `typeText`, `paste`, and form filling may leave the rendered app unchanged. For the synthetic title `verify`:
+Use serial key events for GTK text. Browser `typeText`, `paste`, form filling, and DOM-synthesized `KeyboardEvent`s may leave the rendered app unchanged or only partially update it. Parallel key tool calls scramble order. Caps Lock in the driving browser uppercases GTK input — toggle it off before fixtures. For the synthetic title `verify` (CUA):
 
 ```javascript
 for (const key of ['v', 'e', 'r', 'i', 'f', 'y']) await notaTab.pressKey(null, key);
@@ -119,13 +124,13 @@ await notaTab.getAXState();
 await notaTab.getScreenshot();
 ```
 
-Use `space`, `Return`, `BackSpace`, `ctrl+a`, and `ctrl+z` for key events. Click the intended field before `ctrl+a`. After each action batch, inspect AX state and the screenshot before selecting the next target. A frame can lag key events. Wait for the expected visible value with bounded observations before asserting or typing again. After 60 seconds without progress, run Doctor.
+With `cursor-ide-browser`, call `browser_press_key` once per character and wait for each result before the next. Use `Control+a` for select-all. Use `space`, `Return`, `BackSpace`, and `Control+z` as needed. Click the intended field before select-all. After each action batch, inspect a screenshot (and AX state when the driver provides it) before selecting the next target. A frame can lag key events. Wait for the expected visible value with bounded observations before asserting or typing again. After 60 seconds without progress, run Doctor.
 
 Follow every entry point for the requested feature or report the precise skip. Browser-reserved shortcuts can prevent GTK receiving a key. Passing a mouse path does not verify its shortcut.
 
 ## Evidence
 
-Keep proof in the printed `nota_run` directory. Set `notaEvidence` in CUA to that exact path. Give each capture a distinct name. This CUA backend returns JPEG bytes; use the matching extension and confirm the format with `file` before handing over evidence:
+Keep proof in the printed `nota_run` directory. Set `notaEvidence` in CUA to that exact path, or copy Cursor browser screenshots into `$nota_run/screenshots/`. Give each capture a distinct name. CUA may return JPEG bytes; Cursor screenshots are often PNG. Confirm the format with `file` before handing over evidence:
 
 ```javascript
 var notaFs = await import('node:fs/promises');

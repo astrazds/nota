@@ -20,7 +20,7 @@ for that frontend.
 
 | Feature | Recipe | Observable proof |
 | --- | --- | --- |
-| Capture and save | [Writing](writing.md) | Title and body survive native restart with the same identity |
+| Capture and save | [Writing](writing.md) | Title and body survive native restart with the same identity; footer shows Saved locally |
 | Find and organise | [Search and tags](search.md) | Queries and tag filters explain results; pin state persists |
 | Read Markdown | [View modes](view-modes.md) | Write, Preview, and Split show the same Note |
 | Recover deletion | [Recently Deleted](deletion.md) | Named confirmation, distinct recovery section in both themes, and restoration |

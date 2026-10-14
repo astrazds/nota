@@ -60,79 +60,81 @@ action immediately; Windows asks for confirmation. Below the deleted rows,
 before permanently clearing every deleted Note. Cancel leaves them in place.
 The clear action is hidden when the section is empty.
 
-To preserve deleted Notes before permanently removing them, use
-**Export complete notebook**. A notes Backup excludes Recently Deleted.
+To preserve Notes before permanently removing them, choose **Backup / Export**.
+That file includes active Notes and Recently Deleted.
 
-The **Restore complete notebook** command in the drawer's **Backup** menu imports a
-[desktop-transition file](#restore-a-complete-notebook).
+## Export a notebook
 
-## Export and import a Backup
-
-1. Open **Notes**, then **Backup** in the drawer footer. Choose **Export notes backup**.
-2. Save the JSON file.
-3. Keep that file outside the live application data directory if you want a
+1. Open **Notes**, then **Backup** in the drawer footer.
+2. Choose **Backup / Export**. On Windows, the item is **Backup / Export…**.
+3. Save the JSON file. The suggested name is `nota-backup-YYYY-MM-DD.json`.
+4. Keep that file outside the live application data directory if you want a
    separate recovery copy.
-4. To import it, choose **Import notes backup**, select the file, and review the add and
-   replace counts.
-5. Confirm the Merge Import to apply it.
 
-A Backup contains active Notes, including their identities and Tags. It does
-not contain Recently Deleted, preferences, or Backup Health. Merge Import
-adds new identities and replaces matching ones. If a matching Note is in
-Recently Deleted, import restores it to the active collection. Other Notes
-remain in place. A successful notes Backup export updates Backup Health;
-that indicator does not verify that the exported file still exists.
-Exporting complete notebook state preserves the existing Backup Health value
-without updating it.
+**Backup / Export** writes one complete notebook. The file contains active
+Notes, Recently Deleted, Theme, and a new Backup Health time. It does not
+contain window dimensions, the Preview cache, or edit history. After the file
+is written, Nota stores that same Backup Health time locally. The indicator
+does not check that the file still exists.
 
-## Restore a complete notebook
+## Import or restore a notebook
 
-A desktop-transition file contains active Notes, Recently Deleted, Theme,
-and optional Backup Health. It does not contain window dimensions, Preview
-cache, or a full edit history.
+1. Open **Notes**, then **Backup**.
+2. Choose **Import / Restore**. On Windows, the item is **Import / Restore…**.
+3. Select the JSON file and read the confirmation.
+4. Choose the named action to apply the file, or choose **Cancel** to leave
+   the notebook unchanged.
 
-Open **Notes**, then **Backup**, and choose **Export complete notebook** to
-create this file. Both platforms can export and restore a desktop-transition file.
+Nota chooses the confirmation from the file.
 
-Choose **Restore complete notebook** in the Backup menu and select the file. Both
-the active collection and Recently Deleted must be empty. A restore into a
-non-empty collection is rejected without mutation. Use Merge Import to add
-Notes to an existing collection.
+- A notes-only Backup always combines notes. New identities are added.
+  Matching identities are replaced. A matching Note in Recently Deleted
+  returns to the active collection. Other Notes stay. Theme and Backup Health
+  stay as they are.
+- A complete notebook replaces the notebook only when the active collection
+  and Recently Deleted are both empty, and Storage Recovery is not open.
+  Restore applies the file's active Notes, Recently Deleted, Theme, and
+  Backup Health. If the file has no Backup Health, restore clears the local
+  Backup Health.
+- A complete notebook opened into a notebook that already has Notes, or
+  opened during Storage Recovery, combines only the active Notes from the
+  file. Recently Deleted, Theme, and Backup Health in that file are not
+  applied.
 
-On Windows, open a separate empty profile with `--data-dir` before restoring
-if you want to keep the current notebook. See [the Windows guide](windows.md#keep-verification-separate-from-personal-notes).
+An older `noter.flat_collection` file and an older `noter.desktop_transition`
+file follow the same choices. Keep the original export until you have checked
+the notebook and reopened Nota.
+
+On Windows, open a separate empty profile with `--data-dir` when you want an
+exact restore without changing the current notebook. See [the Windows guide](windows.md#keep-verification-separate-from-personal-notes).
 On Linux, use a separate XDG data directory as described in
 [Contributing](../CONTRIBUTING.md#use-an-isolated-profile).
 
-Keep the original export until you have checked the restored collection and
-reopened Nota. The file formats still accept legacy `noter.*` identifiers.
-
 ## Restore a browser-era collection
 
-Use a desktop-transition JSON exported by a legacy browser build, or use a
-normal Backup with **Import notes backup**. Follow [the complete notebook restore procedure](#restore-a-complete-notebook)
-for a desktop-transition file. Native Nota cannot read a browser profile's
-LocalStorage directly.
+Use a complete notebook JSON exported by a legacy browser build, or import a
+notes-only Backup with **Import / Restore**. Follow [Import or restore a notebook](#import-or-restore-a-notebook).
+Native Nota cannot read a browser profile's LocalStorage directly.
 
 ## Recover unreadable saved data
 
 When Nota cannot parse its current collection, it shows Storage Recovery and
 keeps normal editing disabled. Linux offers these actions:
 
-- **Restore previous snapshot** restores the last valid active and Recently
+- **Restore Previous Snapshot** restores the last valid active and Recently
   Deleted pair, when a valid snapshot exists.
-- **Start empty** preserves the corrupt payload in a quarantine file and
+- **Start Empty** preserves the corrupt payload in a quarantine file and
   starts an empty collection.
-- **Import Backup** opens the normal preview and merge flow for a Backup you
-  choose.
+- **Import / Restore** opens the same import flow. A complete notebook
+  imported here combines its active Notes. It does not replace the notebook.
 
 Windows opens a recovery dialog with **Restore previous**, **Start empty**,
-and **Close Nota**. To recover from a Backup on Windows, first choose
-**Start empty**, confirm, then use **Import notes backup**. Both platforms preserve the
-unreadable collection in a quarantine file before replacing it during recovery.
+and **Close Nota**. To recover from a file on Windows, first choose
+**Start empty**, confirm, then use **Import / Restore**. Both platforms
+preserve the unreadable collection in a quarantine file before replacing it
+during recovery.
 
-A Previous Snapshot is one recovery copy, not a full edit history. A Backup
-contains active Notes only. These recovery paths preserve different state.
+A Previous Snapshot is one recovery copy, not a full edit history.
 
 ## Storage and Preview
 

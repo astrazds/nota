@@ -73,16 +73,16 @@ For a real migration, use a transition export supplied
 from a legacy browser build. This source tree no longer produces browser
 exports.
 
-1. In the AppImage, open **Notes**, then **Backup**, then **Restore complete
-   notebook**. Restore the desktop-transition JSON into the Empty Collection.
+1. In the AppImage, open **Notes**, then **Backup**, then **Import / Restore**.
+   Select the desktop-transition JSON. Confirm **Restore this backup?**.
 2. Confirm the restored Notes, then close and reopen the AppImage with the
    same temporary profile and check that the collection persists. If the file
    contains Recently Deleted Notes or a Theme preference, confirm those values
    too.
-3. Restore the same file again. Nota must reject the second restore without
-   changing the collection.
-4. Import a Backup that contains a different Note. Merge Import must add the
-   Note without clearing the restored collection.
+3. Import the same file again. The dialog must offer **Import these notes?**.
+   Cancel it. The collection must stay unchanged.
+4. Import a notes-only Backup that contains a different Note. Confirming
+   Import must add the Note without clearing the restored collection.
 
 If the human is away, leave the isolated window running and print the profile
 path.
@@ -96,5 +96,5 @@ blocked. Keep local profile paths and process identifiers in the local
 receipt; public PR evidence should contain synthetic observations and test
 results without machine-specific paths.
 
-See [the user guide](../usage.md#restore-a-complete-notebook) for the
+See [the user guide](../usage.md#import-or-restore-a-notebook) for the
 Backup and desktop-transition distinction.

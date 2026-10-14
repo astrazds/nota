@@ -138,10 +138,13 @@ passes `%LOCALAPPDATA%\net.astrazds.Nota` or an absolute `--data-dir` path
 explicitly. WebView2 stores browser runtime data in `preview-cache/` under
 that profile. The exported formats exclude this cache and the profile lock.
 
-Merge Import operates through `NoteWorkspace`, including identities currently
-in Recently Deleted. Desktop-transition restore requires both collections to
-be empty and transfers optional Backup Health exactly. These formats have
-separate fixtures and tests because their restore semantics differ.
+`nota_core::exchange` sniffs a picked file. A flat collection always merges
+through `NoteWorkspace`, including identities currently in Recently Deleted.
+A complete notebook replaces the destination only when both collections are
+empty and Storage Recovery is off. That replace transfers Theme and Backup
+Health, including a missing health value. Any other complete file merges its
+active Notes and drops the file's trash, Theme, and health. The two codecs
+keep separate fixtures.
 
 See [the user guide](usage.md) for the user-facing recovery choices.
 

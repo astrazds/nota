@@ -233,9 +233,9 @@ pub(super) fn show_markdown_help(parent: &gtk::ApplicationWindow) {
 }
 
 pub(super) struct ConfirmationRequest {
-    pub(super) title: &'static str,
+    pub(super) title: String,
     pub(super) detail: String,
-    pub(super) accept_label: &'static str,
+    pub(super) accept_label: String,
     pub(super) accepted: AppMsg,
     pub(super) cancelled: AppMsg,
     pub(super) destructive: bool,
@@ -254,7 +254,7 @@ pub(super) fn show_confirmation(
         cancelled,
         destructive,
     } = request;
-    let dialog = paper_dialog(window, message, None, 440, 0);
+    let dialog = paper_dialog(window, &message, None, 440, 0);
     dialog.set_resizable(false);
     let root = gtk::Box::new(gtk::Orientation::Vertical, 0);
     root.set_css_classes(&["nota-dialog-panel"]);
@@ -273,7 +273,7 @@ pub(super) fn show_confirmation(
     spacer.set_hexpand(true);
     let cancel = gtk::Button::with_label("Cancel");
     cancel.set_css_classes(&["nota-dialog-cancel"]);
-    let accept = gtk::Button::with_label(accept_label);
+    let accept = gtk::Button::with_label(&accept_label);
     if destructive {
         accept.set_css_classes(&["nota-dialog-accept", "danger"]);
     } else {

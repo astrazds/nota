@@ -2,22 +2,9 @@ use nota_app::app::AppMsg;
 use relm4::gtk;
 use relm4::gtk::prelude::*;
 
-#[derive(Clone, Copy)]
-pub(super) enum ImportKind {
-    Backup,
-    DesktopTransition,
-}
-
-pub(super) fn open_json_file(
-    window: &gtk::ApplicationWindow,
-    kind: ImportKind,
-    sender: &relm4::Sender<AppMsg>,
-) {
+pub(super) fn open_import_file(window: &gtk::ApplicationWindow, sender: &relm4::Sender<AppMsg>) {
     let dialog = gtk::FileDialog::builder()
-        .title(match kind {
-            ImportKind::DesktopTransition => "Restore complete notebook",
-            ImportKind::Backup => "Import Nota Backup",
-        })
+        .title("Import / Restore")
         .modal(true)
         .build();
     let filter = gtk::FileFilter::new();
@@ -34,11 +21,7 @@ pub(super) fn open_json_file(
         match file.load_contents_future().await {
             Ok((bytes, _etag)) => match String::from_utf8(bytes.to_vec()) {
                 Ok(json) => {
-                    let message = match kind {
-                        ImportKind::DesktopTransition => AppMsg::ImportTransitionJson(json),
-                        ImportKind::Backup => AppMsg::ImportBackupJson(json),
-                    };
-                    let _send_result = sender.send(message);
+                    let _send_result = sender.send(AppMsg::StageImport(json));
                 }
                 Err(_) => {
                     let _send_result = sender.send(AppMsg::OperationFailed(

@@ -221,6 +221,15 @@ fn recovery_gates_mutations_and_preserves_corrupt_bytes_when_restoring_previous(
         session.execute(Request::NewNote).unwrap_err().code,
         "storage_recovery"
     );
+    assert_eq!(
+        session
+            .execute(Request::ExportNotebook {
+                path: temp.path().join("during-recovery.json"),
+            })
+            .unwrap_err()
+            .code,
+        "storage_recovery"
+    );
     assert_eq!(session.snapshot()["recovery"]["can_restore_previous"], true);
     command(&mut session, json!({"command":"restore_previous"}));
     assert!(session.snapshot()["recovery"].is_null());
@@ -249,17 +258,71 @@ fn merge_import_previews_counts_then_replaces_identity_and_adds_new_note() {
     let backup = export_flat_collection_backup(&[replacement.clone(), extra]).unwrap();
     let preview = command(
         &mut session,
-        json!({"command":"import_backup", "json":backup}),
+        json!({"command":"import_notebook", "json":backup}),
     );
+    let pending = &preview["snapshot"]["pending_import"];
+    assert_eq!(pending["title"], "Import these notes?");
+    assert_eq!(pending["action"], "Import");
     assert_eq!(
-        preview["snapshot"]["pending_import"],
-        json!({"total_imported_notes":2,"notes_to_add":1,"notes_to_replace":1})
+        pending["body"],
+        "Notes in this file: 2\n\nNotes to add: 1\nNotes to replace: 1"
     );
     assert_ne!(session.app.workspace.notes()[0].title, "Replacement");
     command(&mut session, json!({"command":"confirm_import"}));
     session.flush().unwrap();
     assert_eq!(session.app.workspace.notes().len(), 2);
     assert!(session.app.workspace.notes().contains(&replacement));
+    assert!(session.snapshot()["pending_import"].is_null());
+}
+
+#[test]
+fn complete_notebook_restores_an_empty_profile_and_merges_active_notes_otherwise() {
+    use nota_core::transition::{ThemePreference, export_desktop_transition};
+    let temp = tempfile::tempdir().unwrap();
+    let mut session = open(temp.path());
+    command(&mut session, json!({"command":"new_note"}));
+    command(&mut session, json!({"command":"set_theme","theme":"light"}));
+    let active = session.app.workspace.notes()[0].clone();
+    let deleted = Note::new("Deleted".into(), "trash".into());
+    let notebook = export_desktop_transition(
+        std::slice::from_ref(&active),
+        std::slice::from_ref(&deleted),
+        ThemePreference::Dark,
+        None,
+    )
+    .unwrap();
+    let staged = command(
+        &mut session,
+        json!({"command":"import_notebook","json":notebook}),
+    );
+    assert_eq!(staged["snapshot"]["pending_import"]["action"], "Import");
+    assert!(
+        staged["snapshot"]["pending_import"]["body"]
+            .as_str()
+            .unwrap()
+            .contains("are not applied")
+    );
+    command(&mut session, json!({"command":"confirm_import"}));
+    assert_eq!(session.app.theme, ThemePreference::Light);
+    assert!(session.app.workspace.recently_deleted_notes().is_empty());
+    assert_eq!(session.app.workspace.notes().len(), 1);
+
+    let empty_dir = temp.path().join("empty");
+    std::fs::create_dir(&empty_dir).unwrap();
+    let mut empty = open(&empty_dir);
+    let staged = command(
+        &mut empty,
+        json!({"command":"import_notebook","json":notebook}),
+    );
+    assert_eq!(staged["snapshot"]["pending_import"]["action"], "Restore");
+    command(&mut empty, json!({"command":"confirm_import"}));
+    assert_eq!(empty.app.theme, ThemePreference::Dark);
+    assert_eq!(empty.app.workspace.notes()[0].id, active.id);
+    assert_eq!(
+        empty.app.workspace.recently_deleted_notes()[0].id,
+        deleted.id
+    );
+    assert!(empty.app.backup_health.is_none());
 }
 
 #[test]
@@ -278,19 +341,42 @@ fn backup_health_changes_only_after_export_is_written_and_profiles_are_exclusive
     let blocked = temp.path().join("directory.json");
     std::fs::create_dir(&blocked).unwrap();
     assert!(
+        serde_json::from_value::<Request>(json!({"command":"export_backup","path":"/tmp/x"}))
+            .is_err()
+    );
+    assert!(
         session
-            .execute(Request::ExportBackup { path: blocked })
+            .execute(Request::ExportNotebook { path: blocked })
             .is_err()
     );
     assert!(session.app.backup_health.is_none());
     let exported = temp.path().join("backup.json");
-    session
-        .execute(Request::ExportBackup {
+    let reply = session
+        .execute(Request::ExportNotebook {
             path: exported.clone(),
         })
         .unwrap();
     assert!(exported.is_file());
-    assert!(session.app.backup_health.is_some());
+    let document: Value =
+        serde_json::from_str(&std::fs::read_to_string(&exported).unwrap()).unwrap();
+    assert_eq!(document["kind"], "nota.desktop_transition");
+    let embedded = document["backup_health"]["last_successful_export_at"]
+        .as_str()
+        .unwrap();
+    let stored: Value =
+        serde_json::from_slice(&std::fs::read(temp.path().join("backup-health.json")).unwrap())
+            .unwrap();
+    assert_eq!(
+        stored["last_successful_export_at"].as_str().unwrap(),
+        embedded
+    );
+    assert_eq!(reply["snapshot"]["backup_health"], "Up to date");
+    assert!(
+        reply["snapshot"]["suggested_export_name"]
+            .as_str()
+            .unwrap()
+            .starts_with("nota-backup-")
+    );
 }
 
 #[test]
@@ -316,9 +402,11 @@ fn transition_restore_keeps_accepted_state_visible_until_metadata_save_can_retry
         None,
     )
     .unwrap();
-    let reply = session
-        .execute(Request::ImportTransition { json: transition })
+    let staged = session
+        .execute(Request::ImportNotebook { json: transition })
         .unwrap();
+    assert_eq!(staged["snapshot"]["pending_import"]["action"], "Restore");
+    let reply = session.execute(Request::ConfirmImport).unwrap();
     assert_eq!(reply["snapshot"]["selected_note"]["id"], json!(note.id));
     assert_eq!(reply["snapshot"]["save_status"], "saving");
     events
@@ -366,11 +454,10 @@ fn gtk_transition_restore_reports_backup_health_failure_and_retries_on_close() {
         Some(health),
     )
     .unwrap();
-    assert!(
-        session
-            .apply_message(AppMsg::ImportTransitionJson(transition))
-            .unwrap()
-    );
+    session
+        .execute(Request::ImportNotebook { json: transition })
+        .unwrap();
+    assert!(session.execute(Request::ConfirmImport).is_ok());
     assert_eq!(session.app.workspace.notes(), std::slice::from_ref(&note));
     events
         .recv_timeout(std::time::Duration::from_secs(5))

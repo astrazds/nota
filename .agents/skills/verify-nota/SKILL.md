@@ -107,6 +107,8 @@ Also inspect `app.log` and the screenshot. HTTP success alone does not prove GTK
 
 Broadway paints GTK controls as rendered surfaces, including DOM images. Its AX tree may contain only `AXWebArea`; GTK labels are not DOM selectors. Prefer accessible handles when exposed. Otherwise take a fresh screenshot and use `notaTab.click([x, y])` at the visible control. Derive coordinates from that screenshot, never from an earlier run.
 
+Broadway's `getSurfaceId` only resolves when the event target is a DOM node with a `.surface` property. Desktop or CUA clicks that land on the page without that target send `surface id 0` and do nothing. If clicks pass through or never mutate the UI, stop retrying coordinates. Drive input through Broadway `sendInput` opcodes on an open `/socket` websocket (button press `3`, release `4`, key press `7`, key release `8`), or dispatch mouse events whose `target` is the surface node. Keep screenshots as the pass/fail oracle.
+
 If CUA rejects a click on a rendered text image, run Doctor, inspect the current screenshot, and target the same visible control's background. Keyboard focus and activation are another supported path. Record which path worked. If the browser clips the GTK window, use the browser's documented viewport capability to expose it and reset that override during Cleanup. Changing the browser viewport does not prove GTK's compact layout.
 
 Use `pressKey(null, key)` for GTK text, with `null` retaining the current focus. Browser `typeText`, `paste`, and form filling may leave the rendered app unchanged. For the synthetic title `verify`:

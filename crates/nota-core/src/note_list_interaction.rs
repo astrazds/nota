@@ -1,5 +1,5 @@
 use crate::model::Note;
-use crate::note_discovery::{NoteListItem, NoteListProjection, project_note_list};
+use crate::note_discovery::{NoteListProjection, project_note_list};
 use uuid::Uuid;
 
 pub const SEARCH_DEBOUNCE_MS: i32 = 200;
@@ -138,18 +138,6 @@ impl NoteListInteraction {
         NoteListFilteredEmptyMessage { title, body }
     }
 
-    pub fn select_row(&self, id: Uuid) -> NoteListCommand {
-        NoteListCommand::SelectNote(id)
-    }
-
-    pub fn note_actions(&self, row: &NoteListItem) -> NoteActionControls {
-        NoteActionControls {
-            pin_label: if row.is_pinned { "Unpin" } else { "Pin" },
-            pin_command: NoteListCommand::TogglePin(row.id),
-            delete_command: NoteListCommand::RequestDelete(row.id),
-        }
-    }
-
     fn active_filter_context(&self) -> String {
         let context = match (self.trimmed_committed_search(), self.trimmed_active_tag()) {
             (Some(search), Some(tag)) => format!("for search: {search} in #{tag}"),
@@ -184,13 +172,6 @@ pub enum NoteListDisplayState {
     Rows,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NoteListCommand {
-    SelectNote(Uuid),
-    TogglePin(Uuid),
-    RequestDelete(Uuid),
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NoteListResultStatus {
     pub text: String,
@@ -208,13 +189,6 @@ pub struct NoteListRenderModel {
     pub display_state: NoteListDisplayState,
     pub result_status: Option<NoteListResultStatus>,
     pub filtered_empty_message: NoteListFilteredEmptyMessage,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NoteActionControls {
-    pub pin_label: &'static str,
-    pub pin_command: NoteListCommand,
-    pub delete_command: NoteListCommand,
 }
 
 fn match_noun(count: usize) -> &'static str {
@@ -327,30 +301,6 @@ mod tests {
         assert_eq!(
             interaction.display_state(0, &empty_collection),
             NoteListDisplayState::EmptyCollection
-        );
-    }
-
-    #[test]
-    fn row_selection_and_note_actions_expose_stable_commands() {
-        let mut note = Note::new("Pinned".to_string(), String::new());
-        note.is_pinned = true;
-        let row = NoteListInteraction::default()
-            .project_notes(&[note.clone()], Some(note.id))
-            .rows
-            .remove(0);
-
-        let interaction = NoteListInteraction::default();
-        assert_eq!(
-            interaction.select_row(row.id),
-            NoteListCommand::SelectNote(note.id)
-        );
-
-        let actions = interaction.note_actions(&row);
-        assert_eq!(actions.pin_label, "Unpin");
-        assert_eq!(actions.pin_command, NoteListCommand::TogglePin(note.id));
-        assert_eq!(
-            actions.delete_command,
-            NoteListCommand::RequestDelete(note.id)
         );
     }
 

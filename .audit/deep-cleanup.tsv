@@ -20,3 +20,5 @@ ts	phase	decision	why	evidence	result
 2026-10-14T22:25:28Z	commit	verify commit tip is 11dc04f after trail amend	supersedes a4b8ad4 evidence from prior commit row	11dc04f	tests green
 2026-10-14T22:25:28Z	attention	GTK/desktop suite not run here; env has no GTK headers	prove-it-works limit on native UI path	pkg-config gtk4 missing	INCONCLUSIVE
 2026-10-14T22:25:28Z	attention	cross-model trail review Task unavailable (on-demand blocked for some models)	show-me-your-work asks different model family	Task spawn error	INCONCLUSIVE
+2026-10-14T22:26:43Z	followup	applied inventory safe deletes: NoteListCommand cluster, character_count, is_node_modules_font_path	dead-code inventory from bc-78c65407; judgment items deferred	note_list_interaction.rs, model.rs, fonts.rs	tests green
+2026-10-14T22:26:59Z	followup	clippy green after dropping unused NoteListItem import	follow-up unit check	/tmp/cleanup-followup-clippy.txt	tests green

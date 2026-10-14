@@ -66,10 +66,6 @@ impl Note {
             })
             .count()
     }
-
-    pub fn character_count(&self) -> usize {
-        self.content.chars().count()
-    }
 }
 
 #[cfg(test)]
@@ -124,11 +120,9 @@ mod tests {
     fn should_calculate_counts_correctly() {
         let note = Note::new("".to_string(), "Hello world, this is a test.".to_string());
         assert_eq!(note.word_count(), 6);
-        assert_eq!(note.character_count(), 28);
 
         let empty_note = Note::new("".to_string(), "".to_string());
         assert_eq!(empty_note.word_count(), 0);
-        assert_eq!(empty_note.character_count(), 0);
 
         let md_note = Note::new(
             "".to_string(),
@@ -137,7 +131,6 @@ mod tests {
         assert_eq!(md_note.word_count(), 8);
 
         let unicode_note = Note::new("".to_string(), "日本語".to_string());
-        assert_eq!(unicode_note.character_count(), 3); // 3 chars, 9 bytes in UTF-8
         assert_eq!(unicode_note.word_count(), 1);
     }
 

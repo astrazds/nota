@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 pub const BUNDLED_FONT_FILES: &[&str] = &[
     "SourceSans3-Regular.ttf",
@@ -38,21 +38,15 @@ pub fn bundled_font_paths() -> Vec<PathBuf> {
         .collect()
 }
 
-pub fn is_node_modules_font_path(path: &Path) -> bool {
-    path.components()
-        .any(|component| component.as_os_str() == "node_modules")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn bundled_fonts_do_not_depend_on_node_modules() {
-        assert!(
-            bundled_font_search_dirs()
-                .iter()
-                .all(|dir| !is_node_modules_font_path(dir))
-        );
+        assert!(bundled_font_search_dirs().iter().all(|dir| {
+            !dir.components()
+                .any(|component| component.as_os_str() == "node_modules")
+        }));
     }
 }

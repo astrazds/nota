@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Fail if crates/ Rust sources still mention a wasm32 target."""
 
 from __future__ import annotations
 

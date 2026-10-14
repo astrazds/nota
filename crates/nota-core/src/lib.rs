@@ -1,7 +1,5 @@
 #![forbid(unsafe_code)]
 
-//! Toolkit-independent Note, discovery, backup, and recovery behavior.
-
 pub mod backup;
 pub mod exchange;
 pub mod markdown_editing;

@@ -1,5 +1,3 @@
-//! Markdown formatting over validated UTF-8 byte ranges.
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MarkdownCommand {
     Bold,

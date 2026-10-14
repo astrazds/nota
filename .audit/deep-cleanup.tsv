@@ -17,3 +17,6 @@ ts	phase	decision	why	evidence	result
 2026-10-14T22:24:43Z	commit	landed two commits on cursor/deep-cleanup-sweep-64cb	story order: subtract dead APIs, then encode the gate	git log -2	open
 2026-10-14T22:25:04Z	commit	rebuilt commits as refactor then verify gate	first attempt staged incompletely; soft-reset and restaged full core deletion	76648c9,a4b8ad4	tests green
 2026-10-14T22:25:04Z	verify	final predicate: core/app/ffi tests green, clippy -D warnings, no wasm residue	Phase A done check on real artifacts	/tmp/cleanup-final-test.txt	VERIFIED
+2026-10-14T22:25:28Z	commit	verify commit tip is 11dc04f after trail amend	supersedes a4b8ad4 evidence from prior commit row	11dc04f	tests green
+2026-10-14T22:25:28Z	attention	GTK/desktop suite not run here; env has no GTK headers	prove-it-works limit on native UI path	pkg-config gtk4 missing	INCONCLUSIVE
+2026-10-14T22:25:28Z	attention	cross-model trail review Task unavailable (on-demand blocked for some models)	show-me-your-work asks different model family	Task spawn error	INCONCLUSIVE

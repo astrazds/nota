@@ -15,9 +15,7 @@ pub mod note_discovery;
 pub mod note_list_interaction;
 pub mod note_workspace;
 pub mod responsive_navigation;
-pub mod sample_notes;
 pub mod search_query;
-pub mod storage_recovery;
 pub mod tag_rules;
 
 pub use model::Note;

@@ -93,25 +93,6 @@ pub const MARKDOWN_CHEATSHEET_SECTIONS: &[MarkdownCheatsheetSection] = &[
     },
 ];
 
-pub fn markdown_cheatsheet_text() -> String {
-    MARKDOWN_CHEATSHEET_SECTIONS
-        .iter()
-        .map(|section| {
-            format!(
-                "{}\n{}",
-                section.title,
-                section
-                    .items
-                    .iter()
-                    .map(|item| format!("  {item}"))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("\n\n")
-}
-
 pub fn apply_markdown_command(
     content: &str,
     selection: ByteSelection,
@@ -127,10 +108,23 @@ mod cheatsheet_tests {
 
     #[test]
     fn markdown_cheatsheet_includes_shared_syntax_sections() {
-        let text = markdown_cheatsheet_text();
-        assert!(text.contains("Emphasis"));
-        assert!(text.contains("**bold**"));
-        assert!(text.contains("- [ ] Task"));
+        let titles: Vec<&str> = MARKDOWN_CHEATSHEET_SECTIONS
+            .iter()
+            .map(|section| section.title)
+            .collect();
+        assert!(titles.contains(&"Emphasis"));
+        assert!(
+            MARKDOWN_CHEATSHEET_SECTIONS
+                .iter()
+                .flat_map(|section| section.items.iter().copied())
+                .any(|item| item == "**bold**")
+        );
+        assert!(
+            MARKDOWN_CHEATSHEET_SECTIONS
+                .iter()
+                .flat_map(|section| section.items.iter().copied())
+                .any(|item| item == "- [ ] Task")
+        );
     }
 }
 

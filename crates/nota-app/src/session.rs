@@ -3,16 +3,17 @@ use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver};
 
 use chrono::Utc;
-use nota_core::backup::export_flat_collection_backup;
+use nota_core::backup::{BackupHealthRecord, backup_file_name};
 use nota_core::editor_view::EditorViewMode;
+use nota_core::exchange::{ExchangeError, ImportDestination, export_notebook, stage_import};
 use nota_core::markdown_editing::{ByteSelection, MarkdownCommand, apply_markdown_command};
 use nota_core::tag_rules::collect_note_tags;
-use nota_core::transition::{ThemePreference, export_desktop_transition};
+use nota_core::transition::ThemePreference;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-use crate::app::{AppModel, AppMsg, NotificationTone, SaveStatus};
+use crate::app::{AppModel, AppMsg, AppliedImport, NotificationTone, SaveStatus};
 use crate::persistence::PersistenceWorker;
 use crate::preview::{PreviewLayout, external_navigation_target, preview_document};
 use crate::storage::{
@@ -82,19 +83,13 @@ pub enum Request {
         dark: bool,
         layout: PreviewLayout,
     },
-    ImportBackup {
+    ImportNotebook {
         json: String,
     },
     ConfirmImport,
     CancelImport,
-    ExportBackup {
+    ExportNotebook {
         path: PathBuf,
-    },
-    ExportTransition {
-        path: PathBuf,
-    },
-    ImportTransition {
-        json: String,
     },
     RestorePrevious,
     StartEmpty,
@@ -236,13 +231,13 @@ impl Session {
                 resolve_recovery(&mut self.app, &self.store, &mut self.recovery, true)?;
                 return Ok(false);
             }
-            AppMsg::ImportTransitionJson(json) => {
-                self.execute(Request::ImportTransition { json })?;
-                return Ok(true);
-            }
             AppMsg::ConfirmBackupImport => {
                 self.execute(Request::ConfirmImport)?;
                 return Ok(true);
+            }
+            AppMsg::CancelBackupImport => {
+                self.execute(Request::CancelImport)?;
+                return Ok(false);
             }
             AppMsg::PollPersistence => return Ok(false),
             _ => {}
@@ -326,7 +321,7 @@ impl Session {
                     | Request::Flush
                     | Request::RestorePrevious
                     | Request::StartEmpty
-                    | Request::ImportBackup { .. }
+                    | Request::ImportNotebook { .. }
                     | Request::ConfirmImport
                     | Request::CancelImport
                     | Request::Preview { .. }
@@ -464,15 +459,25 @@ impl Session {
             } => {
                 return Ok(json!({"html": preview_document(&title, &content, dark, layout)}));
             }
-            Request::ImportBackup { json } => {
-                self.app
-                    .workspace
-                    .prepare_backup_import(json.clone())
-                    .map_err(|e| SessionError::new("invalid_backup", e))?;
-                self.app.apply(AppMsg::ImportBackupJson(json));
+            Request::ImportNotebook { json } => {
+                let staged = {
+                    let destination = ImportDestination {
+                        notes: self.app.workspace.notes(),
+                        recently_deleted: self.app.workspace.recently_deleted_notes(),
+                        storage_recovery: self.recovery.is_some(),
+                    };
+                    stage_import(&json, destination)
+                };
+                match staged {
+                    Ok(staged) => self.app.stage_import(staged),
+                    Err(error) => {
+                        self.app.clear_pending_import();
+                        return Err(exchange_error(error));
+                    }
+                }
             }
             Request::ConfirmImport => {
-                if self.app.pending_backup_import().is_none() {
+                if self.app.staged_import().is_none() {
                     return Err(SessionError::new(
                         "no_pending_import",
                         "Choose a backup first",
@@ -481,38 +486,29 @@ impl Session {
                 if let Some(recovery) = &self.recovery {
                     self.store.preserve_corrupt(recovery, Utc::now())?;
                 }
-                self.app.apply(AppMsg::ConfirmBackupImport);
-                self.recovery = None;
+                match self.app.commit_staged_import().map_err(exchange_error)? {
+                    Some(AppliedImport::Merged) => {
+                        self.recovery = None;
+                    }
+                    Some(AppliedImport::Replaced) => {
+                        self.metadata_pending = true;
+                        self.recovery = None;
+                    }
+                    None => {
+                        return Err(SessionError::new(
+                            "no_pending_import",
+                            "Choose a backup first",
+                        ));
+                    }
+                }
             }
             Request::CancelImport => {
                 self.app.apply(AppMsg::CancelBackupImport);
             }
-            Request::ExportBackup { path } => {
-                let json = export_flat_collection_backup(self.app.workspace.notes())
-                    .map_err(|e| SessionError::new("backup", e))?;
-                write_atomic(&path, json.as_bytes())?;
-                let health = nota_core::backup::BackupHealthRecord {
-                    last_successful_export_at: Utc::now(),
-                };
-                self.store.save_backup_health(&health)?;
-                self.app
-                    .apply(AppMsg::BackupExported(health.last_successful_export_at));
-            }
-            Request::ExportTransition { path } => {
-                let json = export_desktop_transition(
-                    self.app.workspace.notes(),
-                    self.app.workspace.recently_deleted_notes(),
-                    self.app.theme,
-                    self.app.backup_health,
-                )
-                .map_err(|e| SessionError::new("transition", e))?;
-                write_atomic(&path, json.as_bytes())?;
-            }
-            Request::ImportTransition { json } => {
-                self.app
-                    .import_transition(&json)
-                    .map_err(|e| SessionError::new("invalid_transition", e))?;
-                self.metadata_pending = true;
+            Request::ExportNotebook { path } => {
+                let exported = self.notebook_export()?;
+                write_atomic(&path, exported.json.as_bytes())?;
+                self.record_successful_notes_export(exported.health)?;
             }
             Request::RestorePrevious => {
                 resolve_recovery(&mut self.app, &self.store, &mut self.recovery, false)?
@@ -530,6 +526,26 @@ impl Session {
             }
         }
         Ok(Value::Null)
+    }
+
+    pub fn notebook_export(&self) -> Result<nota_core::exchange::NotebookExport, SessionError> {
+        export_notebook(
+            self.app.workspace.notes(),
+            self.app.workspace.recently_deleted_notes(),
+            self.app.theme,
+            Utc::now(),
+        )
+        .map_err(|error| SessionError::new("backup", error))
+    }
+
+    pub fn record_successful_notes_export(
+        &mut self,
+        health: BackupHealthRecord,
+    ) -> Result<(), SessionError> {
+        self.store.save_backup_health(&health)?;
+        self.app
+            .apply(AppMsg::BackupExported(health.last_successful_export_at));
+        Ok(())
     }
 
     fn require_note(&self, id: Uuid, deleted: bool) -> Result<(), SessionError> {
@@ -568,10 +584,13 @@ impl Session {
                 NotificationTone::Progress => "progress", NotificationTone::Success => "success", NotificationTone::Error => "error"
             }
         }));
-        let pending_import = self.app.pending_backup_import().map(|pending| json!({
-            "total_imported_notes": pending.preview.total_imported_notes,
-            "notes_to_add": pending.preview.notes_to_add, "notes_to_replace": pending.preview.notes_to_replace
-        }));
+        let pending_import = self.app.pending_import().map(|pending| {
+            json!({
+                "title": pending.title,
+                "body": pending.body,
+                "action": pending.action,
+            })
+        });
         json!({
             "revision": self.app.revision(), "edit_sequence": self.edit_sequence,
             "selected_note": self.app.workspace.selected_note(), "rows": rows, "recently_deleted": deleted,
@@ -583,6 +602,7 @@ impl Session {
             "save_status": match self.app.save_status { SaveStatus::Saved => "saved", SaveStatus::Saving => "saving", SaveStatus::Failed => "failed" },
             "backup_health": self.app.backup_health_label(Utc::now()), "notification": notification,
             "recovery": self.recovery.as_ref().map(|recovery| json!({"reason": recovery.reason, "can_restore_previous": recovery.previous_snapshot.is_some()})),
+            "suggested_export_name": backup_file_name(Utc::now()),
             "pending_import": pending_import, "data_directory": self.store.data_dir()
         })
     }
@@ -619,6 +639,17 @@ fn resolve_recovery(
     app.set_storage_recovery(false);
     *recovery = None;
     Ok(())
+}
+
+fn exchange_error(error: ExchangeError) -> SessionError {
+    let code = match &error {
+        ExchangeError::RecoveryRefusesCompleteRestore => "storage_recovery",
+        ExchangeError::Transition(_) => "invalid_transition",
+        ExchangeError::Backup(_)
+        | ExchangeError::Unreadable(_)
+        | ExchangeError::UnsupportedKind(_) => "invalid_backup",
+    };
+    SessionError::new(code, error)
 }
 
 fn utf16_to_byte(content: &str, offset: usize) -> Result<usize, SessionError> {

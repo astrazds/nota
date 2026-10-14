@@ -1,5 +1,5 @@
 use chrono::{TimeZone, Utc};
-use nota_app::app::{AppModel, AppMsg};
+use nota_app::app::AppModel;
 use nota_app::storage::{CollectionEnvelope, LoadOutcome, NativeStore, Preferences};
 use nota_core::backup::{BackupHealthRecord, export_flat_collection_backup};
 use nota_core::transition::{ThemePreference, TransitionError, export_desktop_transition};
@@ -60,8 +60,20 @@ fn clean_profile_restores_web_transition_once_then_uses_merge_import() {
     let extra = nota_core::Note::new("After migration".to_string(), "Merge path".to_string());
     let backup = export_flat_collection_backup(std::slice::from_ref(&extra)).unwrap();
     let mut migrated = AppModel::new(before.clone(), relaunched.theme, relaunched.backup_health);
-    migrated.apply(AppMsg::ImportBackupJson(backup));
-    assert!(migrated.apply(AppMsg::ConfirmBackupImport));
+    let staged = nota_core::exchange::stage_import(
+        &backup,
+        nota_core::exchange::ImportDestination {
+            notes: migrated.workspace.notes(),
+            recently_deleted: migrated.workspace.recently_deleted_notes(),
+            storage_recovery: false,
+        },
+    )
+    .unwrap();
+    migrated.stage_import(staged);
+    assert_eq!(
+        migrated.commit_staged_import().unwrap(),
+        Some(nota_app::app::AppliedImport::Merged)
+    );
     assert_eq!(migrated.workspace.notes().len(), 2);
     assert!(
         migrated

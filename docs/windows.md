@@ -91,15 +91,13 @@ preserve the corrupt bytes in a quarantine file.
 
 ## Move Notes between Linux and Windows
 
-Open **Notes**, then **Backup**. Use **Export notes backup…** on the source
-machine and **Import notes backup…** on the destination. Review the
-merge counts before confirming. Existing Backup v1 files and
-legacy `noter.*` format identifiers remain supported. A desktop-transition
-file restores an entire collection only into an empty destination.
+Open **Notes**, then **Backup**. Use **Backup / Export…** on the source
+machine and **Import / Restore…** on the destination. Read the confirmation
+before you apply the file. Older notes-only Backup files and legacy
+`noter.*` identifiers still import.
 
-Nota does not synchronize machines. A normal Backup contains active Notes.
-On either platform, **Export complete notebook…** creates a desktop-transition
-file with active Notes, Recently Deleted, Theme, and optional Backup Health.
-Use **Restore complete notebook…** on either platform to load it into an empty notebook.
-Window dimensions and Preview cache
-are not part of either export. See [the restore procedure](usage.md#restore-a-complete-notebook).
+Nota does not synchronize machines. **Backup / Export…** writes one complete
+notebook with active Notes, Recently Deleted, Theme, and a new Backup Health
+time. **Import / Restore…** replaces the notebook only when the destination
+is empty. Otherwise it combines the file's active Notes. Window dimensions
+and the Preview cache are not in the file. See [Import or restore a notebook](usage.md#import-or-restore-a-notebook).

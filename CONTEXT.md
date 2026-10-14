@@ -67,12 +67,12 @@ identical frontend presentation from shared Search behavior. See the
 | Term | Meaning |
 | --- | --- |
 | Native Collection | Active Notes and Recently Deleted stored together in one validated, versioned `collection.json`. Preferences and Backup Health are separate. |
-| Backup | A versioned local export of active Notes. It is distinct from sync and from a complete notebook export. |
-| Backup Health | Metadata about the last successful notes Backup export. It describes a local recovery point, not cloud status. |
-| Backup Controls | The Backup menu in the Notes drawer footer. Both frontends offer notes Backup export and import, complete notebook export, and complete notebook restore. |
-| Backup Import Preview | Validation and a count of Notes to add or replace, shown before Merge Import. |
+| Backup | **Backup / Export** writes one complete notebook file. Older notes-only Backup files still import. |
+| Backup Health | Metadata about the last successful **Backup / Export**. It describes a local recovery point, not cloud status. Export stores a new time. Exact restore copies the file's time, or clears the local time when the file has none. A merge leaves the local time unchanged. |
+| Backup Controls | The Backup menu in the Notes drawer footer. Both frontends offer **Backup / Export** and **Import / Restore**. Windows appends an ellipsis. The health indicator stays. |
+| Backup Import Preview | The confirmation shown before import or restore. The session supplies the title, the body, and the action. |
 | Merge Import | Add missing identities and replace matching identities without clearing unrelated Notes. A matching Recently Deleted Note returns to the active collection. |
-| Desktop Transition | A versioned complete notebook file containing active Notes, Recently Deleted, Theme, and optional Backup Health. Restore requires both destination collections to be empty. |
+| Desktop Transition | The complete notebook file **Backup / Export** writes. It contains active Notes, Recently Deleted, Theme, and Backup Health. **Import / Restore** replaces the notebook with that file only when both destination collections are empty and Storage Recovery is not open. Otherwise it merges the file's active Notes. |
 | Storage Recovery | The startup state when the saved collection cannot be read or validated. Editing stays blocked until an explicit recovery action succeeds. |
 | Previous Snapshot | The last valid active and Recently Deleted collection pair retained before the next save. It is one recovery point, not version history. |
 | Corrupt Payload Quarantine | The unreadable saved bytes preserved before an explicit recovery action replaces the current collection. It is diagnostic evidence, not a Backup. |
@@ -111,16 +111,18 @@ impact and put default focus on Cancel.
 Notes stay local. The app has no accounts, telemetry, cloud sync, or remote
 Note store. Exported files are user-managed recovery and transfer tools.
 
-A notes Backup includes active Notes only. Merge Import requires an import
-preview and preserves unrelated Notes. Complete notebook export includes
-Recently Deleted, Theme, and optional Backup Health. It excludes window
-geometry, Preview cache, and the profile lock.
+**Backup / Export** writes active Notes, Recently Deleted, Theme, and a new
+Backup Health time. It excludes window geometry, the Preview cache, and the
+profile lock. **Import / Restore** merges a notes-only file. It restores a
+complete notebook only into an empty notebook that is not in Storage Recovery.
+Every other complete file merges its active Notes and leaves Theme and Backup
+Health unchanged.
 
 Storage Recovery never silently resets unreadable data. Restoring a Previous
 Snapshot recovers both collections. Starting empty preserves the corrupt
-payload in quarantine. Linux also offers Backup import within recovery.
-Windows requires recovery to finish before Import opens; Start empty provides
-a path when the user has only a notes Backup.
+payload in quarantine. Linux can import during recovery, and a complete file
+imported there merges active Notes. The Windows recovery dialog finishes
+before **Import / Restore** opens. Start empty is the path to that command.
 
 The product name is Nota, the repository is `astrazds/nota`, the application
 ID is `net.astrazds.Nota`, and Rust crates use the `nota-` prefix. Legacy

@@ -1,4 +1,4 @@
-use nota_app::app::{AppModel, AppMsg};
+use nota_app::app::{AppModel, AppMsg, AppliedImport};
 use nota_app::storage::CollectionEnvelope;
 use nota_core::backup::export_flat_collection_backup;
 use nota_core::editor_view::EditorViewMode;
@@ -17,9 +17,12 @@ fn merge_import_does_not_apply_before_backup_import_preview_confirmation() {
         None,
     );
 
-    app.apply(AppMsg::ImportBackupJson(json));
+    stage_json(&mut app, &json);
     assert_eq!(app.workspace.notes(), std::slice::from_ref(&existing));
-    assert!(app.pending_backup_import().is_some());
+    assert_eq!(
+        app.pending_import().unwrap().body,
+        "Notes in this file: 1\n\nNotes to add: 1\nNotes to replace: 0"
+    );
 }
 
 #[test]
@@ -35,11 +38,15 @@ fn merge_import_recovers_a_deleted_note_and_keeps_the_collection_valid() {
     app.apply(AppMsg::RequestDelete(note_id));
     assert!(app.apply(AppMsg::ConfirmDelete));
 
-    app.apply(AppMsg::ImportBackupJson(json));
-    let preview = &app.pending_backup_import().unwrap().preview;
-    assert_eq!(preview.notes_to_add, 0);
-    assert_eq!(preview.notes_to_replace, 1);
-    assert!(app.apply(AppMsg::ConfirmBackupImport));
+    stage_json(&mut app, &json);
+    assert_eq!(
+        app.pending_import().unwrap().body,
+        "Notes in this file: 1\n\nNotes to add: 0\nNotes to replace: 1\nRecently Deleted notes that will return: 1"
+    );
+    assert_eq!(
+        app.commit_staged_import().unwrap(),
+        Some(AppliedImport::Merged)
+    );
 
     assert_eq!(app.workspace.notes(), &[note]);
     assert!(app.workspace.recently_deleted_notes().is_empty());
@@ -57,9 +64,25 @@ fn storage_recovery_keeps_import_backup_and_does_not_start_empty_silently() {
     app.set_storage_recovery(true);
 
     assert!(!app.apply(AppMsg::QuickCapture));
-    app.apply(AppMsg::ImportBackupJson(json));
-    assert!(app.apply(AppMsg::ConfirmBackupImport));
+    stage_json(&mut app, &json);
+    assert_eq!(
+        app.commit_staged_import().unwrap(),
+        Some(AppliedImport::Merged)
+    );
     assert!(!app.is_in_storage_recovery());
+}
+
+fn stage_json(app: &mut AppModel, json: &str) {
+    let staged = nota_core::exchange::stage_import(
+        json,
+        nota_core::exchange::ImportDestination {
+            notes: app.workspace.notes(),
+            recently_deleted: app.workspace.recently_deleted_notes(),
+            storage_recovery: app.is_in_storage_recovery(),
+        },
+    )
+    .unwrap();
+    app.stage_import(staged);
 }
 
 #[test]

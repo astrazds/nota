@@ -81,11 +81,10 @@ Use the visible control labels when writing instructions:
 - "New note" in the top bar and empty Writing Surface.
 - "Restore" beside a Recently Deleted Note.
 - "Move" in the GTK deletion confirmation and "Move note" on Windows.
-- "Export notes backup" and "Import notes backup" in the drawer's Backup menu.
+- "Backup / Export" and "Import / Restore" in the drawer's Backup menu.
 
-Both frontends also offer **Export complete notebook** and
-**Restore complete notebook** in the Backup menu. Windows appends an ellipsis
-to actions that open a file picker. Use the visible action label in instructions.
+Windows appends an ellipsis to those two actions because each one opens a
+file picker. Use the visible action label in instructions.
 The [user guide](usage.md) records other platform differences.
 
 Avoid:
@@ -345,8 +344,8 @@ Labels should name outcomes:
 - "New note"
 - "Restore"
 - "Clear All" on Linux and "Clear all" on Windows
-- "Export notes backup"
-- "Import notes backup"
+- "Backup / Export"
+- "Import / Restore"
 
 Avoid vague labels:
 

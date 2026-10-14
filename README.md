@@ -83,8 +83,9 @@ helpers. The Windows output is `dist/Nota-windows-x64.zip`. See
 - Open **Settings** for Theme and Markdown help. **About Nota** is in the
   Notes drawer footer and also in Windows Settings.
 - Expand **Recently deleted** in the Notes drawer to restore deleted notes.
-- Open **Notes**, then **Backup**, to export or import a notes Backup.
-  **Export complete notebook** also preserves Recently Deleted and Theme.
+- Open **Notes**, then **Backup**. **Backup / Export** writes active Notes,
+  Recently Deleted, Theme, and Backup Health. **Import / Restore** brings a
+  file back.
 
 Notes save automatically. Existing collections open in Preview, and new notes
 open in Write. The Notes drawer overlays the page without shifting the reading column.

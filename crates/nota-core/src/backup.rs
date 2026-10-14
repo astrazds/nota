@@ -190,11 +190,19 @@ fn merge_notes(notes: &mut Vec<Note>, backup_notes: Vec<Note>) {
     }
 }
 
+pub(crate) fn is_flat_collection_kind(kind: &str) -> bool {
+    kind == BACKUP_KIND || kind == LEGACY_BACKUP_KIND
+}
+
+pub(crate) fn flat_collection_notes(backup_json: &str) -> Result<Vec<Note>, BackupError> {
+    Ok(parse_flat_collection_backup(backup_json)?.notes)
+}
+
 fn validate_backup(backup: &FlatCollectionBackup) -> Result<(), BackupError> {
     if backup.version != BACKUP_VERSION {
         return Err(BackupError::UnsupportedVersion(backup.version));
     }
-    if backup.kind != BACKUP_KIND && backup.kind != LEGACY_BACKUP_KIND {
+    if !is_flat_collection_kind(&backup.kind) {
         return Err(BackupError::UnsupportedKind(backup.kind.clone()));
     }
     let mut seen_ids = HashSet::new();

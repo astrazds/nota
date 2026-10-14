@@ -7,12 +7,9 @@ use relm4::{
 use nota_app::app::AppMsg;
 use nota_app::session::{OpenOptionsJson, Session};
 use nota_app::storage::Preferences;
-use nota_core::backup::{
-    BackupHealth, assess_backup_health, backup_file_name, export_flat_collection_backup,
-};
+use nota_core::backup::{BackupHealth, assess_backup_health};
 use nota_core::note_list_interaction::SEARCH_DEBOUNCE_MS;
 use nota_core::note_workspace::FocusIntent;
-use nota_core::transition::{desktop_transition_file_name, export_desktop_transition};
 use nota_desktop::APPLICATION_ID;
 
 mod dialogs;
@@ -24,7 +21,7 @@ mod writing_plane;
 use workspace::DesktopWidgets;
 
 use dialogs::{ConfirmationRequest, show_about_dialog, show_confirmation};
-use files::{ImportKind, open_json_file, save_json_file};
+use files::{open_import_file, save_json_file};
 use note_list::NoteLists;
 use style::startup_window_size;
 
@@ -183,9 +180,9 @@ impl SimpleComponent for DesktopComponent {
                 show_confirmation(
                     &self.window,
                     ConfirmationRequest {
-                        title: "Clean up Tags?",
+                        title: "Clean up Tags?".to_string(),
                         detail,
-                        accept_label: "Apply cleanup",
+                        accept_label: "Apply cleanup".to_string(),
                         accepted: AppMsg::ApplyTagCleanup(plan),
                         cancelled: AppMsg::FinishEditTags,
                         destructive: false,
@@ -195,16 +192,33 @@ impl SimpleComponent for DesktopComponent {
             }
             return;
         }
-        if matches!(message, AppMsg::RequestBackupExport) {
-            match export_flat_collection_backup(self.session.app.workspace.notes()) {
-                Ok(json) => save_json_file(
-                    &self.window,
-                    "Export Nota Backup",
-                    &backup_file_name(chrono::Utc::now()),
-                    json,
-                    AppMsg::BackupExported(chrono::Utc::now()),
-                    sender.input_sender(),
-                ),
+        if matches!(message, AppMsg::RequestExport) {
+            if self.session.recovery.is_some() {
+                self.session.app.apply(AppMsg::OperationFailed(
+                    "Resolve Storage Recovery before editing".to_string(),
+                ));
+                self.schedule_notification_dismiss(&sender);
+                self.note_lists.refresh(&self.session.app);
+                return;
+            }
+            match self.session.notebook_export() {
+                Ok(exported) => {
+                    let name = self.session.snapshot()["suggested_export_name"]
+                        .as_str()
+                        .unwrap_or("nota-backup.json")
+                        .to_string();
+                    let health = exported.health;
+                    // Gio reports the write before backup-health.json changes. A portal
+                    // save has no path the session can write itself.
+                    save_json_file(
+                        &self.window,
+                        "Backup / Export",
+                        &name,
+                        exported.json,
+                        AppMsg::CommitExportedHealth(health),
+                        sender.input_sender(),
+                    );
+                }
                 Err(error) => {
                     self.session
                         .app
@@ -213,66 +227,46 @@ impl SimpleComponent for DesktopComponent {
             }
             return;
         }
-        if matches!(message, AppMsg::RequestTransitionExport) {
-            match export_desktop_transition(
-                self.session.app.workspace.notes(),
-                self.session.app.workspace.recently_deleted_notes(),
-                self.session.app.theme,
-                self.session.app.backup_health,
-            ) {
-                Ok(json) => save_json_file(
-                    &self.window,
-                    "Export complete notebook",
-                    &desktop_transition_file_name(chrono::Utc::now()),
-                    json,
-                    AppMsg::OperationSucceeded("Desktop transition exported".to_string()),
-                    sender.input_sender(),
-                ),
-                Err(error) => {
-                    self.session
-                        .app
-                        .apply(AppMsg::OperationFailed(error.to_string()));
-                }
-            }
+        if matches!(message, AppMsg::RequestImport) {
+            open_import_file(&self.window, sender.input_sender());
             return;
         }
-        if matches!(message, AppMsg::RequestBackupImport) {
-            open_json_file(&self.window, ImportKind::Backup, sender.input_sender());
-            return;
-        }
-        if matches!(message, AppMsg::RequestTransitionImport) {
-            open_json_file(
-                &self.window,
-                ImportKind::DesktopTransition,
-                sender.input_sender(),
-            );
-            return;
-        }
-        if let AppMsg::ImportBackupJson(_) = &message {
-            self.session.app.apply(message);
-            if let Some(preview) = self
+        if let AppMsg::StageImport(json) = message {
+            match self
                 .session
-                .app
-                .pending_backup_import()
-                .map(|pending| pending.preview)
+                .execute(nota_app::session::Request::ImportNotebook { json })
             {
-                show_confirmation(
-                    &self.window,
-                    ConfirmationRequest {
-                        title: "Merge Import this Backup?",
-                        detail: format!(
-                            "Notes in this backup: {}\n\nNotes to add: {}\nNotes to replace: {}",
-                            preview.total_imported_notes,
-                            preview.notes_to_add,
-                            preview.notes_to_replace
-                        ),
-                        accept_label: "Import",
-                        accepted: AppMsg::ConfirmBackupImport,
-                        cancelled: AppMsg::CancelBackupImport,
-                        destructive: false,
-                    },
-                    sender.input_sender(),
-                );
+                Ok(_) => {
+                    if let Some(copy) = self.session.app.pending_import() {
+                        show_confirmation(
+                            &self.window,
+                            ConfirmationRequest {
+                                title: copy.title,
+                                detail: copy.body,
+                                accept_label: copy.action,
+                                accepted: AppMsg::ConfirmBackupImport,
+                                cancelled: AppMsg::CancelBackupImport,
+                                destructive: false,
+                            },
+                            sender.input_sender(),
+                        );
+                    }
+                }
+                Err(error) => {
+                    self.session
+                        .app
+                        .apply(AppMsg::OperationFailed(error.to_string()));
+                }
+            }
+            self.schedule_notification_dismiss(&sender);
+            self.note_lists.refresh(&self.session.app);
+            return;
+        }
+        if let AppMsg::CommitExportedHealth(health) = message {
+            if let Err(error) = self.session.record_successful_notes_export(health) {
+                self.session
+                    .app
+                    .apply(AppMsg::OperationFailed(error.to_string()));
             }
             self.schedule_notification_dismiss(&sender);
             self.note_lists.refresh(&self.session.app);
@@ -280,9 +274,7 @@ impl SimpleComponent for DesktopComponent {
         }
         if matches!(
             message,
-            AppMsg::ImportTransitionJson(_)
-                | AppMsg::RestorePreviousSnapshot
-                | AppMsg::StartEmptyAfterRecovery
+            AppMsg::RestorePreviousSnapshot | AppMsg::StartEmptyAfterRecovery
         ) {
             if let Err(error) = self.session.apply_message(message) {
                 self.session
@@ -296,7 +288,6 @@ impl SimpleComponent for DesktopComponent {
         let requested_delete = matches!(&message, AppMsg::RequestDelete(_));
         let requested_clear_all = matches!(&message, AppMsg::RequestClearAll);
         let toggled_theme = matches!(&message, AppMsg::ToggleTheme);
-        let backup_exported = matches!(&message, AppMsg::BackupExported(_));
         let edited_search = matches!(&message, AppMsg::EditSearch(_));
         let captured = matches!(&message, AppMsg::QuickCapture);
         let started_edit_tags = matches!(&message, AppMsg::StartEditTags);
@@ -335,14 +326,6 @@ impl SimpleComponent for DesktopComponent {
                 .app
                 .apply(AppMsg::OperationFailed(error.to_string()));
         }
-        if backup_exported
-            && let Some(health) = self.session.app.backup_health
-            && let Err(error) = self.session.store.save_backup_health(&health)
-        {
-            self.session
-                .app
-                .apply(AppMsg::OperationFailed(error.to_string()));
-        }
         if requested_delete {
             let title = self
                 .session
@@ -353,9 +336,9 @@ impl SimpleComponent for DesktopComponent {
             show_confirmation(
                 &self.window,
                 ConfirmationRequest {
-                    title: "Move to Recently Deleted?",
+                    title: "Move to Recently Deleted?".to_string(),
                     detail: format!("“{title}” will move to Recently Deleted."),
-                    accept_label: "Move",
+                    accept_label: "Move".to_string(),
                     accepted: AppMsg::ConfirmDelete,
                     cancelled: AppMsg::CancelDelete,
                     destructive: true,
@@ -375,11 +358,11 @@ impl SimpleComponent for DesktopComponent {
                 show_confirmation(
                     &self.window,
                     ConfirmationRequest {
-                        title: "Permanently clear Recently Deleted?",
+                        title: "Permanently clear Recently Deleted?".to_string(),
                         detail: format!(
                             "This will permanently clear {count} recently deleted {note_label}."
                         ),
-                        accept_label: "Clear All",
+                        accept_label: "Clear All".to_string(),
                         accepted: AppMsg::ConfirmClearAll,
                         cancelled: AppMsg::CancelClearAll,
                         destructive: true,

@@ -224,17 +224,10 @@ impl DesktopWidgets {
 
         let data_actions = gtk::Box::new(gtk::Orientation::Vertical, 2);
         data_actions.set_css_classes(&["nota-note-menu"]);
-        let export_backup = gtk::Button::with_label("Export notes backup");
-        let import_backup = gtk::Button::with_label("Import notes backup");
-        let export_transition = gtk::Button::with_label("Export complete notebook");
-        let import_transition = gtk::Button::with_label("Restore complete notebook");
-        import_transition.set_tooltip_text(Some(
-            "Restore a desktop transition into an Empty Collection",
-        ));
-        data_actions.append(&export_backup);
-        data_actions.append(&import_backup);
-        data_actions.append(&export_transition);
-        data_actions.append(&import_transition);
+        let export_notebook = gtk::Button::with_label("Backup / Export");
+        let import_notebook = gtk::Button::with_label("Import / Restore");
+        data_actions.append(&export_notebook);
+        data_actions.append(&import_notebook);
 
         let deleted_label = gtk::Label::new(Some("Recently deleted"));
         deleted_label.set_halign(gtk::Align::Start);
@@ -424,10 +417,8 @@ impl DesktopWidgets {
         for button in [
             &theme,
             &help,
-            &export_backup,
-            &import_backup,
-            &export_transition,
-            &import_transition,
+            &export_notebook,
+            &import_notebook,
             &pin_menu,
             &edit_tags,
             &strike,
@@ -477,7 +468,7 @@ impl DesktopWidgets {
         recovery_title.set_wrap(true);
         recovery_title.update_property(&[gtk::accessible::Property::Label("Storage Recovery")]);
         let recovery_copy = gtk::Label::new(Some(
-            "Restore the Previous Snapshot, start empty, or Import Backup. Editing stays blocked until you choose a path.",
+            "Restore the Previous Snapshot, start empty, or Import / Restore. Editing stays blocked until you choose a path.",
         ));
         recovery_copy.set_wrap(true);
         let recovery_actions = gtk::Box::new(gtk::Orientation::Horizontal, 8);
@@ -489,7 +480,7 @@ impl DesktopWidgets {
                 .is_some(),
         );
         let start_empty = gtk::Button::with_label("Start Empty");
-        let recovery_import = gtk::Button::with_label("Import Backup");
+        let recovery_import = gtk::Button::with_label("Import / Restore");
         recovery_actions.append(&restore_previous);
         recovery_actions.append(&start_empty);
         recovery_actions.append(&recovery_import);
@@ -676,15 +667,7 @@ impl DesktopWidgets {
         });
         for (popover, buttons) in [
             (&settings_menu, vec![&theme, &help]),
-            (
-                &backup_menu,
-                vec![
-                    &export_backup,
-                    &import_backup,
-                    &export_transition,
-                    &import_transition,
-                ],
-            ),
+            (&backup_menu, vec![&export_notebook, &import_notebook]),
             (&note_menu, vec![&edit_tags, &strike, &table]),
         ] {
             for button in buttons {
@@ -713,25 +696,17 @@ impl DesktopWidgets {
         clear_all.connect_clicked(move |_| {
             let _send_result = clear_all_sender.send(AppMsg::RequestClearAll);
         });
-        let export_backup_sender = sender.clone();
-        export_backup.connect_clicked(move |_| {
-            let _send_result = export_backup_sender.send(AppMsg::RequestBackupExport);
+        let export_notebook_sender = sender.clone();
+        export_notebook.connect_clicked(move |_| {
+            let _send_result = export_notebook_sender.send(AppMsg::RequestExport);
         });
-        let import_backup_sender = sender.clone();
-        import_backup.connect_clicked(move |_| {
-            let _send_result = import_backup_sender.send(AppMsg::RequestBackupImport);
+        let import_notebook_sender = sender.clone();
+        import_notebook.connect_clicked(move |_| {
+            let _send_result = import_notebook_sender.send(AppMsg::RequestImport);
         });
         let recovery_import_sender = sender.clone();
         recovery_import.connect_clicked(move |_| {
-            let _send_result = recovery_import_sender.send(AppMsg::RequestBackupImport);
-        });
-        let import_transition_sender = sender.clone();
-        import_transition.connect_clicked(move |_| {
-            let _send_result = import_transition_sender.send(AppMsg::RequestTransitionImport);
-        });
-        let export_transition_sender = sender.clone();
-        export_transition.connect_clicked(move |_| {
-            let _send_result = export_transition_sender.send(AppMsg::RequestTransitionExport);
+            let _send_result = recovery_import_sender.send(AppMsg::RequestImport);
         });
         let theme_sender = sender.clone();
         theme.connect_clicked(move |_| {

@@ -1,9 +1,11 @@
 use chrono::{DateTime, Utc};
 use nota_core::NoteWorkspace;
-use nota_core::backup::{
-    BackupHealth, BackupHealthRecord, PendingBackupImport, assess_backup_health,
-};
+use nota_core::backup::{BackupHealth, BackupHealthRecord, assess_backup_health};
 use nota_core::editor_view::EditorViewMode;
+use nota_core::exchange::{
+    CommitPlan, ConfirmCopy, ExchangeError, ImportDestination, StagedImport, confirm_copy,
+    prepare_commit,
+};
 use nota_core::note_list_interaction::{NoteListInteraction, NoteListRenderModel};
 use nota_core::responsive_navigation::ViewportClass;
 use nota_core::tag_rules::{
@@ -26,6 +28,12 @@ pub enum NotificationTone {
     Progress,
     Success,
     Error,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AppliedImport {
+    Merged,
+    Replaced,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -66,15 +74,13 @@ pub enum AppMsg {
     PollPersistence,
     PersistenceComplete(u64),
     PersistenceFailed(String),
-    RequestBackupExport,
-    RequestBackupImport,
-    RequestTransitionExport,
-    RequestTransitionImport,
+    RequestExport,
+    RequestImport,
+    StageImport(String),
+    CommitExportedHealth(BackupHealthRecord),
     RequestDiagnostics,
-    ImportBackupJson(String),
     ConfirmBackupImport,
     CancelBackupImport,
-    ImportTransitionJson(String),
     BackupExported(DateTime<Utc>),
     ToggleTheme,
     OperationSucceeded(String),
@@ -96,7 +102,7 @@ pub struct AppModel {
     pub save_status: SaveStatus,
     pub notification: Option<GlobalNotification>,
     pub backup_health: Option<BackupHealthRecord>,
-    pending_backup_import: Option<PendingBackupImport>,
+    pending_import: Option<StagedImport>,
     storage_recovery: bool,
     notification_generation: u64,
     editing_tags: bool,
@@ -127,7 +133,7 @@ impl AppModel {
             save_status: SaveStatus::Saved,
             notification: None,
             backup_health,
-            pending_backup_import: None,
+            pending_import: None,
             storage_recovery: false,
             notification_generation: 0,
             editing_tags: false,
@@ -275,37 +281,17 @@ impl AppModel {
                 self.workspace
                     .update_selected_tags(parse_tags_input(&suggestion.completed_input))
             }
-            AppMsg::ImportBackupJson(json) => {
-                match self.workspace.prepare_backup_import(json) {
-                    Ok(pending) => {
-                        self.pending_backup_import = Some(pending);
-                        self.set_notification("Backup ready", NotificationTone::Success);
-                    }
-                    Err(error) => {
-                        self.pending_backup_import = None;
-                        self.set_notification(error.to_string(), NotificationTone::Error);
-                    }
-                }
-                false
-            }
-            AppMsg::ConfirmBackupImport => {
-                let changed = self.confirm_pending_backup_import();
-                if changed {
-                    self.storage_recovery = false;
-                }
-                changed
-            }
             AppMsg::CancelBackupImport => {
-                self.pending_backup_import = None;
+                self.pending_import = None;
                 self.set_notification("Backup import cancelled", NotificationTone::Progress);
                 false
             }
-            AppMsg::RequestBackupExport
-            | AppMsg::RequestBackupImport
-            | AppMsg::RequestTransitionExport
-            | AppMsg::RequestTransitionImport
-            | AppMsg::RequestDiagnostics
-            | AppMsg::ImportTransitionJson(_) => false,
+            AppMsg::RequestExport
+            | AppMsg::RequestImport
+            | AppMsg::StageImport(_)
+            | AppMsg::CommitExportedHealth(_)
+            | AppMsg::ConfirmBackupImport
+            | AppMsg::RequestDiagnostics => false,
         };
 
         if changed {
@@ -319,8 +305,55 @@ impl AppModel {
         self.revision
     }
 
-    pub fn pending_backup_import(&self) -> Option<&PendingBackupImport> {
-        self.pending_backup_import.as_ref()
+    pub fn pending_import(&self) -> Option<ConfirmCopy> {
+        self.pending_import
+            .as_ref()
+            .map(|staged| confirm_copy(staged, Utc::now()))
+    }
+
+    pub(crate) fn staged_import(&self) -> Option<&StagedImport> {
+        self.pending_import.as_ref()
+    }
+
+    pub fn stage_import(&mut self, staged: StagedImport) {
+        self.pending_import = Some(staged);
+        self.set_notification("Backup ready", NotificationTone::Success);
+    }
+
+    pub(crate) fn clear_pending_import(&mut self) {
+        self.pending_import = None;
+    }
+
+    pub fn commit_staged_import(&mut self) -> Result<Option<AppliedImport>, ExchangeError> {
+        let Some(staged) = self.pending_import.clone() else {
+            return Ok(None);
+        };
+        let plan = prepare_commit(&staged, self.import_destination())?;
+        let applied = match &plan {
+            CommitPlan::MergeNotes { flat_json } => {
+                self.import_backup(flat_json)
+                    .map_err(ExchangeError::Backup)?;
+                self.revision = self.revision.saturating_add(1);
+                self.save_status = SaveStatus::Saving;
+                AppliedImport::Merged
+            }
+            CommitPlan::ReplaceNotebook { transition_json } => {
+                self.import_transition(transition_json)
+                    .map_err(ExchangeError::Transition)?;
+                AppliedImport::Replaced
+            }
+        };
+        self.pending_import = None;
+        self.storage_recovery = false;
+        Ok(Some(applied))
+    }
+
+    fn import_destination(&self) -> ImportDestination<'_> {
+        ImportDestination {
+            notes: self.workspace.notes(),
+            recently_deleted: self.workspace.recently_deleted_notes(),
+            storage_recovery: self.storage_recovery,
+        }
     }
 
     pub fn set_storage_recovery(&mut self, active: bool) {
@@ -385,20 +418,6 @@ impl AppModel {
         self.notification = None;
     }
 
-    fn confirm_pending_backup_import(&mut self) -> bool {
-        let Some(pending) = self.pending_backup_import.take() else {
-            return false;
-        };
-        match self.import_backup(&pending.backup_json) {
-            Ok(()) => true,
-            Err(error) => {
-                self.pending_backup_import = Some(pending);
-                self.set_notification(error.to_string(), NotificationTone::Error);
-                false
-            }
-        }
-    }
-
     pub fn import_backup(&mut self, json: &str) -> Result<(), nota_core::backup::BackupError> {
         let imported = self.workspace.import_flat_collection_backup(json)?;
         if let Some(id) = imported.selected_id {
@@ -429,8 +448,8 @@ impl AppModel {
             message,
             AppMsg::RestorePreviousSnapshot
                 | AppMsg::StartEmptyAfterRecovery
-                | AppMsg::RequestBackupImport
-                | AppMsg::ImportBackupJson(_)
+                | AppMsg::RequestImport
+                | AppMsg::StageImport(_)
                 | AppMsg::ConfirmBackupImport
                 | AppMsg::CancelBackupImport
                 | AppMsg::RequestDiagnostics
@@ -673,6 +692,19 @@ mod tests {
         assert_eq!(first_run.revision(), revision);
     }
 
+    fn stage_json(app: &mut AppModel, json: &str) {
+        let staged = nota_core::exchange::stage_import(
+            json,
+            nota_core::exchange::ImportDestination {
+                notes: app.workspace.notes(),
+                recently_deleted: app.workspace.recently_deleted_notes(),
+                storage_recovery: app.is_in_storage_recovery(),
+            },
+        )
+        .unwrap();
+        app.stage_import(staged);
+    }
+
     #[test]
     fn backup_json_prepares_import_preview_without_mutating_the_collection() {
         use nota_core::backup::export_flat_collection_backup;
@@ -686,15 +718,16 @@ mod tests {
             None,
         );
 
-        app.apply(AppMsg::ImportBackupJson(json));
+        stage_json(&mut app, &json);
 
         assert_eq!(app.workspace.notes(), std::slice::from_ref(&existing));
-        let pending = app
-            .pending_backup_import()
-            .expect("Backup Import Preview should be pending");
-        assert_eq!(pending.preview.notes_to_add, 1);
-        assert_eq!(pending.preview.notes_to_replace, 0);
-        assert_eq!(pending.preview.total_imported_notes, 1);
+        let pending = app.pending_import().expect("import copy should be pending");
+        assert_eq!(pending.title, "Import these notes?");
+        assert_eq!(pending.action, "Import");
+        assert_eq!(
+            pending.body,
+            "Notes in this file: 1\n\nNotes to add: 1\nNotes to replace: 0"
+        );
         assert_eq!(app.revision(), 0);
     }
 
@@ -717,15 +750,18 @@ mod tests {
             None,
         );
 
-        app.apply(AppMsg::ImportBackupJson(json));
+        stage_json(&mut app, &json);
 
-        let pending = app
-            .pending_backup_import()
-            .expect("Backup Import Preview should be pending");
-        assert_eq!(pending.preview.notes_to_add, 0);
-        assert_eq!(pending.preview.notes_to_replace, 1);
+        let pending = app.pending_import().expect("import copy should be pending");
+        assert_eq!(
+            pending.body,
+            "Notes in this file: 1\n\nNotes to add: 0\nNotes to replace: 1"
+        );
         assert_eq!(app.workspace.notes()[0].title, "Original");
-        assert!(app.apply(AppMsg::ConfirmBackupImport));
+        assert_eq!(
+            app.commit_staged_import().unwrap(),
+            Some(AppliedImport::Merged)
+        );
         assert_eq!(app.workspace.notes()[0].title, "Replaced");
     }
 
@@ -775,9 +811,12 @@ mod tests {
         let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::Light, None);
         app.set_storage_recovery(true);
 
-        app.apply(AppMsg::ImportBackupJson(json));
-        assert!(app.pending_backup_import().is_some());
-        assert!(app.apply(AppMsg::ConfirmBackupImport));
+        stage_json(&mut app, &json);
+        assert!(app.pending_import().is_some());
+        assert_eq!(
+            app.commit_staged_import().unwrap(),
+            Some(AppliedImport::Merged)
+        );
         assert!(!app.is_in_storage_recovery());
         assert_eq!(app.workspace.notes(), std::slice::from_ref(&imported));
     }
@@ -893,11 +932,14 @@ mod tests {
             None,
         );
 
-        app.apply(AppMsg::ImportBackupJson(json));
-        assert!(app.apply(AppMsg::ConfirmBackupImport));
+        stage_json(&mut app, &json);
+        assert_eq!(
+            app.commit_staged_import().unwrap(),
+            Some(AppliedImport::Merged)
+        );
 
         assert_eq!(app.workspace.notes().len(), 2);
-        assert!(app.pending_backup_import().is_none());
+        assert!(app.pending_import().is_none());
         assert_eq!(app.workspace.selected_id(), Some(imported.id));
         assert_eq!(app.save_status, SaveStatus::Saving);
     }
@@ -915,33 +957,11 @@ mod tests {
             None,
         );
 
-        app.apply(AppMsg::ImportBackupJson(json));
+        stage_json(&mut app, &json);
         app.apply(AppMsg::CancelBackupImport);
 
         assert_eq!(app.workspace.notes(), std::slice::from_ref(&existing));
-        assert!(app.pending_backup_import().is_none());
-        assert_eq!(app.revision(), 0);
-    }
-
-    #[test]
-    fn invalid_backup_json_is_rejected_without_a_pending_preview() {
-        let existing = nota_core::Note::new("Local".to_string(), "Keep me".to_string());
-        let mut app = AppModel::new(
-            CollectionEnvelope::new(vec![existing.clone()], Vec::new()),
-            ThemePreference::Light,
-            None,
-        );
-
-        app.apply(AppMsg::ImportBackupJson("{not json".to_string()));
-
-        assert_eq!(app.workspace.notes(), std::slice::from_ref(&existing));
-        assert!(app.pending_backup_import().is_none());
-        assert_eq!(
-            app.notification
-                .as_ref()
-                .map(|notification| notification.tone),
-            Some(NotificationTone::Error)
-        );
+        assert!(app.pending_import().is_none());
         assert_eq!(app.revision(), 0);
     }
 }

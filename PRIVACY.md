@@ -33,11 +33,11 @@ browser profile, with a fallback read of legacy `noter-*` keys.
 
 ## Backup and export
 
-A Backup is a JSON file the user chooses to export. Merge Import reads a file
-the user chose. A Backup contains active Notes. A desktop-transition file
-also contains Recently Deleted, Theme, and optional Backup Health. Both
-frontends can export that format and restore it into an empty
-collection. Browser-era desktop-transition files remain compatible.
+**Backup / Export** writes a JSON file the user chooses. The file contains
+active Notes, Recently Deleted, Theme, and Backup Health. **Import / Restore**
+reads a file the user chose. A complete file replaces the notebook only when
+that notebook is empty. Older notes-only Backup files still merge. Browser-era
+desktop-transition files remain compatible.
 
 Nota does not upload those files. If you copy, email, or otherwise share an
 exported Backup, that sharing is controlled by you and by the destination you

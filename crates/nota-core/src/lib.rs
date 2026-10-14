@@ -3,6 +3,7 @@
 //! Toolkit-independent Note, discovery, backup, and recovery behavior.
 
 pub mod backup;
+pub mod exchange;
 pub mod markdown_editing;
 pub mod markdown_preview;
 pub mod transition;

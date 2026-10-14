@@ -72,7 +72,7 @@ impl fmt::Display for TransitionError {
             Self::DuplicateNoteId(id) => write!(formatter, "duplicate Note identity {id}"),
             Self::CollectionNotEmpty => write!(
                 formatter,
-                "Restore requires an empty notebook. Use Import notes backup to combine notes."
+                "The notebook is no longer empty, so this restore was not applied. Import the file again to combine notes."
             ),
         }
     }
@@ -108,6 +108,25 @@ pub fn export_desktop_transition(
     .map_err(TransitionError::Serialize)
 }
 
+pub(crate) fn is_desktop_transition_kind(kind: &str) -> bool {
+    kind == TRANSITION_KIND || kind == LEGACY_TRANSITION_KIND
+}
+
+pub(crate) fn parse_desktop_transition(
+    transition_json: &str,
+) -> Result<DesktopTransitionBundle, TransitionError> {
+    let bundle: DesktopTransitionBundle =
+        serde_json::from_str(transition_json).map_err(TransitionError::Deserialize)?;
+    if bundle.version != TRANSITION_VERSION {
+        return Err(TransitionError::UnsupportedVersion(bundle.version));
+    }
+    if !is_desktop_transition_kind(&bundle.kind) {
+        return Err(TransitionError::UnsupportedKind(bundle.kind));
+    }
+    validate_unique_ids(&bundle.notes, &bundle.recently_deleted_notes)?;
+    Ok(bundle)
+}
+
 pub fn import_desktop_transition(
     current_notes: &[Note],
     current_recently_deleted_notes: &[Note],
@@ -117,16 +136,7 @@ pub fn import_desktop_transition(
         return Err(TransitionError::CollectionNotEmpty);
     }
 
-    let bundle: DesktopTransitionBundle =
-        serde_json::from_str(transition_json).map_err(TransitionError::Deserialize)?;
-    if bundle.version != TRANSITION_VERSION {
-        return Err(TransitionError::UnsupportedVersion(bundle.version));
-    }
-    if bundle.kind != TRANSITION_KIND && bundle.kind != LEGACY_TRANSITION_KIND {
-        return Err(TransitionError::UnsupportedKind(bundle.kind));
-    }
-    validate_unique_ids(&bundle.notes, &bundle.recently_deleted_notes)?;
-
+    let bundle = parse_desktop_transition(transition_json)?;
     Ok(TransitionRestore {
         notes: bundle.notes,
         recently_deleted_notes: bundle.recently_deleted_notes,

@@ -21,11 +21,11 @@ Move a named Note to Recently Deleted and restore it to the active collection.
 
 Preconditions: Create only synthetic Notes using [Writing](writing.md). Record their UUIDs and contents.
 
-- Empty section. Before deleting a Note, require the collapsed Recently deleted header to show zero and Clear All to be hidden. Expand the section and require No deleted notes.
-- Confirmation. From a fresh screenshot, click the selected Note's or row's Note actions, then Move to recently deleted. Require a dialog naming that Note and Cancel as default focus. Click Cancel and require the active collection unchanged.
-- Soft delete. Repeat and accept the named confirmation. Require the row to leave the active list and appear in Recently Deleted. Copy the collection and require the same UUID and content in the deleted collection.
-- Section appearance. Move a second disposable Note to Recently Deleted. Inspect Light and Dark Themes. Expand the header and require its deleted count, distinct recovery rows, neutral Restore, and readable red Delete and Clear All controls. Clear All belongs below the rows. Include a long title and a compact window to check wrapping and clipping.
-- Restore. Click Restore beside the original Note, not the Backup Restore control. Require its active row and content to return with the same UUID. Restart and confirm persistence.
+- Empty section. Before deleting a Note, require the collapsed **Recently deleted** header to show zero and **Clear All** to be hidden. Expand the section and require an empty panel (no placeholder copy such as “No deleted notes”).
+- Confirmation. From a fresh screenshot, click the selected Note's or row's Note actions, then **Move to recently deleted**. Require dialog **Move to Recently Deleted?** naming that Note, accept **Move**, and **Cancel** as default focus. Click Cancel and require the active collection unchanged.
+- Soft delete. Repeat and accept the named confirmation. Require the row to leave the active list and appear in Recently Deleted. Copy the collection and require the same UUID and content in `recently_deleted_notes`.
+- Section appearance. Move a second disposable Note to Recently Deleted. Inspect Light and Dark Themes. Expand the header and require its deleted count, distinct recovery rows, neutral Restore, and readable red Delete and Clear All controls. Clear All belongs below the rows. Include a long title and a compact window; expect end ellipsis on long titles, not wrap.
+- Restore. Click Restore beside the original Note, not the Backup **Import / Restore** control. Require its active row and content to return with the same UUID. Restart and confirm persistence.
 - Permanent deletion. For a dedicated disposable Note, move it to Recently Deleted. Satisfy any active tool approval requirement before clicking Delete. Nota removes it immediately without an app confirmation. Require it absent from both collections. Record a skip if required approval is unavailable.
 - Clear All. With disposable deleted Notes present, open Clear All. Capture its count, cancel, and confirm nothing changed. Repeat and confirm only when the active tool's confirmation policy allows.
 - Proof. Save the named confirmation, deleted row, restored editor, and before/after collection copies. Report permanent operations separately.

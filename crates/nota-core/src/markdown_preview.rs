@@ -368,6 +368,13 @@ mod tests {
     }
 
     #[test]
+    fn renders_a_link_reference_shaped_list_item() {
+        let html = render_markdown_preview_body("Title", "- [n]:Z\r\n\t\t");
+
+        assert_eq!(html, "<ul>\n<li>");
+    }
+
+    #[test]
     fn markdown_preview_preserves_non_matching_first_content_h1() {
         let html = render_markdown_preview("Roadmap", "# Release notes\n\nBody content");
 

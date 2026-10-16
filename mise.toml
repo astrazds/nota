@@ -33,7 +33,7 @@ run = "cargo clippy --workspace --all-targets --all-features --locked -- -D warn
 run_windows = "cargo clippy -p nota-core -p nota-app -p nota-ffi --all-targets --locked -- -D warnings"
 
 [tasks.test]
-description = "Run workspace behavior and compatibility tests"
+description = "Run workspace tests on Linux and the three portable crate tests on Windows"
 run = "cargo test --workspace --all-features --locked"
 run_windows = "cargo test -p nota-core -p nota-app -p nota-ffi --locked"
 

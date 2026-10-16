@@ -19,7 +19,7 @@ rehearse the AppImage.
 - The process uses temporary `HOME`, `XDG_DATA_HOME`, `XDG_CONFIG_HOME`, and
   `XDG_CACHE_HOME` directories.
 - A human restored a desktop-transition JSON into the Empty Collection,
-  confirmed the Notes, confirmed that a second restore is rejected, and
+  confirmed the Notes, confirmed that importing that file again offers **Import these notes?**, and
   confirmed that Merge Import still adds a Note.
 - The report names the AppImage path, the profile directory, and each human
   check. The report does not claim a 2.0.0 release or publication.

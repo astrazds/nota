@@ -8,6 +8,6 @@ The product is **Nota**, and the repository is `astrazds/nota` after leaving the
 
 The Linux application ID is `net.astrazds.Nota`. Native collection data lives at `$XDG_DATA_HOME/net.astrazds.Nota`. On first launch, if that directory is absent, the store renames `$XDG_DATA_HOME/net.astrazds.Noter` or a still-older `$XDG_DATA_HOME/noter` directory into the canonical path.
 
-New Backup exports use kind `nota.flat_collection` and filename `nota-backup-YYYY-MM-DD.json`. Import still accepts `noter.flat_collection`. New desktop-transition exports use `nota.desktop_transition`; import still accepts `noter.desktop_transition`. Browser LocalStorage reads `nota-*` keys and falls back to `noter-*` keys.
+Backup / Export writes kind `nota.desktop_transition` and suggests the filename `nota-backup-YYYY-MM-DD.json`. Import still accepts `noter.flat_collection`. New desktop-transition exports use `nota.desktop_transition`; import still accepts `noter.desktop_transition`. Browser LocalStorage reads `nota-*` keys and falls back to `noter-*` keys.
 
 This supersedes ADR-0009's application ID `net.astrazds.Noter` for new installs while preserving that path as a one-time migration source.

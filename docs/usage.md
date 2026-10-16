@@ -25,7 +25,6 @@ the Note List. Use **Pinned** to show pinned Notes with the current Search.
 Both **Pinned** and **All notes** clear the active Tag filter. Clicking a
 Tag below the title clears the Pinned button filter but keeps Search.
 A filter can hide the selected Note while it remains open in the editor.
-GTK also shows a message explaining why that Note is absent from the list.
 
 Choose **+** beside the Tags or **Edit tags** in the Note actions menu to change Tags.
 Windows shows **Add tags** when the Note has no Tags.

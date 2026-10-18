@@ -1,0 +1,35 @@
+name: Feature
+description: A change to how Nota behaves.
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the problem before the change you want. Discuss a substantial behavior change here before you open a pull request.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Who hits this, and what they cannot do.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: The behavior you want, and what should stay the same.
+    validations:
+      required: true
+  - type: dropdown
+    id: frontend
+    attributes:
+      label: Frontend
+      description: Where the change belongs.
+      options:
+        - Linux GTK
+        - Windows WinUI
+        - Shared
+        - Not sure
+    validations:
+      required: true

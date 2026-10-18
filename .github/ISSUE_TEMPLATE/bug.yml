@@ -1,0 +1,40 @@
+name: Bug
+description: A defect in the Linux GTK app or the Windows WinUI app.
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Report a defect in the native app. For a security vulnerability, open a [private advisory](https://github.com/astrazds/nota/security/advisories/new). Do not attach a live notebook, a private Backup, or quarantine files.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what the app did.
+    validations:
+      required: true
+  - type: dropdown
+    id: frontend
+    attributes:
+      label: Frontend
+      options:
+        - Linux GTK
+        - Windows WinUI
+        - Both
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The app version, commit, or package you ran.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps
+      description: Reproduce it with a synthetic Note. Include the operating system. On Windows Preview, include the WebView2 Runtime version.
+    validations:
+      required: true

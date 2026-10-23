@@ -23,6 +23,8 @@ jobs:
         run: mise run setup:rust
       - name: Verify Rust and Windows bindings
         run: mise run verify
+        env:
+          NOTA_VERIFY_HOST: windows
       - name: Package Windows app
         run: mise run package:windows
       - name: Save Windows package
@@ -49,17 +51,10 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
 
-      - name: Check formatting
-        run: mise run fmt
-
-      - name: Clippy nota-core
-        run: mise run clippy:core
-
-      - name: Test nota-core
-        run: mise run test:core
-
-      - name: Verify AppDir contract
-        run: mise run test:package
+      - name: Verify
+        run: mise run verify
+        env:
+          NOTA_VERIFY_HOST: check
 
   native:
     # Relm4: https://relm4.org/book/stable/continuous_integration.html
@@ -87,13 +82,9 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
 
-      - name: Clippy workspace
-        run: mise run clippy
-
-      - name: Test workspace
-        run: xvfb-run --auto-servernum mise run test
-
-      - name: Test GTK editing workflow
-        run: xvfb-run --auto-servernum mise run test:gtk
+      - name: Verify
+        run: xvfb-run --auto-servernum mise run verify
+        env:
+          NOTA_VERIFY_HOST: native
 
       - uses: bcomnes/cleanup-xvfb@v1.0.9

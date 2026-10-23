@@ -1,4 +1,5 @@
 use nota_app::storage::Preferences;
+use nota_desktop::visual_contract::{NATIVE_STYLESHEET, native_palette_css};
 use relm4::gtk;
 use relm4::gtk::prelude::*;
 
@@ -22,7 +23,7 @@ pub(super) fn install_workspace_fonts(window: &gtk::ApplicationWindow) {
 
 pub(super) fn install_css() {
     let provider = gtk::CssProvider::new();
-    provider.load_from_resource("/net/astrazds/Nota/nota.css");
+    provider.load_from_string(&format!("{}{NATIVE_STYLESHEET}", native_palette_css()));
     if let Some(display) = gtk::gdk::Display::default() {
         gtk::style_context_add_provider_for_display(
             &display,

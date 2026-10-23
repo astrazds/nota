@@ -45,8 +45,8 @@ close the app if it reports a save error. A failed shutdown save keeps the
 window open so you can retry. On Windows, `Ctrl+S` also retries the save.
 
 Open a Note's actions menu and choose **Move to recently deleted**. Confirm
-with **Move** on Linux or **Move note** on Windows. The confirmation names
-the Note. Choose **Cancel** to keep the Note active.
+with **Move**. The confirmation names the Note. Choose **Cancel** to keep
+the Note active.
 
 Open **Notes**, then expand **Recently deleted** below the active Note List.
 Its header shows the deleted count. Scroll the drawer if the section is

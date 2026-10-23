@@ -45,30 +45,18 @@ run = "python3 build-aux/test_package_appimage.py"
 description = "Fail if crates/ still target wasm32"
 run = "python3 build-aux/check_no_wasm_residue.py"
 
+[tasks."check:labels"]
+description = "Fail when a documented label is missing from the owner module"
+run = "python3 build-aux/check_quoted_labels.py"
+
 [tasks.doc]
 description = "Build Rust API documentation"
 run = "cargo doc --workspace --all-features --no-deps --locked"
 run_windows = "cargo doc -p nota-core -p nota-app -p nota-ffi --no-deps --locked"
 
 [tasks.verify]
-description = "Run repository checks in order without competing Cargo builds"
-run = [
-  "mise run fmt",
-  "mise run check",
-  "mise run clippy",
-  "mise run test",
-  "mise run test:package",
-  "mise run check:no-wasm",
-]
-run_windows = [
-  "mise run fmt",
-  "mise run check",
-  "mise run clippy",
-  "mise run test",
-  "mise run build:windows",
-  "mise run test:windows",
-  "mise run check:no-wasm",
-]
+description = "Run the host task list in build-aux/verify.toml"
+run = "python3 build-aux/verify_host.py"
 
 [tasks."dev:desktop"]
 description = "Run the desktop app with WebKit preview"

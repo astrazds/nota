@@ -1,5 +1,5 @@
-use nota_app::app::AppMsg;
-use nota_core::markdown_editing::MARKDOWN_CHEATSHEET_SECTIONS;
+use nota_app::MARKDOWN_CHEATSHEET_SECTIONS;
+use nota_app::command::Command;
 use relm4::gtk;
 use relm4::gtk::prelude::*;
 use std::cell::Cell;
@@ -236,15 +236,15 @@ pub(super) struct ConfirmationRequest {
     pub(super) title: String,
     pub(super) detail: String,
     pub(super) accept_label: String,
-    pub(super) accepted: AppMsg,
-    pub(super) cancelled: AppMsg,
+    pub(super) accepted: Command,
+    pub(super) cancelled: Command,
     pub(super) destructive: bool,
 }
 
 pub(super) fn show_confirmation(
     window: &gtk::ApplicationWindow,
     request: ConfirmationRequest,
-    sender: &relm4::Sender<AppMsg>,
+    sender: &relm4::Sender<Command>,
 ) {
     let ConfirmationRequest {
         title: message,
@@ -299,7 +299,7 @@ pub(super) fn show_confirmation(
         let responded = responded.clone();
         let sender = sender.clone();
         let dialog = dialog.clone();
-        move |message: AppMsg| {
+        move |message: Command| {
             if responded.replace(true) {
                 return;
             }

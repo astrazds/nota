@@ -6,14 +6,21 @@ use chrono::Utc;
 use nota_core::backup::{BackupHealthRecord, backup_file_name};
 use nota_core::editor_view::EditorViewMode;
 use nota_core::exchange::{ExchangeError, ImportDestination, export_notebook, stage_import};
-use nota_core::markdown_editing::{ByteSelection, MarkdownCommand, apply_markdown_command};
+use nota_core::markdown_editing::{ByteSelection, apply_markdown_command};
 use nota_core::tag_rules::collect_note_tags;
 use nota_core::transition::ThemePreference;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-use crate::app::{AppModel, AppMsg, AppliedImport, NotificationTone, SaveStatus};
+use nota_core::note_workspace::FocusIntent;
+use nota_core::product::{
+    Prompt, clear_deleted_prompt, delete_prompt, permanent_delete_prompt, tag_cleanup_prompt,
+};
+
+use crate::app::{AppModel, AppliedImport, NotificationTone, SaveStatus};
+use crate::command::{Command, Effect, FormatEdit, TextSelection, decode_command};
+use crate::frame::{DeletedRow, Frame, FrameNotification, FrameRecovery, FrameRow};
 use crate::persistence::PersistenceWorker;
 use crate::preview::{PreviewLayout, external_navigation_target, preview_document};
 use crate::storage::{
@@ -25,99 +32,6 @@ use crate::storage::{
 #[serde(deny_unknown_fields)]
 pub struct OpenOptionsJson {
     pub data_directory: Option<PathBuf>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
-pub enum Request {
-    Snapshot,
-    NewNote,
-    Flush,
-    SelectNote {
-        id: Uuid,
-    },
-    EditNote {
-        id: Uuid,
-        edit_sequence: u64,
-        title: String,
-        content: String,
-        tags_input: String,
-    },
-    Search {
-        query: String,
-    },
-    FilterTag {
-        tag: Option<String>,
-    },
-    FilterPinned {
-        pinned: bool,
-    },
-    TogglePin {
-        id: Uuid,
-    },
-    DeleteNote {
-        id: Uuid,
-    },
-    RestoreNote {
-        id: Uuid,
-    },
-    PermanentlyDelete {
-        id: Uuid,
-    },
-    ClearDeleted,
-    SetTheme {
-        theme: ThemePreference,
-    },
-    SetViewMode {
-        mode: ViewMode,
-    },
-    Format {
-        content: String,
-        start_utf16: usize,
-        end_utf16: usize,
-        kind: FormatKind,
-    },
-    Preview {
-        title: String,
-        content: String,
-        dark: bool,
-        layout: PreviewLayout,
-    },
-    ImportNotebook {
-        json: String,
-    },
-    ConfirmImport,
-    CancelImport,
-    ExportNotebook {
-        path: PathBuf,
-    },
-    RestorePrevious,
-    StartEmpty,
-    ExternalNavigation {
-        uri: String,
-        user_activated: bool,
-    },
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ViewMode {
-    Write,
-    Preview,
-    Split,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum FormatKind {
-    Bold,
-    Italic,
-    Heading,
-    BulletList,
-    Link,
-    Strikethrough,
-    TaskList,
-    Table,
 }
 
 #[derive(Debug)]
@@ -162,6 +76,7 @@ pub struct Session {
     completions: Receiver<Result<u64, StorageError>>,
     edit_sequence: u64,
     metadata_pending: bool,
+    confirm: Option<ConfirmKind>,
     _profile_lock: File,
 }
 
@@ -211,42 +126,13 @@ impl Session {
             completions,
             edit_sequence: 0,
             metadata_pending: false,
+            confirm: None,
             _profile_lock: profile_lock,
         })
     }
 
     pub fn preferences(&self) -> &Preferences {
         &self.preferences
-    }
-
-    /// GTK messages use the same recovery and save lifecycle as ABI commands.
-    pub fn apply_message(&mut self, message: AppMsg) -> Result<bool, SessionError> {
-        self.poll();
-        match message {
-            AppMsg::RestorePreviousSnapshot => {
-                resolve_recovery(&mut self.app, &self.store, &mut self.recovery, false)?;
-                return Ok(false);
-            }
-            AppMsg::StartEmptyAfterRecovery => {
-                resolve_recovery(&mut self.app, &self.store, &mut self.recovery, true)?;
-                return Ok(false);
-            }
-            AppMsg::ConfirmBackupImport => {
-                self.execute(Request::ConfirmImport)?;
-                return Ok(true);
-            }
-            AppMsg::CancelBackupImport => {
-                self.execute(Request::CancelImport)?;
-                return Ok(false);
-            }
-            AppMsg::PollPersistence => return Ok(false),
-            _ => {}
-        }
-        let changed = self.app.apply(message);
-        if changed {
-            self.schedule_save()?;
-        }
-        Ok(changed)
     }
 
     fn schedule_save(&mut self) -> Result<(), SessionError> {
@@ -256,9 +142,8 @@ impl Session {
         {
             Ok(())
         } else {
-            self.app.apply(AppMsg::PersistenceFailed(
-                "Persistence worker stopped".into(),
-            ));
+            self.app
+                .note_save_failed("Persistence worker stopped".into());
             Err(SessionError::new("storage", "Persistence worker stopped"))
         }
     }
@@ -269,13 +154,13 @@ impl Session {
                     if self.metadata_pending
                         && let Err(error) = self.persist_metadata()
                     {
-                        self.app.apply(AppMsg::PersistenceFailed(error.to_string()));
+                        self.app.note_save_failed(error.to_string());
                     } else {
-                        self.app.apply(AppMsg::PersistenceComplete(revision));
+                        self.app.note_saved(revision);
                     }
                 }
                 Err(error) => {
-                    self.app.apply(AppMsg::PersistenceFailed(error.to_string()));
+                    self.app.note_save_failed(error.to_string());
                 }
             }
         }
@@ -293,11 +178,11 @@ impl Session {
         self.poll();
         match result {
             Ok(revision) => {
-                self.app.apply(AppMsg::PersistenceComplete(revision));
+                self.app.note_saved(revision);
                 Ok(())
             }
             Err(error) => {
-                self.app.apply(AppMsg::PersistenceFailed(error.to_string()));
+                self.app.note_save_failed(error.to_string());
                 Err(error.into())
             }
         }
@@ -312,48 +197,79 @@ impl Session {
         Ok(())
     }
 
-    pub fn execute(&mut self, request: Request) -> Result<Value, SessionError> {
+    /// Applies one session command.
+    ///
+    /// A second command enum is not a session command.
+    ///
+    /// ```compile_fail
+    /// enum Other {
+    ///     Resize,
+    /// }
+    /// fn reject(session: &mut nota_app::session::Session) {
+    ///     let _ = session.apply(Other::Resize);
+    /// }
+    /// ```
+    pub fn apply(&mut self, command: Command) -> Result<Effect, SessionError> {
         self.poll();
-        if self.recovery.is_some()
-            && !matches!(
-                &request,
-                Request::Snapshot
-                    | Request::Flush
-                    | Request::RestorePrevious
-                    | Request::StartEmpty
-                    | Request::ImportNotebook { .. }
-                    | Request::ConfirmImport
-                    | Request::CancelImport
-                    | Request::Preview { .. }
-                    | Request::ExternalNavigation { .. }
-                    | Request::Format { .. }
-            )
-        {
+        if self.recovery.is_some() && !allowed_during_recovery(&command) {
             return Err(SessionError::new(
                 "storage_recovery",
                 "Resolve Storage Recovery before editing",
             ));
         }
         let revision = self.app.revision();
-        let result = self.dispatch(request);
+        let effect = self.dispatch(command)?;
         if self.app.revision() != revision {
             self.schedule_save()?;
         }
-        result.map(|result| self.reply(result))
+        Ok(effect)
     }
 
-    fn dispatch(&mut self, request: Request) -> Result<Value, SessionError> {
-        match request {
-            Request::Snapshot => {}
-            Request::NewNote => {
-                self.app.apply(AppMsg::QuickCapture);
+    pub fn execute_json(&mut self, value: Value) -> Result<Value, SessionError> {
+        let command = decode_command(&value)
+            .map_err(|error| SessionError::new("invalid_argument", error.message))?;
+        let effect = self.apply(command)?;
+        Ok(self.reply_json(effect))
+    }
+
+    pub fn take_focus_title(&mut self) -> bool {
+        self.app.workspace.take_focus_intent() == FocusIntent::NoteTitle
+    }
+
+    pub fn tag_suggestion_labels(&self, input: &str) -> Vec<String> {
+        self.app
+            .tag_suggestions(input)
+            .into_iter()
+            .map(|suggestion| suggestion.completed_input)
+            .collect()
+    }
+
+    fn dispatch(&mut self, command: Command) -> Result<Effect, SessionError> {
+        match command {
+            Command::Snapshot {} => {}
+            Command::NewNote {} => {
+                self.app.quick_capture();
             }
-            Request::Flush => self.flush()?,
-            Request::SelectNote { id } => {
+            Command::Flush {} => self.flush()?,
+            Command::Resize { width_px } => {
+                self.app.resize(width_px);
+            }
+            Command::SetViewMode { mode } => {
+                self.app.set_view_mode(mode);
+            }
+            Command::SetTheme { theme } => self.store_theme(theme)?,
+            Command::ToggleTheme {} => {
+                let theme = self.app.toggle_theme();
+                self.store_theme(theme)?;
+            }
+            Command::ToggleNavigation {} => {
+                self.app.toggle_navigation();
+            }
+            Command::SelectNote { id } => {
                 self.require_note(id, false)?;
-                self.app.apply(AppMsg::SelectNote(id));
+                self.app.select_note(id);
             }
-            Request::EditNote {
+            Command::EditNote {
                 id,
                 edit_sequence,
                 title,
@@ -368,164 +284,212 @@ impl Session {
                     ));
                 }
                 let selected = self.app.workspace.selected_id();
-                self.app.apply(AppMsg::SelectNote(id));
-                self.app.apply(AppMsg::UpdateTitle(title));
-                self.app.apply(AppMsg::UpdateContent(content));
-                self.app.apply(AppMsg::UpdateTags(tags_input));
+                self.app.select_note(id);
+                self.app.update_title(title);
+                self.app.update_content(content);
+                self.app.update_tags(tags_input);
                 if let Some(selected) = selected {
-                    self.app.apply(AppMsg::SelectNote(selected));
+                    self.app.select_note(selected);
                 }
                 self.edit_sequence = edit_sequence;
             }
-            Request::Search { query } => {
-                self.app.apply(AppMsg::EditSearch(query));
-                self.app.apply(AppMsg::CommitSearch);
+            Command::Search { query } => {
+                self.app.edit_search(query);
+                self.app.commit_search();
             }
-            Request::FilterTag { tag } => {
-                self.app
-                    .apply(tag.map_or(AppMsg::ClearTag, AppMsg::SelectTag));
+            Command::FilterTag { tag } => match tag {
+                Some(tag) => {
+                    self.app.select_tag(tag);
+                }
+                None => {
+                    self.app.clear_tag();
+                }
+            },
+            Command::FilterPinned { pinned } => {
+                self.app.set_pinned_filter(pinned);
             }
-            Request::FilterPinned { pinned } => {
-                self.app.apply(AppMsg::SetPinnedFilter(pinned));
-            }
-            Request::TogglePin { id } => {
+            Command::TogglePin { id } => {
                 self.require_note(id, false)?;
-                self.app.apply(AppMsg::TogglePin(id));
+                self.app.toggle_pin(id);
             }
-            Request::DeleteNote { id } => {
+            Command::AskDelete { id } => {
                 self.require_note(id, false)?;
-                self.app.apply(AppMsg::RequestDelete(id));
-                self.app.apply(AppMsg::ConfirmDelete);
+                self.clear_prompt();
+                self.app.request_delete(id);
+                self.confirm = Some(ConfirmKind::Delete(id));
             }
-            Request::RestoreNote { id } => {
+            Command::AskPermanentDelete { id } => {
                 self.require_note(id, true)?;
-                self.app.apply(AppMsg::RestoreRecentlyDeleted(id));
+                self.clear_prompt();
+                self.confirm = Some(ConfirmKind::Permanent(id));
             }
-            Request::PermanentlyDelete { id } => {
-                self.require_note(id, true)?;
-                self.app.apply(AppMsg::PermanentlyDelete(id));
-            }
-            Request::ClearDeleted => {
-                self.app.apply(AppMsg::RequestClearAll);
-                self.app.apply(AppMsg::ConfirmClearAll);
-            }
-            Request::SetTheme { theme } => {
-                let preferences = Preferences {
-                    theme,
-                    ..self.preferences.clone()
-                };
-                self.store.save_preferences(&preferences)?;
-                self.preferences = preferences;
-                self.app.theme = theme;
-            }
-            Request::SetViewMode { mode } => {
-                self.app.apply(AppMsg::SetViewMode(match mode {
-                    ViewMode::Write => EditorViewMode::Write,
-                    ViewMode::Preview => EditorViewMode::Preview,
-                    ViewMode::Split => EditorViewMode::Split,
-                }));
-            }
-            Request::Format {
-                content,
-                start_utf16,
-                end_utf16,
-                kind,
-            } => {
-                let start = utf16_to_byte(&content, start_utf16)?;
-                let end = utf16_to_byte(&content, end_utf16)?;
-                let selection = ByteSelection::new(&content, start, end)
-                    .ok_or_else(|| SessionError::new("invalid_selection", "Invalid selection"))?;
-                let command = match kind {
-                    FormatKind::Bold => MarkdownCommand::Bold,
-                    FormatKind::Italic => MarkdownCommand::Italic,
-                    FormatKind::Heading => MarkdownCommand::Heading,
-                    FormatKind::BulletList => MarkdownCommand::BulletList,
-                    FormatKind::Link => MarkdownCommand::Link,
-                    FormatKind::Strikethrough => MarkdownCommand::Strikethrough,
-                    FormatKind::TaskList => MarkdownCommand::TaskList,
-                    FormatKind::Table => MarkdownCommand::Table,
-                };
-                let formatted = apply_markdown_command(&content, selection, command);
-                let caret_utf16 = formatted.content[..formatted.caret_byte]
-                    .encode_utf16()
-                    .count();
-                return Ok(json!({"content": formatted.content, "caret_utf16": caret_utf16}));
-            }
-            Request::Preview {
-                title,
-                content,
-                dark,
-                layout,
-            } => {
-                return Ok(json!({"html": preview_document(&title, &content, dark, layout)}));
-            }
-            Request::ImportNotebook { json } => {
-                let staged = {
-                    let destination = ImportDestination {
-                        notes: self.app.workspace.notes(),
-                        recently_deleted: self.app.workspace.recently_deleted_notes(),
-                        storage_recovery: self.recovery.is_some(),
-                    };
-                    stage_import(&json, destination)
-                };
-                match staged {
-                    Ok(staged) => self.app.stage_import(staged),
-                    Err(error) => {
-                        self.app.clear_pending_import();
-                        return Err(exchange_error(error));
-                    }
+            Command::AskClearDeleted {} => {
+                self.clear_prompt();
+                if self.app.request_clear_all() {
+                    self.confirm = Some(ConfirmKind::Clear);
                 }
             }
-            Request::ConfirmImport => {
-                if self.app.staged_import().is_none() {
+            Command::AcceptConfirm {} => match self.confirm.take() {
+                Some(ConfirmKind::Delete(id)) => {
+                    self.require_note(id, false)?;
+                    self.app.confirm_delete();
+                }
+                Some(ConfirmKind::Permanent(id)) => {
+                    self.app.permanently_delete(id);
+                }
+                Some(ConfirmKind::Clear) => {
+                    self.app.confirm_clear_all();
+                }
+                Some(ConfirmKind::Import) => self.commit_import()?,
+                None => {
                     return Err(SessionError::new(
                         "no_pending_import",
                         "Choose a backup first",
                     ));
                 }
-                if let Some(recovery) = &self.recovery {
-                    self.store.preserve_corrupt(recovery, Utc::now())?;
+            },
+            Command::DismissConfirm {} => match self.confirm.take() {
+                Some(ConfirmKind::Delete(_)) => {
+                    self.app.cancel_delete();
                 }
-                match self.app.commit_staged_import().map_err(exchange_error)? {
-                    Some(AppliedImport::Merged) => {
-                        self.recovery = None;
+                Some(ConfirmKind::Clear) => {
+                    self.app.cancel_clear_all();
+                }
+                Some(ConfirmKind::Import) => {
+                    self.app.cancel_import();
+                }
+                Some(ConfirmKind::Permanent(_)) | None => {}
+            },
+            Command::RestoreNote { id } => {
+                self.require_note(id, true)?;
+                self.app.restore_recently_deleted(id);
+            }
+            Command::ImportNotebook { json } => {
+                self.clear_prompt();
+                let destination = ImportDestination {
+                    notes: self.app.workspace.notes(),
+                    recently_deleted: self.app.workspace.recently_deleted_notes(),
+                    storage_recovery: self.recovery.is_some(),
+                };
+                match stage_import(&json, destination) {
+                    Ok(staged) => {
+                        self.app.stage_import(staged);
+                        self.confirm = Some(ConfirmKind::Import);
                     }
-                    Some(AppliedImport::Replaced) => {
-                        self.metadata_pending = true;
-                        self.recovery = None;
-                    }
-                    None => {
-                        return Err(SessionError::new(
-                            "no_pending_import",
-                            "Choose a backup first",
-                        ));
-                    }
+                    Err(error) => return Err(exchange_error(error)),
                 }
             }
-            Request::CancelImport => {
-                self.app.apply(AppMsg::CancelBackupImport);
-            }
-            Request::ExportNotebook { path } => {
+            Command::ExportNotebook { path } => {
                 let exported = self.notebook_export()?;
                 write_atomic(&path, exported.json.as_bytes())?;
                 self.record_successful_notes_export(exported.health)?;
             }
-            Request::RestorePrevious => {
-                resolve_recovery(&mut self.app, &self.store, &mut self.recovery, false)?
+            Command::RestorePrevious {} => {
+                resolve_recovery(&mut self.app, &self.store, &mut self.recovery, false)?;
             }
-            Request::StartEmpty => {
-                resolve_recovery(&mut self.app, &self.store, &mut self.recovery, true)?
+            Command::StartEmpty {} => {
+                resolve_recovery(&mut self.app, &self.store, &mut self.recovery, true)?;
             }
-            Request::ExternalNavigation {
+            Command::Format {
+                content,
+                selection,
+                kind,
+            } => {
+                let selection = selection_bytes(&content, selection)?;
+                let formatted = apply_markdown_command(&content, selection, kind);
+                let caret_utf16 = formatted.content[..formatted.caret_byte]
+                    .encode_utf16()
+                    .count();
+                return Ok(Effect::Edit(FormatEdit {
+                    content: formatted.content,
+                    caret_utf16,
+                    caret_byte: formatted.caret_byte,
+                }));
+            }
+            Command::Preview { title, content } => {
+                let dark = self.app.theme == ThemePreference::Dark;
+                let layout = if self.app.view_mode != EditorViewMode::Split {
+                    PreviewLayout::Reading
+                } else if self.app.layout.title_px < 39.0 {
+                    PreviewLayout::SplitNarrow
+                } else {
+                    PreviewLayout::Split
+                };
+                return Ok(Effect::Preview(preview_document(
+                    &title, &content, dark, layout,
+                )));
+            }
+            Command::ExternalNavigation {
                 uri,
                 user_activated,
             } => {
-                return Ok(
-                    json!({"uri": external_navigation_target(&uri, user_activated).map(|uri| uri.to_string())}),
-                );
+                return Ok(Effect::External(
+                    external_navigation_target(&uri, user_activated).map(|uri| uri.to_string()),
+                ));
+            }
+            Command::ApplyTagCleanup {} => {
+                self.app.apply_tag_cleanup();
+            }
+            Command::AcceptTagSuggestion { input } => {
+                self.app.accept_tag_suggestion(input);
+            }
+            Command::StartEditTags {} => {
+                self.app.start_edit_tags();
+            }
+            Command::FinishEditTags {} => {
+                self.app.finish_edit_tags();
+            }
+            Command::DismissNotification { generation } => {
+                self.app.dismiss_notification(generation);
             }
         }
-        Ok(Value::Null)
+        Ok(Effect::Frame(self.frame()))
+    }
+
+    fn store_theme(&mut self, theme: ThemePreference) -> Result<(), SessionError> {
+        let preferences = Preferences {
+            theme,
+            ..self.preferences.clone()
+        };
+        self.store.save_preferences(&preferences)?;
+        self.preferences = preferences;
+        self.app.theme = theme;
+        Ok(())
+    }
+
+    fn clear_prompt(&mut self) {
+        self.confirm = None;
+        self.app.cancel_delete();
+        self.app.cancel_clear_all();
+        self.app.clear_pending_import();
+    }
+
+    fn commit_import(&mut self) -> Result<(), SessionError> {
+        if self.app.staged_import().is_none() {
+            return Err(SessionError::new(
+                "no_pending_import",
+                "Choose a backup first",
+            ));
+        }
+        if let Some(recovery) = &self.recovery {
+            self.store.preserve_corrupt(recovery, Utc::now())?;
+        }
+        match self.app.commit_staged_import().map_err(exchange_error)? {
+            Some(AppliedImport::Merged) => {
+                self.recovery = None;
+            }
+            Some(AppliedImport::Replaced) => {
+                self.metadata_pending = true;
+                self.recovery = None;
+            }
+            None => {
+                return Err(SessionError::new(
+                    "no_pending_import",
+                    "Choose a backup first",
+                ));
+            }
+        }
+        Ok(())
     }
 
     pub fn notebook_export(&self) -> Result<nota_core::exchange::NotebookExport, SessionError> {
@@ -543,8 +507,7 @@ impl Session {
         health: BackupHealthRecord,
     ) -> Result<(), SessionError> {
         self.store.save_backup_health(&health)?;
-        self.app
-            .apply(AppMsg::BackupExported(health.last_successful_export_at));
+        self.app.backup_exported(health.last_successful_export_at);
         Ok(())
     }
 
@@ -564,48 +527,188 @@ impl Session {
         }
     }
 
-    pub fn reply(&self, result: Value) -> Value {
-        json!({"ok": true, "snapshot": self.snapshot(), "result": result})
+    pub fn reply_json(&self, effect: Effect) -> Value {
+        let result = match &effect {
+            Effect::Frame(_) => Value::Null,
+            Effect::Edit(edit) => json!({
+                "content": edit.content,
+                "caret_utf16": edit.caret_utf16,
+                "caret_byte": edit.caret_byte
+            }),
+            Effect::Preview(html) => json!({ "html": html }),
+            Effect::External(uri) => json!({ "uri": uri }),
+        };
+        json!({"ok": true, "frame": self.frame(), "result": result})
     }
 
-    pub fn snapshot(&self) -> Value {
-        let rows: Vec<Value> = self.app.note_list_render_model().projection.rows.into_iter().map(|row|
-            json!({"id": row.id, "title": row.display_title, "preview": row.preview, "date": row.display_date, "is_pinned": row.is_pinned})
-        ).collect();
-        let deleted: Vec<Value> = self
+    pub fn frame(&self) -> Frame {
+        let rendered = self.app.note_list_render_model();
+        let list = self
+            .app
+            .note_list
+            .list_copy(self.app.workspace.notes(), self.app.workspace.selected_id());
+        let rows = rendered
+            .projection
+            .rows
+            .into_iter()
+            .map(|row| FrameRow {
+                id: row.id,
+                title: row.display_title,
+                preview: row.preview,
+                date: row.display_date,
+                is_pinned: row.is_pinned,
+            })
+            .collect();
+        let recently_deleted = self
             .app
             .workspace
             .recently_deleted_notes()
             .iter()
-            .map(|note| json!({"id": note.id, "title": note.display_title()}))
-            .collect();
-        let notification = self.app.notification.as_ref().map(|notification| json!({
-            "message": notification.message, "tone": match notification.tone {
-                NotificationTone::Progress => "progress", NotificationTone::Success => "success", NotificationTone::Error => "error"
-            }
-        }));
-        let pending_import = self.app.pending_import().map(|pending| {
-            json!({
-                "title": pending.title,
-                "body": pending.body,
-                "action": pending.action,
+            .map(|note| DeletedRow {
+                id: note.id,
+                title: note.display_title().to_string(),
             })
-        });
-        json!({
-            "revision": self.app.revision(), "edit_sequence": self.edit_sequence,
-            "selected_note": self.app.workspace.selected_note(), "rows": rows, "recently_deleted": deleted,
-            "search_input": self.app.note_list.search_input(), "active_tag": self.app.note_list.active_tag(),
-            "pinned_only": self.app.note_list.pinned_only(),
-            "tags": collect_note_tags(self.app.workspace.notes()),
-            "view_mode": match self.app.view_mode { EditorViewMode::Write => "write", EditorViewMode::Preview => "preview", EditorViewMode::Split => "split" },
-            "theme": self.app.theme,
-            "save_status": match self.app.save_status { SaveStatus::Saved => "saved", SaveStatus::Saving => "saving", SaveStatus::Failed => "failed" },
-            "backup_health": self.app.backup_health_label(Utc::now()), "notification": notification,
-            "recovery": self.recovery.as_ref().map(|recovery| json!({"reason": recovery.reason, "can_restore_previous": recovery.previous_snapshot.is_some()})),
-            "suggested_export_name": backup_file_name(Utc::now()),
-            "pending_import": pending_import, "data_directory": self.store.data_dir()
-        })
+            .collect();
+        let notification = self
+            .app
+            .notification
+            .as_ref()
+            .map(|notification| FrameNotification {
+                message: notification.message.clone(),
+                tone: match notification.tone {
+                    NotificationTone::Progress => "progress",
+                    NotificationTone::Success => "success",
+                    NotificationTone::Error => "error",
+                }
+                .to_string(),
+            });
+        let health = self.app.backup_health_status(Utc::now()).sentences();
+        let confirm = match self.confirm {
+            Some(ConfirmKind::Delete(_)) => {
+                let title = self
+                    .app
+                    .workspace
+                    .delete_confirmation_title()
+                    .unwrap_or("New Note");
+                Some(delete_prompt(title))
+            }
+            Some(ConfirmKind::Permanent(_)) => Some(permanent_delete_prompt()),
+            Some(ConfirmKind::Clear) => {
+                let count = self
+                    .app
+                    .workspace
+                    .clear_all_recently_deleted_confirmation_count()
+                    .unwrap_or(0);
+                Some(clear_deleted_prompt(count))
+            }
+            Some(ConfirmKind::Import) => self.app.pending_import().map(|pending| Prompt {
+                title: pending.title,
+                body: pending.body,
+                action: pending.action,
+            }),
+            None => None,
+        };
+        let plan = self.app.workspace.tag_cleanup_plan();
+        let tag_cleanup = if plan.is_empty() {
+            None
+        } else {
+            let detail = plan
+                .changes
+                .iter()
+                .map(|change| {
+                    format!(
+                        "{} -> {}",
+                        change.before.join(", "),
+                        change.after.join(", ")
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            Some(tag_cleanup_prompt(detail))
+        };
+        Frame {
+            revision: self.app.revision(),
+            edit_sequence: self.edit_sequence,
+            selected_note: self.app.workspace.selected_note(),
+            rows,
+            recently_deleted,
+            search_input: self.app.note_list.search_input().to_string(),
+            active_tag: self.app.note_list.active_tag().map(str::to_string),
+            tags: collect_note_tags(self.app.workspace.notes()),
+            pinned_only: self.app.note_list.pinned_only(),
+            view_mode: match self.app.view_mode {
+                EditorViewMode::Write => "write",
+                EditorViewMode::Preview => "preview",
+                EditorViewMode::Split => "split",
+            }
+            .to_string(),
+            theme: self.app.theme,
+            save_status: match self.app.save_status {
+                SaveStatus::Saved => "saved",
+                SaveStatus::Saving => "saving",
+                SaveStatus::Failed => "failed",
+            }
+            .to_string(),
+            backup_health: health.label,
+            backup_detail: health.detail,
+            notification,
+            recovery: self.recovery.as_ref().map(|recovery| FrameRecovery {
+                reason: recovery.reason.clone(),
+                can_restore_previous: recovery.previous_snapshot.is_some(),
+            }),
+            confirm,
+            suggested_export_name: backup_file_name(Utc::now()),
+            data_directory: self.store.data_dir().to_path_buf(),
+            layout: self.app.layout,
+            list_title: list.title,
+            list_body: list.body,
+            drawer_open: self.app.note_list_visible,
+            editing_tags: self.app.is_editing_tags(),
+            tag_cleanup,
+            quarantine: if self.store.has_quarantined_corrupt_payloads() {
+                "Corrupt payload quarantined".to_string()
+            } else {
+                "No corrupt payload quarantine".to_string()
+            },
+            focus_title: self.app.workspace.focus_intent() == FocusIntent::NoteTitle,
+        }
     }
+}
+
+enum ConfirmKind {
+    Delete(Uuid),
+    Permanent(Uuid),
+    Clear,
+    Import,
+}
+
+fn allowed_during_recovery(command: &Command) -> bool {
+    matches!(
+        command,
+        Command::Snapshot {}
+            | Command::Flush {}
+            | Command::RestorePrevious {}
+            | Command::StartEmpty {}
+            | Command::ImportNotebook { .. }
+            | Command::AcceptConfirm {}
+            | Command::DismissConfirm {}
+            | Command::Preview { .. }
+            | Command::Format { .. }
+            | Command::ExternalNavigation { .. }
+            | Command::Resize { .. }
+            | Command::DismissNotification { .. }
+    )
+}
+
+fn selection_bytes(content: &str, selection: TextSelection) -> Result<ByteSelection, SessionError> {
+    let (start, end) = match selection {
+        TextSelection::Utf8 { start, end } => (start, end),
+        TextSelection::Utf16 { start, end } => {
+            (utf16_to_byte(content, start)?, utf16_to_byte(content, end)?)
+        }
+    };
+    ByteSelection::new(content, start, end)
+        .ok_or_else(|| SessionError::new("invalid_selection", "Invalid selection"))
 }
 
 fn load_profile(

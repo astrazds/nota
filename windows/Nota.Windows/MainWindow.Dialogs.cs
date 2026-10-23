@@ -59,7 +59,7 @@ public sealed partial class MainWindow
         var status = new MenuFlyoutItem { Text = "Backup status" };
         status.Click += async (_, _) =>
         {
-            var dialog = Dialog("Backup status", snapshot?.BackupHealth ?? "Opening notebook…");
+            var dialog = Dialog("Backup status", snapshot?.BackupDetail ?? "Opening notebook…");
             dialog.CloseButtonText = "Close";
             await dialog.ShowAsync();
         };
@@ -141,10 +141,10 @@ public sealed partial class MainWindow
             var json = await PickJsonAsync();
             if (json is null) return;
             var reply = await RunAsync(new { command = "import_notebook", json });
-            if (reply?.Snapshot.PendingImport is not { } pending) return;
+            if (reply?.Frame.Confirm is not { } pending) return;
             if (await ConfirmAsync(pending.Title, pending.Body, pending.Action))
-                await TransitionAsync(new { command = "confirm_import" }, replaceEditor: true);
-            else await RunAsync(new { command = "cancel_import" });
+                await TransitionAsync(new { command = "accept_confirm" }, replaceEditor: true);
+            else await RunAsync(new { command = "dismiss_confirm" });
         }
         catch (Exception exception) { ShowError(exception.Message); }
     }

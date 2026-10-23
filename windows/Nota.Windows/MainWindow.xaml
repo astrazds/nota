@@ -54,7 +54,7 @@
                                             </Grid>
                                         </DataTemplate></ListView.ItemTemplate>
                                     </ListView>
-                                    <TextBlock x:Name="EmptyNotes" Text="No notes yet." TextWrapping="Wrap" Foreground="{ThemeResource MutedBrush}" Margin="9,16,9,24" />
+                                    <TextBlock x:Name="EmptyNotes" TextWrapping="Wrap" Foreground="{ThemeResource MutedBrush}" Margin="9,16,9,24" />
                                 </StackPanel>
                                 <Border Grid.Row="1" BorderBrush="{ThemeResource LineBrush}" BorderThickness="0,1,0,0" Margin="0,24,0,0" Padding="0,10,0,0">
                                     <StackPanel>

@@ -12,7 +12,7 @@ pub struct VisibleEditorSurfaces {
 }
 
 impl EditorViewMode {
-    pub fn surfaces(self) -> VisibleEditorSurfaces {
+    pub(crate) fn surfaces(self) -> VisibleEditorSurfaces {
         match self {
             Self::Write => VisibleEditorSurfaces {
                 writing: true,

@@ -6,15 +6,14 @@ use nota_core::exchange::{
     CommitPlan, ConfirmCopy, ExchangeError, ImportDestination, StagedImport, confirm_copy,
     prepare_commit,
 };
+use nota_core::identity::Notebook;
+use nota_core::layout::LayoutFrame;
 use nota_core::note_list_interaction::{NoteListInteraction, NoteListRenderModel};
-use nota_core::responsive_navigation::ViewportClass;
-use nota_core::tag_rules::{
-    TagCleanupPlan, TagSuggestion, parse_tags_input, suggest_existing_tags,
-};
+use nota_core::tag_rules::{TagSuggestion, parse_tags_input, suggest_existing_tags};
 use nota_core::transition::{ThemePreference, TransitionError, import_desktop_transition};
 use uuid::Uuid;
 
-use crate::storage::CollectionEnvelope;
+use crate::storage::{CollectionEnvelope, Preferences};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SaveStatus {
@@ -42,62 +41,14 @@ pub struct GlobalNotification {
     pub tone: NotificationTone,
 }
 
-#[derive(Debug, Clone)]
-pub enum AppMsg {
-    QuickCapture,
-    SelectNote(Uuid),
-    UpdateTitle(String),
-    UpdateContent(String),
-    UpdateTags(String),
-    RequestTagCleanup,
-    ApplyTagCleanup(TagCleanupPlan),
-    EditSearch(String),
-    CommitSearch,
-    SelectTag(String),
-    SetPinnedFilter(bool),
-    ClearTag,
-    TogglePin(Uuid),
-    RequestDelete(Uuid),
-    CancelDelete,
-    ConfirmDelete,
-    RestoreRecentlyDeleted(Uuid),
-    PermanentlyDelete(Uuid),
-    RequestClearAll,
-    CancelClearAll,
-    ConfirmClearAll,
-    SetViewMode(EditorViewMode),
-    Resize(f64),
-    ToggleNavigation,
-    RestorePreviousSnapshot,
-    StartEmptyAfterRecovery,
-    RequestClose,
-    PollPersistence,
-    PersistenceComplete(u64),
-    PersistenceFailed(String),
-    RequestExport,
-    RequestImport,
-    StageImport(String),
-    CommitExportedHealth(BackupHealthRecord),
-    RequestDiagnostics,
-    ConfirmBackupImport,
-    CancelBackupImport,
-    BackupExported(DateTime<Utc>),
-    ToggleTheme,
-    OperationSucceeded(String),
-    OperationFailed(String),
-    DismissNotification(u64),
-    StartEditTags,
-    FinishEditTags,
-    AcceptTagSuggestion(String),
-}
-
 #[derive(Debug)]
 pub struct AppModel {
     pub workspace: NoteWorkspace,
     pub note_list: NoteListInteraction,
     pub theme: ThemePreference,
     pub view_mode: EditorViewMode,
-    pub viewport: ViewportClass,
+    pub width_px: f64,
+    pub layout: LayoutFrame,
     pub note_list_visible: bool,
     pub save_status: SaveStatus,
     pub notification: Option<GlobalNotification>,
@@ -120,15 +71,15 @@ impl AppModel {
         } else {
             EditorViewMode::Preview
         };
+        let width_px = Preferences::default().window_width as f64;
         Self {
-            workspace: NoteWorkspace::new_with_recently_deleted(
-                collection.notes,
-                collection.recently_deleted_notes,
-            ),
+            workspace: open_workspace(collection.notes, collection.recently_deleted_notes),
             note_list: NoteListInteraction::default(),
             theme,
             view_mode,
-            viewport: ViewportClass::Wide,
+            width_px,
+            layout: LayoutFrame::from_width(width_px, view_mode)
+                .expect("the default window width is positive"),
             note_list_visible: false,
             save_status: SaveStatus::Saved,
             notification: None,
@@ -141,164 +92,218 @@ impl AppModel {
         }
     }
 
-    pub fn apply(&mut self, message: AppMsg) -> bool {
-        if self.storage_recovery && !Self::message_allowed_during_storage_recovery(&message) {
-            return false;
-        }
-        let changed = match message {
-            AppMsg::QuickCapture => {
-                self.workspace.create_note();
-                self.note_list = NoteListInteraction::default();
-                self.note_list_visible = false;
-                self.view_mode = EditorViewMode::Write;
-                true
-            }
-            AppMsg::SelectNote(id) => {
-                let selected = self.workspace.select_note(id);
-                if selected {
-                    self.note_list_visible = false;
-                }
-                false
-            }
-            AppMsg::UpdateTitle(title) => self.workspace.update_selected_title(title),
-            AppMsg::UpdateContent(content) => self.workspace.update_selected_content(content),
-            AppMsg::UpdateTags(tags) => {
-                self.workspace.update_selected_tags(parse_tags_input(&tags))
-            }
-            AppMsg::RequestTagCleanup => false,
-            AppMsg::ApplyTagCleanup(plan) => {
-                let changed = self.workspace.apply_tag_cleanup(&plan);
-                if changed {
-                    self.set_notification("Tags cleaned up", NotificationTone::Success);
-                }
-                changed
-            }
-            AppMsg::EditSearch(search) => {
-                self.note_list.edit_search(search);
-                false
-            }
-            AppMsg::CommitSearch => {
-                self.note_list.commit_search();
-                false
-            }
-            AppMsg::SelectTag(tag) => {
-                self.note_list.select_tag(tag);
-                self.note_list_visible = true;
-                false
-            }
-            AppMsg::SetPinnedFilter(pinned) => {
-                self.note_list.set_pinned_only(pinned);
-                self.note_list_visible = true;
-                false
-            }
-            AppMsg::ClearTag => {
-                self.note_list.clear_tag();
-                false
-            }
-            AppMsg::TogglePin(id) => self.workspace.toggle_pin(id),
-            AppMsg::RequestDelete(id) => self.workspace.request_delete(id) && false,
-            AppMsg::CancelDelete => {
-                self.workspace.cancel_delete();
-                false
-            }
-            AppMsg::ConfirmDelete => self.workspace.confirm_delete(),
-            AppMsg::RestoreRecentlyDeleted(id) => self.workspace.restore_recently_deleted(id),
-            AppMsg::PermanentlyDelete(id) => self.workspace.permanently_clear_recently_deleted(id),
-            AppMsg::RequestClearAll => self.workspace.request_clear_all_recently_deleted() && false,
-            AppMsg::CancelClearAll => {
-                self.workspace.cancel_clear_all_recently_deleted();
-                false
-            }
-            AppMsg::ConfirmClearAll => self.workspace.confirm_clear_all_recently_deleted(),
-            AppMsg::SetViewMode(mode) => {
-                self.view_mode = mode;
-                false
-            }
-            AppMsg::Resize(width) => {
-                if width <= 0.0 {
-                    return false;
-                }
-                self.viewport = ViewportClass::from_width(width);
-                false
-            }
-            AppMsg::ToggleNavigation => {
-                self.note_list_visible = !self.note_list_visible;
-                false
-            }
-            AppMsg::RestorePreviousSnapshot | AppMsg::StartEmptyAfterRecovery => false,
-            AppMsg::RequestClose | AppMsg::PollPersistence => false,
-            AppMsg::PersistenceComplete(revision) => {
-                if revision == self.revision {
-                    self.save_status = SaveStatus::Saved;
-                }
-                false
-            }
-            AppMsg::PersistenceFailed(error) => {
-                self.save_status = SaveStatus::Failed;
-                self.set_notification(error, NotificationTone::Error);
-                false
-            }
-            AppMsg::BackupExported(exported_at) => {
-                self.backup_health = Some(BackupHealthRecord {
-                    last_successful_export_at: exported_at,
-                });
-                self.set_notification("Backup exported", NotificationTone::Success);
-                false
-            }
-            AppMsg::ToggleTheme => {
-                self.theme = match self.theme {
-                    ThemePreference::Dark => ThemePreference::Light,
-                    ThemePreference::Light | ThemePreference::System => ThemePreference::Dark,
-                };
-                false
-            }
-            AppMsg::OperationSucceeded(message) => {
-                self.set_notification(message, NotificationTone::Success);
-                false
-            }
-            AppMsg::OperationFailed(message) => {
-                self.set_notification(message, NotificationTone::Error);
-                false
-            }
-            AppMsg::DismissNotification(generation) => {
-                if generation == self.notification_generation {
-                    self.notification = None;
-                }
-                false
-            }
-            AppMsg::StartEditTags => {
-                self.editing_tags = true;
-                false
-            }
-            AppMsg::FinishEditTags => {
-                self.editing_tags = false;
-                false
-            }
-            AppMsg::AcceptTagSuggestion(input) => {
-                let Some(suggestion) = self.tag_suggestions(&input).into_iter().next() else {
-                    return false;
-                };
-                self.workspace
-                    .update_selected_tags(parse_tags_input(&suggestion.completed_input))
-            }
-            AppMsg::CancelBackupImport => {
-                self.pending_import = None;
-                self.set_notification("Backup import cancelled", NotificationTone::Progress);
-                false
-            }
-            AppMsg::RequestExport
-            | AppMsg::RequestImport
-            | AppMsg::StageImport(_)
-            | AppMsg::CommitExportedHealth(_)
-            | AppMsg::ConfirmBackupImport
-            | AppMsg::RequestDiagnostics => false,
-        };
-
+    fn touch(&mut self, changed: bool) -> bool {
         if changed {
             self.revision = self.revision.saturating_add(1);
             self.save_status = SaveStatus::Saving;
         }
         changed
+    }
+
+    pub fn quick_capture(&mut self) -> bool {
+        self.workspace.create_note();
+        self.note_list = NoteListInteraction::default();
+        self.note_list_visible = false;
+        self.view_mode = EditorViewMode::Write;
+        if let Some(layout) = LayoutFrame::from_width(self.width_px, self.view_mode) {
+            self.layout = layout;
+        }
+        self.touch(true)
+    }
+
+    pub fn select_note(&mut self, id: Uuid) -> bool {
+        if self.workspace.select_note(id) {
+            self.note_list_visible = false;
+        }
+        self.touch(false)
+    }
+
+    pub fn update_title(&mut self, title: String) -> bool {
+        let changed = self.workspace.update_selected_title(title);
+        self.touch(changed)
+    }
+
+    pub fn update_content(&mut self, content: String) -> bool {
+        let changed = self.workspace.update_selected_content(content);
+        self.touch(changed)
+    }
+
+    pub fn update_tags(&mut self, tags: String) -> bool {
+        let changed = self.workspace.update_selected_tags(parse_tags_input(&tags));
+        self.touch(changed)
+    }
+
+    pub fn apply_tag_cleanup(&mut self) -> bool {
+        let plan = self.workspace.tag_cleanup_plan();
+        let changed = self.workspace.apply_tag_cleanup(&plan);
+        if changed {
+            self.set_notification("Tags cleaned up", NotificationTone::Success);
+        }
+        self.touch(changed)
+    }
+
+    pub fn edit_search(&mut self, search: String) -> bool {
+        self.note_list.edit_search(search);
+        self.touch(false)
+    }
+
+    pub fn commit_search(&mut self) -> bool {
+        self.note_list.commit_search();
+        self.touch(false)
+    }
+
+    pub fn select_tag(&mut self, tag: String) -> bool {
+        self.note_list.select_tag(tag);
+        self.note_list_visible = true;
+        self.touch(false)
+    }
+
+    pub fn clear_tag(&mut self) -> bool {
+        self.note_list.clear_tag();
+        self.touch(false)
+    }
+
+    pub fn set_pinned_filter(&mut self, pinned: bool) -> bool {
+        self.note_list.set_pinned_only(pinned);
+        self.note_list_visible = true;
+        self.touch(false)
+    }
+
+    pub fn toggle_pin(&mut self, id: Uuid) -> bool {
+        let changed = self.workspace.toggle_pin(id);
+        self.touch(changed)
+    }
+
+    pub fn request_delete(&mut self, id: Uuid) -> bool {
+        self.workspace.request_delete(id);
+        self.touch(false)
+    }
+
+    pub fn cancel_delete(&mut self) -> bool {
+        self.workspace.cancel_delete();
+        self.touch(false)
+    }
+
+    pub fn confirm_delete(&mut self) -> bool {
+        let changed = self.workspace.confirm_delete();
+        self.touch(changed)
+    }
+
+    pub fn restore_recently_deleted(&mut self, id: Uuid) -> bool {
+        let changed = self.workspace.restore_recently_deleted(id);
+        self.touch(changed)
+    }
+
+    pub fn permanently_delete(&mut self, id: Uuid) -> bool {
+        let changed = self.workspace.permanently_clear_recently_deleted(id);
+        self.touch(changed)
+    }
+
+    pub fn request_clear_all(&mut self) -> bool {
+        self.workspace.request_clear_all_recently_deleted()
+    }
+
+    pub fn cancel_clear_all(&mut self) -> bool {
+        self.workspace.cancel_clear_all_recently_deleted();
+        self.touch(false)
+    }
+
+    pub fn confirm_clear_all(&mut self) -> bool {
+        let changed = self.workspace.confirm_clear_all_recently_deleted();
+        self.touch(changed)
+    }
+
+    pub fn set_view_mode(&mut self, mode: EditorViewMode) -> bool {
+        self.view_mode = mode;
+        if let Some(layout) = LayoutFrame::from_width(self.width_px, mode) {
+            self.layout = layout;
+        }
+        self.touch(false)
+    }
+
+    pub fn resize(&mut self, width: f64) -> bool {
+        if let Some(layout) = LayoutFrame::from_width(width, self.view_mode) {
+            self.width_px = width;
+            self.layout = layout;
+        }
+        self.touch(false)
+    }
+
+    pub fn toggle_navigation(&mut self) -> bool {
+        self.note_list_visible = !self.note_list_visible;
+        self.touch(false)
+    }
+
+    pub fn note_saved(&mut self, revision: u64) -> bool {
+        if revision == self.revision {
+            self.save_status = SaveStatus::Saved;
+        }
+        self.touch(false)
+    }
+
+    pub fn note_save_failed(&mut self, error: String) -> bool {
+        self.save_status = SaveStatus::Failed;
+        self.set_notification(error, NotificationTone::Error);
+        self.touch(false)
+    }
+
+    pub fn backup_exported(&mut self, exported_at: DateTime<Utc>) -> bool {
+        self.backup_health = Some(BackupHealthRecord {
+            last_successful_export_at: exported_at,
+        });
+        self.set_notification("Backup exported", NotificationTone::Success);
+        self.touch(false)
+    }
+
+    pub fn toggle_theme(&mut self) -> ThemePreference {
+        self.theme = match self.theme {
+            ThemePreference::Dark => ThemePreference::Light,
+            ThemePreference::Light | ThemePreference::System => ThemePreference::Dark,
+        };
+        self.theme
+    }
+
+    pub fn notify_success(&mut self, message: impl Into<String>) -> bool {
+        self.set_notification(message, NotificationTone::Success);
+        self.touch(false)
+    }
+
+    pub fn notify_failure(&mut self, message: impl Into<String>) -> bool {
+        self.set_notification(message, NotificationTone::Error);
+        self.touch(false)
+    }
+
+    pub fn dismiss_notification(&mut self, generation: u64) -> bool {
+        if generation == self.notification_generation {
+            self.notification = None;
+        }
+        self.touch(false)
+    }
+
+    pub fn start_edit_tags(&mut self) -> bool {
+        self.editing_tags = true;
+        self.touch(false)
+    }
+
+    pub fn finish_edit_tags(&mut self) -> bool {
+        self.editing_tags = false;
+        self.touch(false)
+    }
+
+    pub fn accept_tag_suggestion(&mut self, input: String) -> bool {
+        let Some(suggestion) = self.tag_suggestions(&input).into_iter().next() else {
+            return self.touch(false);
+        };
+        let changed = self
+            .workspace
+            .update_selected_tags(parse_tags_input(&suggestion.completed_input));
+        self.touch(changed)
+    }
+
+    pub fn cancel_import(&mut self) -> bool {
+        self.pending_import = None;
+        self.set_notification("Backup import cancelled", NotificationTone::Progress);
+        self.touch(false)
     }
 
     pub fn revision(&self) -> u64 {
@@ -381,14 +386,6 @@ impl AppModel {
         suggest_existing_tags(self.workspace.notes(), selected.as_ref(), input)
     }
 
-    pub fn backup_health_label(&self, now: DateTime<Utc>) -> &'static str {
-        match self.backup_health_status(now) {
-            BackupHealth::Missing => "No backup yet",
-            BackupHealth::Recent { .. } => "Up to date",
-            BackupHealth::Stale { .. } => "Backup stale",
-        }
-    }
-
     fn set_notification(&mut self, message: impl Into<String>, tone: NotificationTone) {
         self.notification_generation = self.notification_generation.saturating_add(1);
         self.notification = Some(GlobalNotification {
@@ -410,10 +407,7 @@ impl AppModel {
     }
 
     pub fn replace_loaded_collection(&mut self, collection: CollectionEnvelope) {
-        self.workspace = NoteWorkspace::new_with_recently_deleted(
-            collection.notes,
-            collection.recently_deleted_notes,
-        );
+        self.workspace = open_workspace(collection.notes, collection.recently_deleted_notes);
         self.save_status = SaveStatus::Saved;
         self.notification = None;
     }
@@ -433,33 +427,11 @@ impl AppModel {
             self.workspace.recently_deleted_notes(),
             json,
         )?;
-        self.workspace = NoteWorkspace::new_with_recently_deleted(
-            restored.notes,
-            restored.recently_deleted_notes,
-        );
+        self.workspace = open_workspace(restored.notes, restored.recently_deleted_notes);
         self.theme = restored.theme;
         self.backup_health = restored.backup_health;
         self.mark_external_change("Desktop transition restored");
         Ok(())
-    }
-
-    fn message_allowed_during_storage_recovery(message: &AppMsg) -> bool {
-        matches!(
-            message,
-            AppMsg::RestorePreviousSnapshot
-                | AppMsg::StartEmptyAfterRecovery
-                | AppMsg::RequestImport
-                | AppMsg::StageImport(_)
-                | AppMsg::ConfirmBackupImport
-                | AppMsg::CancelBackupImport
-                | AppMsg::RequestDiagnostics
-                | AppMsg::PersistenceComplete(_)
-                | AppMsg::PersistenceFailed(_)
-                | AppMsg::OperationSucceeded(_)
-                | AppMsg::OperationFailed(_)
-                | AppMsg::DismissNotification(_)
-                | AppMsg::Resize(_)
-        )
     }
 
     fn mark_external_change(&mut self, message: &str) {
@@ -467,6 +439,13 @@ impl AppModel {
         self.save_status = SaveStatus::Saving;
         self.set_notification(message, NotificationTone::Success);
     }
+}
+
+fn open_workspace(active: Vec<nota_core::Note>, deleted: Vec<nota_core::Note>) -> NoteWorkspace {
+    NoteWorkspace::try_open(
+        Notebook::try_new(active, deleted)
+            .expect("collection identities were checked before opening"),
+    )
 }
 
 #[cfg(test)]
@@ -478,77 +457,77 @@ mod tests {
     #[test]
     fn quick_capture_edit_search_delete_restore_and_clear_follow_messages() {
         let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::Light, None);
-        assert!(app.apply(AppMsg::QuickCapture));
+        assert!(app.quick_capture());
         let id = app.workspace.selected_id().unwrap();
-        assert!(app.apply(AppMsg::UpdateTitle("Roadmap".to_string())));
-        assert!(app.apply(AppMsg::UpdateContent("Ship native app".to_string())));
-        assert!(app.apply(AppMsg::UpdateTags("Work, Rust".to_string())));
+        assert!(app.update_title("Roadmap".to_string()));
+        assert!(app.update_content("Ship native app".to_string()));
+        assert!(app.update_tags("Work, Rust".to_string()));
 
-        app.apply(AppMsg::EditSearch("native".to_string()));
-        app.apply(AppMsg::CommitSearch);
+        app.edit_search("native".to_string());
+        app.commit_search();
         assert_eq!(app.note_list_render_model().projection.rows.len(), 1);
 
-        app.apply(AppMsg::RequestDelete(id));
-        assert!(app.apply(AppMsg::ConfirmDelete));
+        app.request_delete(id);
+        assert!(app.confirm_delete());
         assert!(app.workspace.notes().is_empty());
         assert_eq!(app.workspace.recently_deleted_notes().len(), 1);
 
-        assert!(app.apply(AppMsg::RestoreRecentlyDeleted(id)));
-        app.apply(AppMsg::RequestDelete(id));
-        app.apply(AppMsg::ConfirmDelete);
-        app.apply(AppMsg::RequestClearAll);
-        assert!(app.apply(AppMsg::ConfirmClearAll));
+        assert!(app.restore_recently_deleted(id));
+        app.request_delete(id);
+        app.confirm_delete();
+        app.request_clear_all();
+        assert!(app.confirm_clear_all());
         assert!(app.workspace.recently_deleted_notes().is_empty());
     }
 
     #[test]
     fn resize_ignores_non_positive_widths_and_preserves_the_closed_drawer() {
         let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::System, None);
-        assert_eq!(app.viewport, ViewportClass::Wide);
+        assert!(!app.layout.drawer_fills_width);
         assert!(!app.note_list_visible);
 
-        app.apply(AppMsg::Resize(0.0));
-        assert_eq!(app.viewport, ViewportClass::Wide);
+        app.resize(0.0);
+        assert!(!app.layout.drawer_fills_width);
         assert!(!app.note_list_visible);
 
-        app.apply(AppMsg::Resize(-1.0));
-        assert_eq!(app.viewport, ViewportClass::Wide);
+        app.resize(-1.0);
+        assert!(!app.layout.drawer_fills_width);
     }
 
     #[test]
     fn split_view_survives_resize_and_can_be_selected_on_a_narrow_window() {
         let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::System, None);
-        app.apply(AppMsg::SetViewMode(EditorViewMode::Split));
+        app.set_view_mode(EditorViewMode::Split);
         assert_eq!(app.view_mode, EditorViewMode::Split);
 
-        app.apply(AppMsg::Resize(500.0));
+        app.resize(500.0);
 
-        assert_eq!(app.viewport, ViewportClass::Compact);
+        assert!(app.layout.drawer_fills_width);
         assert_eq!(app.view_mode, EditorViewMode::Split);
-        app.apply(AppMsg::SetViewMode(EditorViewMode::Write));
-        app.apply(AppMsg::SetViewMode(EditorViewMode::Split));
+        app.set_view_mode(EditorViewMode::Write);
+        app.set_view_mode(EditorViewMode::Split);
         assert_eq!(app.view_mode, EditorViewMode::Split);
-        app.apply(AppMsg::Resize(1200.0));
-        assert_eq!(app.viewport, ViewportClass::Wide);
+        app.resize(1200.0);
+        assert!(!app.layout.drawer_fills_width);
         assert_eq!(app.view_mode, EditorViewMode::Split);
     }
 
     #[test]
     fn drawer_toggles_at_every_width_and_selection_closes_it_without_revising_notes() {
         let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::System, None);
-        app.apply(AppMsg::QuickCapture);
+        app.quick_capture();
         let id = app.workspace.selected_id().unwrap();
         let revision = app.revision();
         for width in [500.0, 1200.0] {
-            app.apply(AppMsg::Resize(width));
+            app.resize(width);
             assert!(!app.note_list_visible);
-            assert!(!app.apply(AppMsg::ToggleNavigation));
+            assert!(!app.toggle_navigation());
             assert!(app.note_list_visible);
-            app.apply(AppMsg::Resize(width + 1.0));
+            app.resize(width + 1.0);
             assert!(app.note_list_visible);
-            app.apply(AppMsg::SelectNote(Uuid::new_v4()));
+            app.select_note(Uuid::new_v4());
             assert!(app.note_list_visible);
-            app.apply(AppMsg::SelectNote(id));
+            app.select_note(id);
             assert!(!app.note_list_visible);
         }
         assert_eq!(app.revision(), revision);
@@ -565,8 +544,8 @@ mod tests {
         assert_eq!(app.workspace.selected_id(), Some(note.id));
         assert_eq!(app.view_mode, EditorViewMode::Preview);
         assert!(!app.note_list_visible);
-        app.apply(AppMsg::ToggleNavigation);
-        assert!(app.apply(AppMsg::QuickCapture));
+        app.toggle_navigation();
+        assert!(app.quick_capture());
         assert_ne!(app.workspace.selected_id(), Some(note.id));
         assert_eq!(app.view_mode, EditorViewMode::Write);
         assert!(!app.note_list_visible);
@@ -587,7 +566,7 @@ mod tests {
             ThemePreference::Light,
             None,
         );
-        app.apply(AppMsg::SelectNote(selected.id));
+        app.select_note(selected.id);
 
         let suggestions = app.tag_suggestions("Work, r");
 
@@ -607,9 +586,9 @@ mod tests {
             ThemePreference::Light,
             None,
         );
-        app.apply(AppMsg::SelectNote(selected.id));
+        app.select_note(selected.id);
 
-        assert!(app.apply(AppMsg::AcceptTagSuggestion("Work, r".to_string())));
+        assert!(app.accept_tag_suggestion("Work, r".to_string()));
         assert_eq!(
             app.workspace.selected_note().unwrap().tags,
             vec!["Work".to_string(), "Research".to_string()]
@@ -629,7 +608,7 @@ mod tests {
             ThemePreference::Light,
             None,
         );
-        app.apply(AppMsg::SelectNote(older_id));
+        app.select_note(older_id);
         let before: Vec<_> = app
             .note_list_render_model()
             .projection
@@ -638,7 +617,7 @@ mod tests {
             .map(|row| row.id)
             .collect();
 
-        app.apply(AppMsg::SelectNote(newer_id));
+        app.select_note(newer_id);
 
         let after: Vec<_> = app
             .note_list_render_model()
@@ -656,7 +635,7 @@ mod tests {
     fn theme_changes_do_not_create_a_collection_revision() {
         let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::System, None);
 
-        app.apply(AppMsg::ToggleTheme);
+        app.toggle_theme();
 
         assert_eq!(app.theme, ThemePreference::Dark);
         assert_eq!(app.revision(), 0);
@@ -766,21 +745,15 @@ mod tests {
     }
 
     #[test]
-    fn storage_recovery_blocks_quick_capture_and_search_until_cleared() {
+    fn storage_recovery_flag_is_recorded_for_the_session_gate() {
         let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::Light, None);
+        assert!(!app.is_in_storage_recovery());
         app.set_storage_recovery(true);
-
-        assert!(!app.apply(AppMsg::QuickCapture));
-        assert!(app.workspace.notes().is_empty());
-
-        app.apply(AppMsg::EditSearch("secret".to_string()));
-        app.apply(AppMsg::CommitSearch);
-        assert!(app.note_list.search_input().is_empty());
-        assert!(app.note_list.committed_search().is_empty());
-
-        app.set_storage_recovery(false);
-        assert!(app.apply(AppMsg::QuickCapture));
+        assert!(app.is_in_storage_recovery());
+        assert!(app.quick_capture());
         assert_eq!(app.workspace.notes().len(), 1);
+        app.set_storage_recovery(false);
+        assert!(!app.is_in_storage_recovery());
     }
 
     #[test]
@@ -788,17 +761,17 @@ mod tests {
         use nota_core::note_workspace::FocusIntent;
 
         let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::Light, None);
-        assert!(app.apply(AppMsg::QuickCapture));
+        assert!(app.quick_capture());
         assert_eq!(app.workspace.focus_intent(), FocusIntent::NoteTitle);
     }
 
     #[test]
     fn tag_editing_is_opt_in_and_does_not_revise_the_collection() {
         let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::Light, None);
-        app.apply(AppMsg::StartEditTags);
+        app.start_edit_tags();
         assert!(app.is_editing_tags());
         assert_eq!(app.revision(), 0);
-        app.apply(AppMsg::FinishEditTags);
+        app.finish_edit_tags();
         assert!(!app.is_editing_tags());
     }
 
@@ -824,21 +797,28 @@ mod tests {
     #[test]
     fn global_notifications_can_be_dismissed_without_mutating_notes() {
         let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::Light, None);
-        app.apply(AppMsg::OperationSucceeded("Backup exported".to_string()));
+        app.notify_success("Backup exported".to_string());
         assert!(app.notification.is_some());
         let generation = app.notification_generation();
-        app.apply(AppMsg::DismissNotification(generation));
+        app.dismiss_notification(generation);
         assert!(app.notification.is_none());
         assert_eq!(app.revision(), 0);
     }
 
     #[test]
-    fn backup_health_label_is_actionable_for_missing_recent_and_stale() {
+    fn backup_health_sentences_cover_missing_recent_and_stale() {
         use chrono::TimeZone;
 
         let missing = AppModel::new(CollectionEnvelope::empty(), ThemePreference::Light, None);
         let now = chrono::Utc.with_ymd_and_hms(2026, 9, 4, 12, 0, 0).unwrap();
-        assert_eq!(missing.backup_health_label(now), "No backup yet");
+        assert_eq!(
+            missing.backup_health_status(now).sentences().label,
+            "No backup yet"
+        );
+        assert_eq!(
+            missing.backup_health_status(now).sentences().detail,
+            "No backup yet"
+        );
 
         let recent = AppModel::new(
             CollectionEnvelope::empty(),
@@ -847,7 +827,10 @@ mod tests {
                 last_successful_export_at: now,
             }),
         );
-        assert_eq!(recent.backup_health_label(now), "Up to date");
+        assert_eq!(
+            recent.backup_health_status(now).sentences().label,
+            "Up to date"
+        );
 
         let stale = AppModel::new(
             CollectionEnvelope::empty(),
@@ -856,7 +839,10 @@ mod tests {
                 last_successful_export_at: now - chrono::Duration::days(15),
             }),
         );
-        assert_eq!(stale.backup_health_label(now), "Backup stale");
+        assert_eq!(
+            stale.backup_health_status(now).sentences().label,
+            "Backup stale"
+        );
     }
 
     #[test]
@@ -869,12 +855,12 @@ mod tests {
             ThemePreference::Light,
             None,
         );
-        app.apply(AppMsg::EditSearch("zzzz".to_string()));
+        app.edit_search("zzzz".to_string());
         assert_eq!(
             app.note_list_render_model().display_state,
             NoteListDisplayState::Rows
         );
-        app.apply(AppMsg::CommitSearch);
+        app.commit_search();
         let model = app.note_list_render_model();
         assert_eq!(model.display_state, NoteListDisplayState::FilteredEmpty);
         assert!(model.result_status.is_some());
@@ -903,17 +889,17 @@ mod tests {
             None,
         );
 
-        app.apply(AppMsg::SelectTag("Work".to_string()));
+        app.select_tag("Work".to_string());
         let filtered = app.note_list_render_model();
         assert_eq!(filtered.projection.rows.len(), 1);
         assert_eq!(app.note_list.active_tag(), Some("Work"));
 
-        app.apply(AppMsg::ClearTag);
+        app.clear_tag();
         assert!(app.note_list.active_tag().is_none());
         assert_eq!(app.note_list_render_model().projection.rows.len(), 2);
 
-        app.apply(AppMsg::EditSearch("unique".to_string()));
-        app.apply(AppMsg::CommitSearch);
+        app.edit_search("unique".to_string());
+        app.commit_search();
         let snippet = &app.note_list_render_model().projection.rows[0];
         assert!(snippet.uses_match_snippet);
         assert!(!snippet.preview.starts_with("Match:"));
@@ -958,7 +944,7 @@ mod tests {
         );
 
         stage_json(&mut app, &json);
-        app.apply(AppMsg::CancelBackupImport);
+        app.cancel_import();
 
         assert_eq!(app.workspace.notes(), std::slice::from_ref(&existing));
         assert!(app.pending_import().is_none());

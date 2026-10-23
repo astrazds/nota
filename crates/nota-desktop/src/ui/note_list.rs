@@ -1,5 +1,6 @@
-use nota_app::app::{AppModel, AppMsg};
-use nota_core::note_discovery::HighlightSegment;
+use nota_app::app::AppModel;
+use nota_app::command::Command;
+use nota_app::{HighlightSegment, ThemePreference};
 use relm4::factory::{DynamicIndex, FactoryComponent, FactorySender, FactoryVecDeque};
 use relm4::gtk::prelude::*;
 use relm4::{RelmWidgetExt, gtk};
@@ -11,23 +12,23 @@ pub(super) struct NoteLists {
 }
 
 impl NoteLists {
-    pub(super) fn new(sender: &relm4::Sender<AppMsg>) -> Self {
+    pub(super) fn new(sender: &relm4::Sender<Command>) -> Self {
         let note_rows_container = gtk::Box::new(gtk::Orientation::Vertical, 0);
         note_rows_container.set_css_classes(&["nota-note-list"]);
         let note_rows = FactoryVecDeque::builder()
             .launch(note_rows_container)
             .forward(sender, |output| match output {
-                NoteRowOutput::Select(id) => AppMsg::SelectNote(id),
-                NoteRowOutput::TogglePin(id) => AppMsg::TogglePin(id),
-                NoteRowOutput::Delete(id) => AppMsg::RequestDelete(id),
-                NoteRowOutput::SelectTag(tag) => AppMsg::SelectTag(tag),
+                NoteRowOutput::Select(id) => Command::SelectNote { id },
+                NoteRowOutput::TogglePin(id) => Command::TogglePin { id },
+                NoteRowOutput::Delete(id) => Command::AskDelete { id },
+                NoteRowOutput::SelectTag(tag) => Command::FilterTag { tag: Some(tag) },
             });
         let deleted_rows_container = gtk::Box::new(gtk::Orientation::Vertical, 0);
         let deleted_rows = FactoryVecDeque::builder()
             .launch(deleted_rows_container)
             .forward(sender, |output| match output {
-                DeletedRowOutput::Restore(id) => AppMsg::RestoreRecentlyDeleted(id),
-                DeletedRowOutput::Clear(id) => AppMsg::PermanentlyDelete(id),
+                DeletedRowOutput::Restore(id) => Command::RestoreNote { id },
+                DeletedRowOutput::Clear(id) => Command::AskPermanentDelete { id },
             });
         Self {
             note_rows,
@@ -44,7 +45,7 @@ impl NoteLists {
 
     pub(super) fn refresh(&mut self, app: &AppModel) {
         {
-            let dark = matches!(app.theme, nota_core::transition::ThemePreference::Dark);
+            let dark = matches!(app.theme, ThemePreference::Dark);
             let next: Vec<NoteRow> = app
                 .note_list_render_model()
                 .projection

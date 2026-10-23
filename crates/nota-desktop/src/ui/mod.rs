@@ -4,13 +4,14 @@ use relm4::{
     ComponentBuilder, ComponentController, ComponentParts, ComponentSender, SimpleComponent,
 };
 
-use nota_app::app::AppMsg;
+use std::cell::{Cell, RefCell};
+use std::rc::Rc;
+
+use nota_app::command::{Command, Effect};
 use nota_app::session::{OpenOptionsJson, Session};
 use nota_app::storage::Preferences;
-use nota_core::backup::{BackupHealth, assess_backup_health};
-use nota_core::note_list_interaction::SEARCH_DEBOUNCE_MS;
-use nota_core::note_workspace::FocusIntent;
 use nota_desktop::APPLICATION_ID;
+use uuid::Uuid;
 
 mod dialogs;
 mod files;
@@ -26,35 +27,41 @@ use note_list::NoteLists;
 use style::startup_window_size;
 
 struct DesktopComponent {
-    session: Session,
+    session: Rc<RefCell<Session>>,
     window: gtk::ApplicationWindow,
     note_lists: NoteLists,
     title: gtk::Entry,
     tags: gtk::Entry,
+    edit_sequence: Rc<Cell<u64>>,
+    selected_id: Rc<Cell<Option<Uuid>>>,
     scheduled_notification_generation: Option<u64>,
 }
 
 impl DesktopComponent {
     fn schedule_notification_dismiss(&mut self, sender: &ComponentSender<Self>) {
-        if self.session.app.notification.is_none() {
-            return;
-        }
-        let generation = self.session.app.notification_generation();
+        let generation = {
+            let session = self.session.borrow();
+            if session.app.notification.is_none() {
+                return;
+            }
+            session.app.notification_generation()
+        };
         if self.scheduled_notification_generation == Some(generation) {
             return;
         }
         self.scheduled_notification_generation = Some(generation);
         let sender = sender.input_sender().clone();
         gtk::glib::timeout_add_local_once(std::time::Duration::from_secs(3), move || {
-            let _send_result = sender.send(AppMsg::DismissNotification(generation));
+            let _send_result = sender.send(Command::DismissNotification { generation });
         });
     }
 
     fn preferences(&self) -> Preferences {
         let width = self.window.width();
         let height = self.window.height();
+        let theme = self.session.borrow().app.theme;
         Preferences {
-            theme: self.session.app.theme,
+            theme,
             window_width: if width > 0 {
                 width.max(480)
             } else {
@@ -71,7 +78,7 @@ impl DesktopComponent {
 
 impl SimpleComponent for DesktopComponent {
     type Init = ();
-    type Input = AppMsg;
+    type Input = Command;
     type Output = ();
     type Root = gtk::ApplicationWindow;
     type Widgets = DesktopWidgets;
@@ -91,26 +98,50 @@ impl SimpleComponent for DesktopComponent {
     ) -> ComponentParts<Self> {
         // Relm4 initializes this component only in the primary GApplication.
         let completion_sender = sender.input_sender().clone();
-        let session = Session::open_with_completion(OpenOptionsJson::default(), move || {
-            let _ = completion_sender.send(AppMsg::PollPersistence);
-        })
-        .unwrap_or_else(|error| {
-            eprintln!("Nota could not open its profile: {error}");
-            std::process::exit(1);
-        });
-        let (width, height) = startup_window_size(session.preferences());
+        let session = Rc::new(RefCell::new(
+            Session::open_with_completion(OpenOptionsJson::default(), move || {
+                let _ = completion_sender.send(Command::Snapshot {});
+            })
+            .unwrap_or_else(|error| {
+                eprintln!("Nota could not open its profile: {error}");
+                std::process::exit(1);
+            }),
+        ));
+        let (width, height) = startup_window_size(session.borrow().preferences());
         window.set_default_size(width, height);
+        let edit_sequence = Rc::new(Cell::new(0));
+        let selected_id = Rc::new(Cell::new(None));
         let mut note_lists = NoteLists::new(sender.input_sender());
-        note_lists.refresh(&session.app);
+        note_lists.refresh(&session.borrow().app);
         let widgets = DesktopWidgets::new(
             &window,
             &note_lists,
-            session.recovery.as_ref(),
+            session.borrow().recovery.as_ref(),
             sender.input_sender(),
+            Rc::clone(&session),
+            Rc::clone(&edit_sequence),
+            Rc::clone(&selected_id),
         );
+        let close_session = Rc::clone(&session);
+        let close_window = window.clone();
         let close_sender = sender.input_sender().clone();
         window.connect_close_request(move |_| {
-            let _ = close_sender.send(AppMsg::RequestClose);
+            let session = Rc::clone(&close_session);
+            let window = close_window.clone();
+            let sender = close_sender.clone();
+            gtk::glib::idle_add_local_once(move || {
+                let mut session = session.borrow_mut();
+                match session.flush() {
+                    Ok(()) => window.destroy(),
+                    Err(error) => {
+                        session.app.notify_failure(format!(
+                            "Could not save. Keep this window open and retry closing: {error}"
+                        ));
+                        drop(session);
+                        let _send_result = sender.send(Command::Snapshot {});
+                    }
+                }
+            });
             gtk::glib::Propagation::Stop
         });
         let model = DesktopComponent {
@@ -119,189 +150,38 @@ impl SimpleComponent for DesktopComponent {
             note_lists,
             title: widgets.title_input(),
             tags: widgets.tags_input(),
+            edit_sequence,
+            selected_id,
             scheduled_notification_generation: None,
         };
-        let _send_result = sender.input_sender().send(AppMsg::Resize(width as f64));
+        let _send_result = sender.input_sender().send(Command::Resize {
+            width_px: width as f64,
+        });
         ComponentParts { model, widgets }
     }
 
     fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>) {
-        if matches!(message, AppMsg::RequestClose) {
-            match self.session.flush() {
-                Ok(()) => self.window.destroy(),
-                Err(error) => {
-                    self.session.app.apply(AppMsg::OperationFailed(format!(
-                        "Could not save. Keep this window open and retry closing: {error}"
-                    )));
-                }
-            }
-            return;
-        }
-        if matches!(message, AppMsg::RequestDiagnostics) {
-            let backup =
-                match assess_backup_health(self.session.app.backup_health, chrono::Utc::now()) {
-                    BackupHealth::Missing => "No successful Backup export recorded".to_string(),
-                    BackupHealth::Recent {
-                        last_successful_export_at,
-                    } => format!("Backup current as of {last_successful_export_at}"),
-                    BackupHealth::Stale {
-                        last_successful_export_at,
-                    } => format!("Backup stale; last export {last_successful_export_at}"),
-                };
-            let quarantine = if self.session.store.has_quarantined_corrupt_payloads() {
-                "Corrupt payload quarantined"
-            } else {
-                "No corrupt payload quarantine"
-            };
-            show_about_dialog(
-                &self.window,
-                env!("CARGO_PKG_VERSION"),
-                &self.session.store.data_dir().display().to_string(),
-                &backup,
-                quarantine,
-            );
-            return;
-        }
-        if matches!(message, AppMsg::RequestTagCleanup) {
-            let plan = self.session.app.workspace.tag_cleanup_plan();
-            if !plan.is_empty() {
-                let detail = plan
-                    .changes
-                    .iter()
-                    .map(|change| {
-                        format!(
-                            "{} -> {}",
-                            change.before.join(", "),
-                            change.after.join(", ")
-                        )
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                show_confirmation(
-                    &self.window,
-                    ConfirmationRequest {
-                        title: "Clean up Tags?".to_string(),
-                        detail,
-                        accept_label: "Apply cleanup".to_string(),
-                        accepted: AppMsg::ApplyTagCleanup(plan),
-                        cancelled: AppMsg::FinishEditTags,
-                        destructive: false,
-                    },
-                    sender.input_sender(),
-                );
-            }
-            return;
-        }
-        if matches!(message, AppMsg::RequestExport) {
-            if self.session.recovery.is_some() {
-                self.session.app.apply(AppMsg::OperationFailed(
-                    "Resolve Storage Recovery before editing".to_string(),
-                ));
-                self.schedule_notification_dismiss(&sender);
-                self.note_lists.refresh(&self.session.app);
-                return;
-            }
-            match self.session.notebook_export() {
-                Ok(exported) => {
-                    let name = self.session.snapshot()["suggested_export_name"]
-                        .as_str()
-                        .unwrap_or("nota-backup.json")
-                        .to_string();
-                    let health = exported.health;
-                    // Gio reports the write before backup-health.json changes. A portal
-                    // save has no path the session can write itself.
-                    save_json_file(
-                        &self.window,
-                        "Backup / Export",
-                        &name,
-                        exported.json,
-                        AppMsg::CommitExportedHealth(health),
-                        sender.input_sender(),
-                    );
-                }
-                Err(error) => {
-                    self.session
-                        .app
-                        .apply(AppMsg::OperationFailed(error.to_string()));
-                }
-            }
-            return;
-        }
-        if matches!(message, AppMsg::RequestImport) {
-            open_import_file(&self.window, sender.input_sender());
-            return;
-        }
-        if let AppMsg::StageImport(json) = message {
-            match self
-                .session
-                .execute(nota_app::session::Request::ImportNotebook { json })
-            {
-                Ok(_) => {
-                    if let Some(copy) = self.session.app.pending_import() {
-                        show_confirmation(
-                            &self.window,
-                            ConfirmationRequest {
-                                title: copy.title,
-                                detail: copy.body,
-                                accept_label: copy.action,
-                                accepted: AppMsg::ConfirmBackupImport,
-                                cancelled: AppMsg::CancelBackupImport,
-                                destructive: false,
-                            },
-                            sender.input_sender(),
-                        );
-                    }
-                }
-                Err(error) => {
-                    self.session
-                        .app
-                        .apply(AppMsg::OperationFailed(error.to_string()));
-                }
-            }
-            self.schedule_notification_dismiss(&sender);
-            self.note_lists.refresh(&self.session.app);
-            return;
-        }
-        if let AppMsg::CommitExportedHealth(health) = message {
-            if let Err(error) = self.session.record_successful_notes_export(health) {
-                self.session
-                    .app
-                    .apply(AppMsg::OperationFailed(error.to_string()));
-            }
-            self.schedule_notification_dismiss(&sender);
-            self.note_lists.refresh(&self.session.app);
-            return;
-        }
-        if matches!(
+        let prompts = matches!(
             message,
-            AppMsg::RestorePreviousSnapshot | AppMsg::StartEmptyAfterRecovery
-        ) {
-            if let Err(error) = self.session.apply_message(message) {
-                self.session
-                    .app
-                    .apply(AppMsg::OperationFailed(error.to_string()));
+            Command::AskDelete { .. }
+                | Command::AskPermanentDelete { .. }
+                | Command::AskClearDeleted {}
+                | Command::ImportNotebook { .. }
+        );
+        let toggled_theme = matches!(message, Command::ToggleTheme {} | Command::SetTheme { .. });
+        let captured = matches!(message, Command::NewNote {});
+        let started_edit_tags = matches!(message, Command::StartEditTags {});
+        {
+            let mut session = self.session.borrow_mut();
+            if let Err(error) = session.apply(message) {
+                session.app.notify_failure(error.to_string());
             }
-            self.schedule_notification_dismiss(&sender);
-            self.note_lists.refresh(&self.session.app);
-            return;
-        }
-        let requested_delete = matches!(&message, AppMsg::RequestDelete(_));
-        let requested_clear_all = matches!(&message, AppMsg::RequestClearAll);
-        let toggled_theme = matches!(&message, AppMsg::ToggleTheme);
-        let edited_search = matches!(&message, AppMsg::EditSearch(_));
-        let captured = matches!(&message, AppMsg::QuickCapture);
-        let started_edit_tags = matches!(&message, AppMsg::StartEditTags);
-        if let Err(error) = self.session.apply_message(message) {
-            self.session
-                .app
-                .apply(AppMsg::OperationFailed(error.to_string()));
-        }
-        if captured && self.session.app.workspace.focus_intent() == FocusIntent::NoteTitle {
-            let _intent = self.session.app.workspace.take_focus_intent();
-            let title = self.title.clone();
-            gtk::glib::idle_add_local_once(move || {
-                title.grab_focus();
-            });
+            if captured && session.take_focus_title() {
+                let title = self.title.clone();
+                gtk::glib::idle_add_local_once(move || {
+                    title.grab_focus();
+                });
+            }
         }
         if started_edit_tags {
             let tags = self.tags.clone();
@@ -309,85 +189,79 @@ impl SimpleComponent for DesktopComponent {
                 tags.grab_focus();
             });
         }
-        if edited_search {
-            let sender = sender.input_sender().clone();
-            gtk::glib::timeout_add_local_once(
-                std::time::Duration::from_millis(SEARCH_DEBOUNCE_MS as u64),
-                move || {
-                    let _send_result = sender.send(AppMsg::CommitSearch);
-                },
-            );
-        }
         self.schedule_notification_dismiss(&sender);
-        if toggled_theme
-            && let Err(error) = self.session.store.save_preferences(&self.preferences())
-        {
-            self.session
-                .app
-                .apply(AppMsg::OperationFailed(error.to_string()));
+        if toggled_theme {
+            let preferences = self.preferences();
+            let saved = self.session.borrow().store.save_preferences(&preferences);
+            if let Err(error) = saved {
+                self.session
+                    .borrow_mut()
+                    .app
+                    .notify_failure(error.to_string());
+            }
         }
-        if requested_delete {
-            let title = self
-                .session
-                .app
-                .workspace
-                .delete_confirmation_title()
-                .unwrap_or("New Note");
-            show_confirmation(
-                &self.window,
-                ConfirmationRequest {
-                    title: "Move to Recently Deleted?".to_string(),
-                    detail: format!("“{title}” will move to Recently Deleted."),
-                    accept_label: "Move".to_string(),
-                    accepted: AppMsg::ConfirmDelete,
-                    cancelled: AppMsg::CancelDelete,
-                    destructive: true,
-                },
-                sender.input_sender(),
-            );
-        }
-        if requested_clear_all {
-            let count = self
-                .session
-                .app
-                .workspace
-                .clear_all_recently_deleted_confirmation_count()
-                .unwrap_or(0);
-            if count > 0 {
-                let note_label = if count == 1 { "Note" } else { "Notes" };
+        if prompts {
+            let prompt = self.session.borrow().frame().confirm;
+            if let Some(prompt) = prompt {
+                let destructive = matches!(prompt.action.as_str(), "Move" | "Delete" | "Clear All");
                 show_confirmation(
                     &self.window,
                     ConfirmationRequest {
-                        title: "Permanently clear Recently Deleted?".to_string(),
-                        detail: format!(
-                            "This will permanently clear {count} recently deleted {note_label}."
-                        ),
-                        accept_label: "Clear All".to_string(),
-                        accepted: AppMsg::ConfirmClearAll,
-                        cancelled: AppMsg::CancelClearAll,
-                        destructive: true,
+                        title: prompt.title,
+                        detail: prompt.body,
+                        accept_label: prompt.action,
+                        accepted: Command::AcceptConfirm {},
+                        cancelled: Command::DismissConfirm {},
+                        destructive,
                     },
                     sender.input_sender(),
                 );
             }
         }
-        self.note_lists.refresh(&self.session.app);
+        self.note_lists.refresh(&self.session.borrow().app);
     }
 
     fn update_view(&self, widgets: &mut Self::Widgets, sender: ComponentSender<Self>) {
+        let mut session = self.session.borrow_mut();
+        let frame = session.frame();
+        self.edit_sequence.set(frame.edit_sequence);
+        self.selected_id
+            .set(frame.selected_note.as_ref().map(|note| note.id));
+        let preview_html = if frame.layout.show_preview {
+            let title = frame
+                .selected_note
+                .as_ref()
+                .map(|note| note.display_title().to_string())
+                .unwrap_or_default();
+            let content = frame
+                .selected_note
+                .as_ref()
+                .map(|note| note.content.clone())
+                .unwrap_or_default();
+            match session.apply(Command::Preview { title, content }) {
+                Ok(Effect::Preview(html)) => Some(html),
+                _ => None,
+            }
+        } else {
+            None
+        };
         widgets.refresh(
-            &self.session.app,
+            &session.app,
+            &frame,
+            preview_html.as_deref(),
             &self.window,
-            self.session.recovery.as_ref(),
+            session.recovery.as_ref(),
             sender.input_sender(),
         );
     }
 
     fn shutdown(&mut self, _widgets: &mut Self::Widgets, _output: relm4::Sender<Self::Output>) {
-        if let Err(error) = self.session.flush() {
+        let preferences = self.preferences();
+        let mut session = self.session.borrow_mut();
+        if let Err(error) = session.flush() {
             eprintln!("Nota could not flush the latest collection during shutdown: {error}");
         }
-        if let Err(error) = self.session.store.save_preferences(&self.preferences()) {
+        if let Err(error) = session.store.save_preferences(&preferences) {
             eprintln!("Nota could not save its preferences during shutdown: {error}");
         }
     }

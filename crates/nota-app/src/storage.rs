@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use chrono::{DateTime, Utc};
 use nota_core::Note;
 use nota_core::backup::BackupHealthRecord;
+use nota_core::identity::{DuplicateNoteId, Notebook};
 use nota_core::transition::ThemePreference;
 use serde::{Deserialize, Serialize};
 
@@ -188,7 +189,7 @@ impl NativeStore {
     }
 
     pub fn save_collection(&self, collection: &CollectionEnvelope) -> Result<(), StorageError> {
-        validate_collection(collection)?;
+        accept_collection(collection)?;
         let next = serde_json::to_vec_pretty(collection).map_err(StorageError::Serialize)?;
         let current_path = self.collection_path();
 
@@ -313,30 +314,24 @@ impl NativeStore {
 fn parse_collection(raw: &[u8]) -> Result<CollectionEnvelope, StorageError> {
     let collection: CollectionEnvelope = serde_json::from_slice(raw)
         .map_err(|error| StorageError::InvalidCollection(error.to_string()))?;
-    validate_collection(&collection)?;
+    accept_collection(&collection)?;
     Ok(collection)
 }
 
-fn validate_collection(collection: &CollectionEnvelope) -> Result<(), StorageError> {
+fn accept_collection(collection: &CollectionEnvelope) -> Result<(), StorageError> {
     if collection.version != COLLECTION_VERSION {
         return Err(StorageError::InvalidCollection(format!(
             "unsupported version {}",
             collection.version
         )));
     }
-    let mut identities = std::collections::HashSet::new();
-    for note in collection
-        .notes
-        .iter()
-        .chain(&collection.recently_deleted_notes)
-    {
-        if !identities.insert(note.id) {
-            return Err(StorageError::InvalidCollection(format!(
-                "duplicate Note identity {}",
-                note.id
-            )));
-        }
-    }
+    Notebook::try_new(
+        collection.notes.clone(),
+        collection.recently_deleted_notes.clone(),
+    )
+    .map_err(|DuplicateNoteId(id)| {
+        StorageError::InvalidCollection(format!("duplicate Note identity {id}"))
+    })?;
     Ok(())
 }
 

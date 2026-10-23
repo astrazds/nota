@@ -9,7 +9,9 @@ fn committed_csharp_factories_match_the_command_inventory() {
             .unwrap();
     let generated = csharp_factories(&commands, &debounce);
     let committed_path = root.join("windows/Nota.Windows/Interop/Commands.g.cs");
-    let committed = std::fs::read_to_string(&committed_path).unwrap_or_default();
+    let committed = std::fs::read_to_string(&committed_path)
+        .unwrap_or_default()
+        .replace("\r\n", "\n");
     assert_eq!(
         committed, generated,
         "Commands.g.cs drifted from commands! and SEARCH_DEBOUNCE_MS"

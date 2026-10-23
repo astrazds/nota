@@ -1,0 +1,43 @@
+# The only membership list for `mise run verify`.
+# NOTA_VERIFY_HOST selects a host. Unset uses linux, or windows on Windows.
+
+[linux]
+tasks = [
+  "fmt",
+  "check",
+  "clippy",
+  "test",
+  "test:package",
+  "check:no-wasm",
+  "check:labels",
+]
+
+[check]
+tasks = [
+  "fmt",
+  "clippy:core",
+  "test:core",
+  "test:package",
+  "check:no-wasm",
+  "check:labels",
+]
+
+[native]
+tasks = [
+  "clippy",
+  "test",
+  "test:gtk",
+  "check:labels",
+]
+
+[windows]
+tasks = [
+  "fmt",
+  "check",
+  "clippy",
+  "test",
+  "build:windows",
+  "test:windows",
+  "check:no-wasm",
+  "check:labels",
+]

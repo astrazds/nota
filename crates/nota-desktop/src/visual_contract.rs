@@ -40,3 +40,35 @@ pub const NATIVE_VISUAL_CONTRACT: NativeVisualContract = NativeVisualContract {
 };
 
 pub const NATIVE_STYLESHEET: &str = include_str!("../resources/nota.css");
+
+/// Custom properties for capture and graphite. `nota.css` uses the names and does not repeat the hexes.
+pub fn native_palette_css() -> String {
+    let contract = NATIVE_VISUAL_CONTRACT;
+    format!(
+        "\
+.nota-root,
+popover.nota-note-actions-popover,
+.nota-note-menu,
+window.nota-dialog {{
+  --frame: {frame};
+  --graphite: {graphite};
+  --capture: {capture};
+  --capture-ink: {graphite};
+}}
+.nota-root.nota-dark,
+popover.nota-note-actions-popover.nota-dark,
+.nota-note-menu.nota-dark,
+window.nota-dialog.nota-dark {{
+  --surface: {dark_surface};
+  --graphite: {dark_graphite};
+  --capture: {capture};
+  --capture-ink: {graphite};
+}}
+",
+        frame = contract.light.frame,
+        graphite = contract.light.graphite,
+        capture = contract.capture,
+        dark_surface = contract.dark.surface,
+        dark_graphite = contract.dark.graphite,
+    )
+}

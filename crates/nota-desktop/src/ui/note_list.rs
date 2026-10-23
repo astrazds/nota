@@ -1,5 +1,6 @@
 use nota_app::app::{AppModel, AppMsg};
 use nota_core::note_discovery::HighlightSegment;
+use nota_desktop::visual_contract::NATIVE_VISUAL_CONTRACT;
 use relm4::factory::{DynamicIndex, FactoryComponent, FactorySender, FactoryVecDeque};
 use relm4::gtk::prelude::*;
 use relm4::{RelmWidgetExt, gtk};
@@ -345,12 +346,14 @@ fn glib_escape(text: &str) -> String {
 }
 
 fn highlight_markup(segments: &[HighlightSegment]) -> String {
+    let capture = NATIVE_VISUAL_CONTRACT.capture;
+    let graphite = NATIVE_VISUAL_CONTRACT.light.graphite;
     segments
         .iter()
         .map(|segment| {
             let text = gtk::glib::markup_escape_text(&segment.text);
             if segment.is_match {
-                format!("<span background=\"#FFB340\" foreground=\"#25221F\">{text}</span>")
+                format!("<span background=\"{capture}\" foreground=\"{graphite}\">{text}</span>")
             } else {
                 text.to_string()
             }

@@ -20,6 +20,37 @@ fn focus_layout_preserves_the_existing_nota_palette() {
         (contract.signal, "#E7A858"),
     ] {
         assert_eq!(actual, expected);
-        assert!(NATIVE_STYLESHEET.contains(expected));
+        let moved = actual == contract.capture
+            || actual == contract.light.graphite
+            || actual == contract.dark.graphite
+            || actual == contract.light.frame
+            || actual == contract.dark.surface;
+        if moved {
+            assert!(
+                !NATIVE_STYLESHEET.contains(expected),
+                "{expected} is copied in nota.css"
+            );
+        } else {
+            assert!(NATIVE_STYLESHEET.contains(expected));
+        }
     }
+    let painted = nota_desktop::visual_contract::native_palette_css();
+    let note_list = include_str!("../src/ui/note_list.rs");
+    for hex in [
+        contract.capture,
+        contract.light.graphite,
+        contract.dark.graphite,
+    ] {
+        assert!(
+            painted.contains(hex),
+            "{hex} missing from the palette prefix"
+        );
+        assert!(!note_list.contains(hex), "{hex} is copied in note_list.rs");
+        assert!(
+            !NATIVE_STYLESHEET.contains(hex),
+            "{hex} is copied in nota.css"
+        );
+    }
+    assert!(note_list.contains("NATIVE_VISUAL_CONTRACT.capture"));
+    assert!(note_list.contains("NATIVE_VISUAL_CONTRACT.light.graphite"));
 }

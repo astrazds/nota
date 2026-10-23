@@ -1,16 +1,13 @@
 .nota-root {
-  --frame: #F7F5F1;
   --surface: #FDFCF9;
   --sidebar: #F0EDE6;
   --border: #E6E2DA;
   --border-strong: #D8D1C5;
-  --graphite: #25221F;
   --muted: #6E685F;
   --subtle: #918A80;
   --selected: #F2E0BE;
   --signal: #E7A858;
   --signal-border: #DBA756;
-  --capture: #FFB340;
   --ink-soft: #3F3A35;
   --preview-muted: #817A70;
   --pin: #B16F20;
@@ -204,7 +201,7 @@ popover.nota-note-actions-popover > contents {
   margin: 0;
   background: #FDFCF9;
   background-color: #FDFCF9;
-  color: #25221F;
+  color: var(--graphite);
   border: 1px solid #D8D1C5;
   border-radius: 7px;
   box-shadow: 0 10px 25px rgba(37, 34, 31, 0.07);
@@ -214,7 +211,7 @@ popover.nota-note-actions-popover > contents {
   padding: 6px;
   background: #FDFCF9;
   background-color: #FDFCF9;
-  color: #25221F;
+  color: var(--graphite);
 }
 .nota-note-menu button,
 button.nota-note-menu-item,
@@ -229,7 +226,7 @@ popover.nota-note-actions-popover button {
   background: transparent;
   background-image: none;
   background-color: transparent;
-  color: #25221F;
+  color: var(--graphite);
   font-size: 13px;
   font-weight: 400;
   text-shadow: none;
@@ -240,7 +237,7 @@ button.nota-note-menu-item:hover,
 popover.nota-note-actions-popover button:hover {
   background: rgba(37, 34, 31, 0.08);
   background-color: rgba(37, 34, 31, 0.08);
-  color: #25221F;
+  color: var(--graphite);
 }
 .nota-note-menu button.destructive-action,
 .nota-note-menu button.danger,
@@ -267,26 +264,26 @@ popover.nota-note-actions-popover.nota-dark contents,
 popover.nota-note-actions-popover.nota-dark > contents {
   background: #211F1C;
   background-color: #211F1C;
-  color: #F7F5F1;
+  color: var(--graphite);
   border: 1px solid #3A3733;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.28);
 }
 .nota-note-menu.nota-dark {
   background: #211F1C;
   background-color: #211F1C;
-  color: #F7F5F1;
+  color: var(--graphite);
 }
 .nota-note-menu.nota-dark button,
 button.nota-note-menu-item.nota-dark,
 popover.nota-note-actions-popover.nota-dark button {
-  color: #F7F5F1;
+  color: var(--graphite);
 }
 .nota-note-menu.nota-dark button:hover,
 button.nota-note-menu-item.nota-dark:hover,
 popover.nota-note-actions-popover.nota-dark button:hover {
   background: rgba(247, 245, 241, 0.10);
   background-color: rgba(247, 245, 241, 0.10);
-  color: #F7F5F1;
+  color: var(--graphite);
 }
 .nota-note-menu.nota-dark button.destructive-action,
 .nota-note-menu.nota-dark button.danger,
@@ -493,17 +490,14 @@ button.nota-mode-button.active label { border-bottom-color: var(--graphite); }
 
 .nota-root.nota-dark {
   --frame: #151311;
-  --surface: #25221F;
   --sidebar: #211F1C;
   --border: #3A3733;
   --border-strong: #3A3733;
-  --graphite: #F7F5F1;
   --muted: #A5A39C;
   --subtle: #918A80;
   --selected: #3A3022;
   --signal: #E7A858;
   --signal-border: #8E682F;
-  --capture: #FFB340;
   --ink-soft: #D8D1C5;
   --preview-muted: #A5A39C;
   --pin: #E7A858;
@@ -681,11 +675,11 @@ button.nota-dialog-cancel:hover {
 }
 button.nota-dialog-close {
   background: var(--capture);
-  color: #25221F;
+  color: var(--capture-ink);
 }
 button.nota-dialog-close:hover {
   background: var(--signal);
-  color: #25221F;
+  color: var(--capture-ink);
 }
 button.nota-dialog-accept.danger {
   background: #C0392B;
@@ -720,7 +714,7 @@ window.nota-dialog.nota-dark,
 }
 .nota-dark button.nota-dialog-close {
   background: var(--capture);
-  color: #25221F;
+  color: var(--capture-ink);
 }
 .nota-dark button.nota-dialog-accept.danger {
   background: #C0392B;

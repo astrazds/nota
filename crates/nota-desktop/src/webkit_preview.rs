@@ -1,11 +1,10 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use url::Url;
 use webkit6::glib::prelude::Cast;
 use webkit6::prelude::{PolicyDecisionExt, WebViewExt};
 use webkit6::{NavigationPolicyDecision, PolicyDecisionType, Settings, WebView};
 
-use nota_app::preview::{PREVIEW_CSP, PreviewLayout, external_navigation_target, preview_document};
+use nota_app::preview::PREVIEW_CSP;
 
 #[derive(Clone)]
 pub struct SecurePreview {
@@ -14,7 +13,7 @@ pub struct SecurePreview {
 }
 
 impl SecurePreview {
-    pub fn new(open_external: impl Fn(Url) + 'static) -> Self {
+    pub fn new(open_external: impl Fn(String, bool) + 'static) -> Self {
         let settings = Settings::new();
         settings.set_enable_javascript(false);
         settings.set_enable_javascript_markup(false);
@@ -56,9 +55,7 @@ impl SecurePreview {
                 decision.use_();
                 return true;
             }
-            if let Some(target) = external_navigation_target(&uri, action.is_user_gesture()) {
-                open_external(target);
-            }
+            open_external(uri.to_string(), action.is_user_gesture());
             decision.ignore();
             true
         });
@@ -73,11 +70,10 @@ impl SecurePreview {
         &self.web_view
     }
 
-    pub fn load_note(&self, title: &str, markdown: &str, dark: bool, layout: PreviewLayout) {
-        let document = preview_document(title, markdown, dark, layout);
+    pub fn load_html(&self, document: &str) {
         if *self.document.borrow() != document {
-            self.web_view.load_html(&document, None);
-            self.document.replace(document);
+            self.web_view.load_html(document, None);
+            self.document.replace(document.to_string());
         }
     }
 }

@@ -64,14 +64,14 @@ fn abi_round_trip_and_negative_inputs_leave_session_usable() {
     assert_eq!(take(reply)["error"]["code"], "invalid_argument");
     let (status, reply) = execute(session, br#"{"command":"new_note"}"#);
     assert_eq!(status, 0);
-    assert_eq!(reply["snapshot"]["rows"].as_array().unwrap().len(), 1);
+    assert_eq!(reply["frame"]["rows"].as_array().unwrap().len(), 1);
     assert_eq!(execute(session, br#"{"command":"flush"}"#).0, 0);
     nota_destroy(session);
     assert_eq!(execute(session, br#"{"command":"snapshot"}"#).0, 3);
     nota_destroy(session);
     let reopened = open(temp.path());
     assert_eq!(
-        execute(reopened, br#"{"command":"snapshot"}"#).1["snapshot"]["rows"]
+        execute(reopened, br#"{"command":"snapshot"}"#).1["frame"]["rows"]
             .as_array()
             .unwrap()
             .len(),

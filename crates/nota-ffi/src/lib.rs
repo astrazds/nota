@@ -8,7 +8,8 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
-use nota_app::session::{OpenOptionsJson, Request, Session, SessionError};
+use nota_app::command::Effect;
+use nota_app::session::{OpenOptionsJson, Session, SessionError};
 use serde_json::Value;
 
 #[repr(C)]
@@ -84,7 +85,7 @@ pub unsafe extern "C" fn nota_open(
         let options: OpenOptionsJson = serde_json::from_slice(bytes)
             .map_err(|e| (3, SessionError::new("invalid_argument", e)))?;
         let opened = Session::open(options).map_err(|e| (1, e))?;
-        let response = opened.reply(Value::Null);
+        let response = opened.reply_json(Effect::Frame(Box::new(opened.frame())));
         let handle = NEXT_HANDLE.fetch_add(1, Ordering::Relaxed);
         if handle == 0 || handle == usize::MAX {
             return Err((
@@ -146,9 +147,16 @@ pub unsafe extern "C" fn nota_execute(
     let outcome = catch_unwind(AssertUnwindSafe(|| {
         // SAFETY: Input validity is the caller's contract; null and length are checked.
         let bytes = unsafe { input(request, len) }.map_err(|error| (3, error))?;
-        let request: Request = serde_json::from_slice(bytes)
+        let request: Value = serde_json::from_slice(bytes)
             .map_err(|e| (3, SessionError::new("invalid_argument", e)))?;
-        let response = binding.session.execute(request).map_err(|e| (1, e))?;
+        let response = binding.session.execute_json(request).map_err(|error| {
+            let status = if error.code == "invalid_argument" {
+                3
+            } else {
+                1
+            };
+            (status, error)
+        })?;
         // SAFETY: The caller supplies a valid output slot.
         unsafe {
             *reply = NotaBuffer::reply(response);

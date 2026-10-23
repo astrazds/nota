@@ -129,7 +129,7 @@ fn worker_stopped() -> StorageError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::app::{AppModel, AppMsg};
+    use crate::app::AppModel;
     use crate::storage::LoadOutcome;
     use nota_core::Note;
     use nota_core::transition::ThemePreference;
@@ -201,11 +201,9 @@ mod tests {
         let store = NativeStore::at(temp.path());
         let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::System, None);
 
-        assert!(app.apply(AppMsg::QuickCapture));
-        assert!(app.apply(AppMsg::UpdateTitle("Native note".to_string())));
-        assert!(app.apply(AppMsg::UpdateContent(
-            "Persists through an orderly shutdown.".to_string(),
-        )));
+        assert!(app.quick_capture());
+        assert!(app.update_title("Native note".to_string()));
+        assert!(app.update_content("Persists through an orderly shutdown.".to_string(),));
         let expected = app.collection();
 
         let worker = PersistenceWorker::start(store.clone(), |_| {});

@@ -27,9 +27,11 @@ public sealed partial class MainWindow : Window
     private readonly ObservableCollection<NoteRowViewModel> rows = [];
     private readonly DispatcherQueueTimer savePoll;
     private readonly DispatcherQueueTimer previewDelay;
+    private readonly DispatcherQueueTimer searchDelay;
+    private double reportedWidth;
     private NativeSession? session;
     private NativePreview? preview;
-    private Snapshot? snapshot;
+    private Interop.Frame? snapshot;
     private string? selectedId;
     private ulong editSequence;
     private bool applying;
@@ -70,6 +72,13 @@ public sealed partial class MainWindow : Window
         previewDelay.Interval = TimeSpan.FromMilliseconds(180);
         previewDelay.IsRepeating = false;
         previewDelay.Tick += async (_, _) => await RefreshPreviewAsync();
+        searchDelay = DispatcherQueue.CreateTimer();
+        searchDelay.Interval = TimeSpan.FromMilliseconds(Commands.SearchDebounceMs);
+        searchDelay.IsRepeating = false;
+        searchDelay.Tick += async (_, _) =>
+        {
+            if (!applying) await RunAsync(new { command = "search", query = SearchBox.Text });
+        };
         noticeDelay = DispatcherQueue.CreateTimer();
         noticeDelay.Interval = TimeSpan.FromSeconds(6);
         noticeDelay.IsRepeating = false;
@@ -78,12 +87,23 @@ public sealed partial class MainWindow : Window
         {
             if (previewKeyboardHook != 0) UnhookWindowsHookEx(previewKeyboardHook);
             previewKeyboardHook = 0;
-            savePoll.Stop(); previewDelay.Stop(); noticeDelay.Stop(); PreviewWeb.Close();
+            savePoll.Stop(); previewDelay.Stop(); searchDelay.Stop(); noticeDelay.Stop(); PreviewWeb.Close();
         };
         AddShortcut(VirtualKey.N, CreateNoteAsync);
-        AddShortcut(VirtualKey.F, () => { OpenLibrary(); SearchBox.Focus(FocusState.Keyboard); return Task.CompletedTask; });
+        AddShortcut(VirtualKey.F, async () =>
+        {
+            if (snapshot?.DrawerOpen != true) await RunAsync(new { command = "toggle_navigation" });
+            SearchBox.Focus(FocusState.Keyboard);
+        });
         var dismiss = new KeyboardAccelerator { Key = VirtualKey.Escape };
-        dismiss.Invoked += (_, args) => { if (Library.IsPaneOpen) { Library.IsPaneOpen = false; args.Handled = true; } };
+        dismiss.Invoked += async (_, args) =>
+        {
+            if (snapshot?.DrawerOpen == true)
+            {
+                args.Handled = true;
+                await RunAsync(new { command = "toggle_navigation" });
+            }
+        };
         Root.KeyboardAccelerators.Add(dismiss);
         AddShortcut(VirtualKey.B, () => FormatAsync("bold"));
         AddShortcut(VirtualKey.I, () => FormatAsync("italic"));
@@ -160,7 +180,9 @@ public sealed partial class MainWindow : Window
             var opened = await NativeSession.OpenAsync(directory);
             session = opened.Session;
             preview = new NativePreview(PreviewWeb, PreviewMessage, PreviewMessageText, InstallWebView, directory, session.ExecuteAsync);
-            Apply(opened.Initial.Snapshot);
+            Apply(opened.Initial.Frame);
+            reportedWidth = Root.ActualWidth;
+            await RunAsync(new { command = "resize", width_px = Root.ActualWidth });
             Workspace.IsEnabled = true;
             await CheckRecoveryAsync();
             if (snapshot?.Recovery is null) TitleBox.Focus(FocusState.Programmatic);
@@ -179,7 +201,7 @@ public sealed partial class MainWindow : Window
         try
         {
             var reply = await session.ExecuteAsync(command);
-            Apply(reply.Snapshot, replaceEditor);
+            Apply(reply.Frame, replaceEditor);
             return reply;
         }
         catch (Exception exception)
@@ -205,7 +227,6 @@ public sealed partial class MainWindow : Window
             {
                 succeeded = true;
                 drawerPreviousFocus = null;
-                Library.IsPaneOpen = false;
                 UpdateLayoutMode();
             }
         }
@@ -228,7 +249,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void Apply(Snapshot value, bool replaceEditor = false)
+    private void Apply(Interop.Frame value, bool replaceEditor = false)
     {
         if (snapshot is not null && value.Revision < snapshot.Revision) return;
         snapshot = value;
@@ -237,7 +258,8 @@ public sealed partial class MainWindow : Window
         try
         {
             Root.RequestedTheme = value.Theme switch { "light" => ElementTheme.Light, "dark" => ElementTheme.Dark, _ => ElementTheme.Default };
-            if (SearchBox.Text != value.SearchInput) SearchBox.Text = value.SearchInput;
+            var searchFocused = ReferenceEquals(FocusManager.GetFocusedElement(Root.XamlRoot), SearchBox);
+            if (!searchFocused && SearchBox.Text != value.SearchInput) SearchBox.Text = value.SearchInput;
             if (replaceEditor || selectedId != value.SelectedNote?.Id)
             {
                 selectedId = value.SelectedNote?.Id;
@@ -268,7 +290,8 @@ public sealed partial class MainWindow : Window
             NoteList.SelectedItem = rows.FirstOrDefault(row => row.Id == selectedId);
             NoteCount.Text = value.Rows.Length.ToString();
             EmptyNotes.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-            EmptyNotes.Text = value.SearchInput.Length > 0 || value.ActiveTag is not null || value.PinnedOnly ? "No matching notes." : "No notes yet.";
+            EmptyNotes.Text = string.IsNullOrEmpty(value.ListBody) ? value.ListTitle : value.ListTitle + "\n" + value.ListBody;
+            if (Library.IsPaneOpen != value.DrawerOpen) Library.IsPaneOpen = value.DrawerOpen;
             SaveStatus.Text = value.SaveStatus switch { "saving" => "Saving…", "failed" => "Save failed", _ => "Saved locally" };
             ToolTipService.SetToolTip(SaveStatus, value.SaveStatus == "failed" ? "Press Ctrl+S to retry saving. Your changes remain in memory." : "Notes are saved on this device");
             ReconcileDeleted(value);
@@ -301,7 +324,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void ReconcileMetadata(Snapshot value)
+    private void ReconcileMetadata(Interop.Frame value)
     {
         var tags = value.SelectedNote?.Tags ?? [];
         var signature = System.Text.Json.JsonSerializer.Serialize(tags);
@@ -315,7 +338,6 @@ public sealed partial class MainWindow : Window
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(link, "Filter notes by " + tag);
             link.Click += async (_, _) =>
             {
-                OpenLibrary();
                 if (snapshot?.PinnedOnly == true) await RunAsync(new { command = "filter_pinned", pinned = false });
                 await RunAsync(new { command = "filter_tag", tag });
                 SearchBox.Focus(FocusState.Programmatic);
@@ -331,7 +353,7 @@ public sealed partial class MainWindow : Window
         MetadataParagraph.Inlines.Add(NoteDate);
     }
 
-    private void ReconcileDeleted(Snapshot value)
+    private void ReconcileDeleted(Interop.Frame value)
     {
         DeletedCount.Text = value.RecentlyDeleted.Length.ToString();
         var signature = System.Text.Json.JsonSerializer.Serialize(value.RecentlyDeleted);
@@ -352,7 +374,11 @@ public sealed partial class MainWindow : Window
             restore.Click += async (_, _) => await TransitionAsync(new { command = "restore_note", id = note.Id });
             Grid.SetColumn(restore, 1); grid.Children.Add(restore);
             var delete = new Button { Content = "Delete", Style = (Style)Application.Current.Resources["QuietButton"], Foreground = DangerBrush(), FontSize = 11, Padding = new Thickness(6) };
-            delete.Click += async (_, _) => { if (await ConfirmAsync("Delete this note permanently?", "This cannot be undone. Use Backup / Export in the Backup menu first if you want to keep a copy.", "Delete")) await RunAsync(new { command = "permanently_delete", id = note.Id }); };
+            delete.Click += async (_, _) =>
+            {
+                await RunAsync(new { command = "ask_permanent_delete", id = note.Id });
+                await AcceptFrameConfirmAsync();
+            };
             Grid.SetColumn(delete, 2); grid.Children.Add(delete);
             DeletedRows.Children.Add(new Border { Child = grid, BorderThickness = new Thickness(0, 0, 0, 1), BorderBrush = new SolidColorBrush(ColorHelper.FromArgb(40, 128, 128, 128)) });
         }
@@ -414,9 +440,11 @@ public sealed partial class MainWindow : Window
         ToolTipService.SetToolTip(WordCount, $"{lines} {(lines == 1 ? "line" : "lines")} · {characters} {(characters == 1 ? "character" : "characters")}");
     }
 
-    private async void Search_TextChanged(object sender, TextChangedEventArgs args)
+    private void Search_TextChanged(object sender, TextChangedEventArgs args)
     {
-        if (!applying) await RunAsync(new { command = "search", query = SearchBox.Text });
+        if (applying) return;
+        searchDelay.Stop();
+        searchDelay.Start();
     }
 
     private async void NoteList_SelectionChanged(object sender, SelectionChangedEventArgs args)
@@ -425,12 +453,12 @@ public sealed partial class MainWindow : Window
             await TransitionAsync(new { command = "select_note", id = row.Id });
     }
 
-    private void NoteList_ItemClick(object sender, ItemClickEventArgs args)
+    private async void NoteList_ItemClick(object sender, ItemClickEventArgs args)
     {
         if (args.ClickedItem is NoteRowViewModel row && row.Id == selectedId)
         {
             drawerPreviousFocus = null;
-            Library.IsPaneOpen = false;
+            if (snapshot?.DrawerOpen == true) await RunAsync(new { command = "toggle_navigation" });
             UpdateLayoutMode();
             if (BodyBox.Visibility == Visibility.Visible) BodyBox.Focus(FocusState.Programmatic);
             else TitleBox.Focus(FocusState.Programmatic);
@@ -439,14 +467,10 @@ public sealed partial class MainWindow : Window
 
     private Task CreateNoteAsync() => TransitionAsync(new { command = "new_note" }, focusTitle: true);
     private async void New_Click(object sender, RoutedEventArgs args) => await CreateNoteAsync();
-    private void Notes_Click(object sender, RoutedEventArgs args) { if (Library.IsPaneOpen) Library.IsPaneOpen = false; else OpenLibrary(); }
-    private void CloseNotes_Click(object sender, RoutedEventArgs args) => Library.IsPaneOpen = false;
-
-    private void OpenLibrary()
+    private async void Notes_Click(object sender, RoutedEventArgs args) => await RunAsync(new { command = "toggle_navigation" });
+    private async void CloseNotes_Click(object sender, RoutedEventArgs args)
     {
-        if (Library.IsPaneOpen) return;
-        drawerPreviousFocus = FocusManager.GetFocusedElement(Root.XamlRoot) as Control;
-        Library.IsPaneOpen = true;
+        if (snapshot?.DrawerOpen == true) await RunAsync(new { command = "toggle_navigation" });
     }
 
     private void Library_PaneOpening(SplitView sender, object args) => UpdateLayoutMode();
@@ -494,11 +518,12 @@ public sealed partial class MainWindow : Window
         var flyout = new MenuFlyout { Placement = FlyoutPlacementMode.BottomEdgeAlignedRight };
         var pin = new MenuFlyoutItem { Text = pinned ? "Unpin note" : "Pin note" };
         pin.Click += async (_, _) => await RunAsync(new { command = "toggle_pin", id });
-        var title = snapshot?.SelectedNote is { } selected && selected.Id == id
-            ? selected.Title : snapshot?.Rows.FirstOrDefault(note => note.Id == id)?.Title;
-        var displayTitle = string.IsNullOrWhiteSpace(title) ? "Untitled note" : title;
         var delete = new MenuFlyoutItem { Text = "Move to recently deleted", Foreground = DangerBrush() };
-        delete.Click += async (_, _) => { if (await ConfirmAsync("Move to recently deleted?", $"\"{displayTitle}\" can be restored from Recently deleted in Notes.", "Move note")) await TransitionAsync(new { command = "delete_note", id }); };
+        delete.Click += async (_, _) =>
+        {
+            await RunAsync(new { command = "ask_delete", id });
+            await AcceptFrameConfirmAsync();
+        };
         flyout.Items.Add(pin);
         if (id == selectedId)
         {
@@ -519,7 +544,8 @@ public sealed partial class MainWindow : Window
 
     private async void ClearDeleted_Click(object sender, RoutedEventArgs args)
     {
-        if (await ConfirmAsync("Clear Recently Deleted?", "All notes in Recently Deleted will be permanently removed. This cannot be undone.", "Clear all")) await RunAsync(new { command = "clear_deleted" });
+        await RunAsync(new { command = "ask_clear_deleted" });
+        await AcceptFrameConfirmAsync();
     }
 
     private async void Format_Click(object sender, RoutedEventArgs args)
@@ -574,24 +600,36 @@ public sealed partial class MainWindow : Window
         SchedulePreview();
     }
 
+    private async Task AcceptFrameConfirmAsync()
+    {
+        if (snapshot?.Confirm is not { } prompt) return;
+        if (await ConfirmAsync(prompt.Title, prompt.Body, prompt.Action))
+            await RunAsync(new { command = "accept_confirm" });
+        else
+            await RunAsync(new { command = "dismiss_confirm" });
+    }
+
     private void ApplyViewMode()
     {
         var mode = snapshot?.ViewMode ?? "write";
+        var layout = snapshot?.Layout;
+        var stacked = layout?.Axis == "vertical";
+        var compact = layout?.DrawerFillsWidth == true;
+        var showWriting = layout?.ShowWriting ?? mode != "preview";
+        var showPreview = layout?.ShowPreview ?? mode != "write";
         WriteMode.IsChecked = mode == "write"; PreviewMode.IsChecked = mode == "preview"; SplitMode.IsChecked = mode == "split";
-        BodyBox.Visibility = mode == "preview" ? Visibility.Collapsed : Visibility.Visible;
+        BodyBox.Visibility = showWriting ? Visibility.Visible : Visibility.Collapsed;
         var hasNote = selectedId is not null;
         NoteHeading.Visibility = NoteActions.Visibility = hasNote ? Visibility.Visible : Visibility.Collapsed;
         EmptyEditor.Visibility = hasNote ? Visibility.Collapsed : Visibility.Visible;
         WritingArea.Visibility = hasNote ? Visibility.Visible : Visibility.Collapsed;
-        Toolbar.Visibility = mode == "preview" || !hasNote ? Visibility.Collapsed : Visibility.Visible;
-        PreviewPane.Visibility = mode == "write" ? Visibility.Collapsed : Visibility.Visible;
-        var stacked = mode == "split" && Root.ActualWidth <= 560;
+        Toolbar.Visibility = showWriting && hasNote ? Visibility.Visible : Visibility.Collapsed;
+        PreviewPane.Visibility = showPreview ? Visibility.Visible : Visibility.Collapsed;
         if (WritingScroll.VerticalScrollMode == ScrollMode.Auto && !stacked)
             WritingScroll.ChangeView(null, 0, null, disableAnimation: true);
-        var narrow = Root.ActualWidth <= 760;
-        WriteColumn.Width = mode == "preview" ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
-        PreviewColumn.Width = mode == "write" || stacked ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
-        SplitGapColumn.Width = mode == "split" && !stacked ? new GridLength(narrow ? 18 : 28) : new GridLength(0);
+        WriteColumn.Width = showWriting ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+        PreviewColumn.Width = showPreview && !stacked ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+        SplitGapColumn.Width = mode == "split" && !stacked ? new GridLength(layout?.SplitGapPx ?? 0) : new GridLength(0);
         WriteRow.Height = stacked ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
         PreviewRow.Height = stacked ? GridLength.Auto : new GridLength(0);
         WritingScroll.VerticalScrollBarVisibility = stacked ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled;
@@ -599,20 +637,27 @@ public sealed partial class MainWindow : Window
         WritingScroll.VerticalContentAlignment = stacked ? VerticalAlignment.Top : VerticalAlignment.Stretch;
         ScrollViewer.SetVerticalScrollBarVisibility(BodyBox, stacked ? ScrollBarVisibility.Disabled : ScrollBarVisibility.Auto);
         ScrollViewer.SetVerticalScrollMode(BodyBox, stacked ? ScrollMode.Disabled : ScrollMode.Auto);
-        BodyBox.MinHeight = stacked ? 340 : 0;
-        PreviewPane.Height = stacked ? 525 : double.NaN;
+        var editorMin = layout?.EditorMinHeightPx ?? 0;
+        BodyBox.MinHeight = editorMin > 0 ? editorMin : 0;
+        var previewMin = layout?.PreviewMinHeightPx ?? 0;
+        PreviewPane.Height = previewMin > 0 ? previewMin : double.NaN;
         Grid.SetColumn(PreviewPane, stacked ? 0 : 2);
         Grid.SetRow(PreviewPane, stacked ? 1 : 0);
-        PreviewPane.Margin = stacked ? new Thickness(0, 18, 0, 0) : new Thickness(0);
+        var writing = layout?.WritingInsets;
+        var previewInsets = layout?.PreviewInsets;
+        PreviewPane.Margin = stacked ? new Thickness(0, layout?.SplitGapPx ?? 0, 0, 0) : new Thickness(0);
         PreviewPane.BorderThickness = mode == "split" ? stacked ? new Thickness(0, 1, 0, 0) : new Thickness(1, 0, 0, 0) : new Thickness(0);
-        PreviewPane.Padding = mode == "split" ? stacked ? new Thickness(0, 24, 0, 0) : new Thickness(narrow ? 18 : 25, 0, 0, 0) : new Thickness(0);
+        PreviewPane.Padding = previewInsets is { } previewPad
+            ? new Thickness(previewPad.Start, previewPad.Top, previewPad.End, previewPad.Bottom)
+            : new Thickness(0);
         WritingArea.MaxWidth = mode == "split" ? double.PositiveInfinity : 684;
         WritingArea.Width = mode == "split" ? Root.ActualWidth : Math.Min(684, Root.ActualWidth);
-        WritingArea.Padding = Root.ActualWidth <= 560 ? new Thickness(24, 28, 24, 20)
-            : mode == "split" ? new Thickness(narrow ? 19 : 27, 31, narrow ? 19 : 27, 24) : new Thickness(42, 31, 42, 24);
+        WritingArea.Padding = writing is { } writingPad
+            ? new Thickness(writingPad.Start, writingPad.Top, writingPad.End, writingPad.Bottom)
+            : new Thickness(42, 31, 42, 24);
         var family = mode == "split" ? "ms-appx:///Assets/Fonts/SourceCodePro-Regular.ttf#Source Code Pro" : ((FontFamily)Application.Current.Resources["ReadingFont"]).Source;
-        var fontSize = mode == "split" ? 13 : Root.ActualWidth <= 560 ? 16 : 18;
-        BodyBox.Margin = new Thickness(0, Root.ActualWidth <= 560 ? -6 : -7, 0, stacked ? 3 : 0);
+        var fontSize = layout?.BodyPx ?? (mode == "split" ? 13 : 18);
+        BodyBox.Margin = new Thickness(0, compact ? -6 : -7, 0, stacked ? 3 : 0);
         if (BodyBox.FontFamily.Source != family) BodyBox.FontFamily = new FontFamily(family);
         if (BodyBox.FontSize != fontSize) BodyBox.FontSize = fontSize;
         var paragraph = BodyBox.Document.GetDefaultParagraphFormat();
@@ -625,17 +670,22 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private string PreviewLayout(double width) => snapshot?.ViewMode != "split" ? "reading" : width <= 760 ? "split_narrow" : "split";
-
-    private void Root_SizeChanged(object sender, SizeChangedEventArgs args)
+    private async void Root_SizeChanged(object sender, SizeChangedEventArgs args)
     {
+        if (session is not null && Math.Abs(args.NewSize.Width - reportedWidth) >= 0.5)
+        {
+            reportedWidth = args.NewSize.Width;
+            var before = snapshot?.Layout.TitlePx;
+            await RunAsync(new { command = "resize", width_px = args.NewSize.Width });
+            if (snapshot?.Layout.TitlePx != before) SchedulePreview();
+        }
         UpdateLayoutMode();
-        if (PreviewLayout(args.PreviousSize.Width) != PreviewLayout(args.NewSize.Width)) SchedulePreview();
     }
 
     private void UpdateLayoutMode()
     {
-        var compact = Root.ActualWidth <= 560;
+        var compact = snapshot?.Layout.DrawerFillsWidth == true;
+        var title = snapshot?.Layout.TitlePx ?? 39;
         TopBar.Height = compact ? 56 : 62;
         TopBar.Padding = new Thickness(compact ? 15 : 23, 0, 0, 0);
         EditorToolsRow.Height = new GridLength(compact ? 46 : 42);
@@ -646,7 +696,7 @@ public sealed partial class MainWindow : Window
         EditorPane.IsEnabled = !Library.IsPaneOpen && !transitioning;
         NotesButton.IsChecked = Library.IsPaneOpen;
         NoteHeading.Padding = compact ? new Thickness(24, 40, 24, 0) : new Thickness(42, 44, 42, 0);
-        TitleBox.FontSize = compact ? 31 : Root.ActualWidth <= 760 ? 36 : 39;
+        TitleBox.FontSize = title;
         TitleBox.CharacterSpacing = -(int)Math.Round(1250 / TitleBox.FontSize);
         TitleBox.MinHeight = Math.Ceiling(TitleBox.FontSize * 1.2);
         Toolbar.Padding = compact ? new Thickness(17, 23, 17, 4) : new Thickness(36, 26, 36, 8);
@@ -684,11 +734,11 @@ public sealed partial class MainWindow : Window
         var id = selectedId;
         var title = TitleBox.Text;
         var content = EditorText.ToCore(ReadBody());
-        var layout = PreviewLayout(Root.ActualWidth);
+        var titlePx = snapshot?.Layout.TitlePx;
         try
         {
-            var reply = await session.ExecuteAsync(new { command = "preview", title, content, dark = Root.ActualTheme == ElementTheme.Dark, layout });
-            if (sequence != editSequence || id != selectedId || layout != PreviewLayout(Root.ActualWidth) || reply.Result is not { } result) return;
+            var reply = await session.ExecuteAsync(new { command = "preview", title, content });
+            if (sequence != editSequence || id != selectedId || snapshot?.Layout.TitlePx != titlePx || reply.Result is not { } result) return;
             await preview.RenderAsync(result.GetProperty("html").GetString() ?? "");
         }
         catch (Exception exception) { ShowError(exception.Message); }
@@ -701,7 +751,7 @@ public sealed partial class MainWindow : Window
         if (closing) return;
         closing = true;
         Workspace.IsEnabled = false;
-        savePoll.Stop(); previewDelay.Stop();
+        savePoll.Stop(); previewDelay.Stop(); searchDelay.Stop();
         try
         {
             if (snapshot?.Recovery is null) await session.ExecuteAsync(new { command = "flush" });

@@ -1,4 +1,4 @@
-use nota_app::session::{OpenOptionsJson, Request, Session};
+use nota_app::session::{OpenOptionsJson, Session};
 use nota_app::storage::{CollectionEnvelope, NativeStore};
 use nota_core::Note;
 use nota_core::backup::export_flat_collection_backup;
@@ -12,31 +12,50 @@ fn open(path: &std::path::Path) -> Session {
 }
 
 fn command(session: &mut Session, value: Value) -> Value {
-    session
-        .execute(serde_json::from_value::<Request>(value).unwrap())
-        .unwrap()
+    session.execute_json(value).unwrap()
+}
+
+fn frame_of(session: &Session) -> Value {
+    serde_json::to_value(session.frame()).unwrap()
 }
 
 #[test]
-fn preview_layout_changes_type_size_without_changing_markdown_content_or_policy() {
+fn preview_layout_follows_the_frame_and_rejects_a_shell_chosen_layout() {
     let temp = tempfile::tempdir().unwrap();
     let mut session = open(temp.path());
-    for (layout, font) in [
-        ("reading", "font:18px/1.9 'Gelasio'"),
-        ("split", "font:15px/1.9 'Gelasio'"),
-        ("split_narrow", "font:14px/1.9 'Gelasio'"),
-    ] {
+    let cases = [
+        (1180.0, "write", "font:18px/1.9 'Gelasio'"),
+        (800.0, "split", "font:15px/1.9 'Gelasio'"),
+        (760.0, "split", "font:14px/1.9 'Gelasio'"),
+        (560.0, "split", "font:14px/1.9 'Gelasio'"),
+    ];
+    for (width, mode, font) in cases {
+        command(&mut session, json!({"command":"resize", "width_px": width}));
+        command(
+            &mut session,
+            json!({"command":"set_view_mode", "mode": mode}),
+        );
         let reply = command(
             &mut session,
-            json!({"command":"preview", "title":"Notebook", "content":"# Notebook\n\nBody **text**", "dark":false, "layout":layout}),
+            json!({"command":"preview", "title":"Notebook", "content":"# Notebook\n\nBody **text**"}),
         );
         let html = reply["result"]["html"].as_str().unwrap();
-        assert!(html.contains(font));
+        assert!(html.contains(font), "{width} {mode}");
         assert!(html.contains("<p>Body <strong>text</strong></p>"));
         assert!(!html.contains("<h1>Notebook</h1>"));
         assert!(html.contains("script-src 'none'"));
     }
-    assert!(serde_json::from_value::<Request>(json!({"command":"preview", "title":"Notebook", "content":"Body", "dark":false, "layout":"editing"})).is_err());
+    let frame = frame_of(&session);
+    let stacked = &frame["layout"];
+    assert_eq!(stacked["axis"], "vertical");
+    assert_eq!(stacked["editor_min_height_px"].as_f64(), Some(340.0));
+    assert_eq!(stacked["preview_min_height_px"].as_f64(), Some(500.0));
+    let rejected = session
+        .execute_json(
+            json!({"command":"preview", "title":"Notebook", "content":"Body", "layout":"editing"}),
+        )
+        .unwrap_err();
+    assert_eq!(rejected.code, "invalid_argument");
 }
 
 #[test]
@@ -44,7 +63,7 @@ fn new_note_clears_search_tag_and_pinned_filters_so_the_note_is_visible() {
     let temp = tempfile::tempdir().unwrap();
     let mut session = open(temp.path());
     let existing =
-        command(&mut session, json!({"command":"new_note"}))["snapshot"]["selected_note"]["id"]
+        command(&mut session, json!({"command":"new_note"}))["frame"]["selected_note"]["id"]
             .clone();
     command(
         &mut session,
@@ -60,9 +79,9 @@ fn new_note_clears_search_tag_and_pinned_filters_so_the_note_is_visible() {
         &mut session,
         json!({"command":"filter_pinned", "pinned":true}),
     );
-    assert_eq!(filtered["snapshot"]["rows"].as_array().unwrap().len(), 1);
+    assert_eq!(filtered["frame"]["rows"].as_array().unwrap().len(), 1);
     let created = command(&mut session, json!({"command":"new_note"}));
-    let snapshot = &created["snapshot"];
+    let snapshot = &created["frame"];
     let new_id = &snapshot["selected_note"]["id"];
     assert_ne!(new_id, &existing);
     assert_eq!(snapshot["rows"].as_array().unwrap().len(), 2);
@@ -84,16 +103,16 @@ fn pinned_filter_changes_visible_rows_without_changing_selection_search_or_revis
     let temp = tempfile::tempdir().unwrap();
     let mut session = open(temp.path());
     let first =
-        command(&mut session, json!({"command":"new_note"}))["snapshot"]["selected_note"]["id"]
+        command(&mut session, json!({"command":"new_note"}))["frame"]["selected_note"]["id"]
             .clone();
     command(
         &mut session,
         json!({"command":"edit_note", "id":first, "edit_sequence":1, "title":"Release plan", "content":"", "tags_input":"Work"}),
     );
     command(&mut session, json!({"command":"toggle_pin", "id":first}));
-    let second = command(&mut session, json!({"command":"new_note"}))["snapshot"]["selected_note"]
-        ["id"]
-        .clone();
+    let second =
+        command(&mut session, json!({"command":"new_note"}))["frame"]["selected_note"]["id"]
+            .clone();
     command(
         &mut session,
         json!({"command":"edit_note", "id":second, "edit_sequence":2, "title":"Release checklist", "content":"", "tags_input":"Work"}),
@@ -103,60 +122,61 @@ fn pinned_filter_changes_visible_rows_without_changing_selection_search_or_revis
         json!({"command":"search", "query":"title:release"}),
     );
     let before = command(&mut session, json!({"command":"filter_tag", "tag":"Work"}));
-    assert_eq!(before["snapshot"]["rows"].as_array().unwrap().len(), 2);
+    assert_eq!(before["frame"]["rows"].as_array().unwrap().len(), 2);
     let filtered = command(
         &mut session,
         json!({"command":"filter_pinned", "pinned":true}),
     );
-    assert_eq!(filtered["snapshot"]["pinned_only"], true);
-    assert_eq!(filtered["snapshot"]["rows"].as_array().unwrap().len(), 1);
-    assert_eq!(filtered["snapshot"]["rows"][0]["id"], first);
-    assert_eq!(filtered["snapshot"]["selected_note"]["id"], second);
-    assert_eq!(filtered["snapshot"]["search_input"], "title:release");
-    assert_eq!(filtered["snapshot"]["active_tag"], "Work");
-    assert_eq!(
-        filtered["snapshot"]["revision"],
-        before["snapshot"]["revision"]
-    );
+    assert_eq!(filtered["frame"]["pinned_only"], true);
+    assert_eq!(filtered["frame"]["rows"].as_array().unwrap().len(), 1);
+    assert_eq!(filtered["frame"]["rows"][0]["id"], first);
+    assert_eq!(filtered["frame"]["selected_note"]["id"], second);
+    assert_eq!(filtered["frame"]["search_input"], "title:release");
+    assert_eq!(filtered["frame"]["active_tag"], "Work");
+    assert_eq!(filtered["frame"]["revision"], before["frame"]["revision"]);
     let all = command(
         &mut session,
         json!({"command":"filter_pinned", "pinned":false}),
     );
-    assert_eq!(all["snapshot"]["pinned_only"], false);
-    assert_eq!(all["snapshot"]["rows"].as_array().unwrap().len(), 2);
+    assert_eq!(all["frame"]["pinned_only"], false);
+    assert_eq!(all["frame"]["rows"].as_array().unwrap().len(), 2);
 }
 
 #[test]
 fn edits_follow_the_note_identity_and_reopen_with_unicode_and_tags() {
     let temp = tempfile::tempdir().unwrap();
     let mut session = open(temp.path());
-    let first = command(&mut session, json!({"command": "new_note"}))["snapshot"]["selected_note"]
-        ["id"]
-        .clone();
-    let second = command(&mut session, json!({"command": "new_note"}))["snapshot"]["selected_note"]
-        ["id"]
-        .clone();
+    let first =
+        command(&mut session, json!({"command": "new_note"}))["frame"]["selected_note"]["id"]
+            .clone();
+    let second =
+        command(&mut session, json!({"command": "new_note"}))["frame"]["selected_note"]["id"]
+            .clone();
     let edited = command(
         &mut session,
         json!({"command":"edit_note", "id":first, "edit_sequence": 2,
         "title":"日本語 📝", "content":"café\n😀", "tags_input":"Work, Rust"}),
     );
-    assert_eq!(edited["snapshot"]["selected_note"]["id"], second);
-    assert_eq!(edited["snapshot"]["edit_sequence"], 2);
-    let stale = serde_json::from_value(
-        json!({"command":"edit_note", "id":first, "edit_sequence": 1,
-        "title":"stale", "content":"lost", "tags_input":""}),
-    )
-    .unwrap();
-    assert_eq!(session.execute(stale).unwrap_err().code, "stale_edit");
+    assert_eq!(edited["frame"]["selected_note"]["id"], second);
+    assert_eq!(edited["frame"]["edit_sequence"], 2);
+    assert_eq!(
+        session
+            .execute_json(
+                json!({"command":"edit_note", "id":first, "edit_sequence": 1,
+            "title":"stale", "content":"lost", "tags_input":""})
+            )
+            .unwrap_err()
+            .code,
+        "stale_edit"
+    );
     command(&mut session, json!({"command":"flush"}));
     drop(session);
     let mut reopened = open(temp.path());
     let selected = command(&mut reopened, json!({"command":"select_note", "id":first}));
-    assert_eq!(selected["snapshot"]["selected_note"]["title"], "日本語 📝");
-    assert_eq!(selected["snapshot"]["selected_note"]["content"], "café\n😀");
+    assert_eq!(selected["frame"]["selected_note"]["title"], "日本語 📝");
+    assert_eq!(selected["frame"]["selected_note"]["content"], "café\n😀");
     assert_eq!(
-        selected["snapshot"]["selected_note"]["tags"],
+        selected["frame"]["selected_note"]["tags"],
         json!(["Work", "Rust"])
     );
 }
@@ -172,11 +192,12 @@ fn formatting_uses_utf16_selection_and_rejects_a_split_surrogate() {
     );
     assert_eq!(reply["result"]["content"], "a**😀é中**z");
     assert_eq!(reply["result"]["caret_utf16"], 9);
-    let split = serde_json::from_value(json!({"command":"format", "content":"😀",
-        "start_utf16":1, "end_utf16":2, "kind":"italic"}))
-    .unwrap();
     assert_eq!(
-        session.execute(split).unwrap_err().code,
+        session
+            .execute_json(json!({"command":"format", "content":"😀",
+            "start_utf16":1, "end_utf16":2, "kind":"italic"}))
+            .unwrap_err()
+            .code,
         "invalid_selection"
     );
     assert!(session.app.workspace.notes().is_empty());
@@ -186,9 +207,8 @@ fn formatting_uses_utf16_selection_and_rejects_a_split_surrogate() {
 fn failed_flush_keeps_pending_edits_and_same_session_can_retry() {
     let temp = tempfile::tempdir().unwrap();
     let mut session = open(temp.path());
-    let id =
-        command(&mut session, json!({"command":"new_note"}))["snapshot"]["selected_note"]["id"]
-            .clone();
+    let id = command(&mut session, json!({"command":"new_note"}))["frame"]["selected_note"]["id"]
+        .clone();
     command(
         &mut session,
         json!({"command":"edit_note", "id":id, "edit_sequence":1,
@@ -197,10 +217,10 @@ fn failed_flush_keeps_pending_edits_and_same_session_can_retry() {
     let collection_path = temp.path().join("collection.json");
     std::fs::create_dir(&collection_path).unwrap();
     assert!(session.flush().is_err());
-    assert_eq!(session.snapshot()["save_status"], "failed");
+    assert_eq!(frame_of(&session)["save_status"], "failed");
     std::fs::remove_dir(&collection_path).unwrap();
     session.flush().unwrap();
-    assert_eq!(session.snapshot()["save_status"], "saved");
+    assert_eq!(frame_of(&session)["save_status"], "saved");
     drop(session);
     let reopened = open(temp.path());
     assert_eq!(reopened.app.workspace.notes()[0].title, "Must survive");
@@ -218,21 +238,23 @@ fn recovery_gates_mutations_and_preserves_corrupt_bytes_when_restoring_previous(
     std::fs::write(temp.path().join("collection.json"), b"{broken").unwrap();
     let mut session = open(temp.path());
     assert_eq!(
-        session.execute(Request::NewNote).unwrap_err().code,
-        "storage_recovery"
-    );
-    assert_eq!(
         session
-            .execute(Request::ExportNotebook {
-                path: temp.path().join("during-recovery.json"),
-            })
+            .execute_json(json!({"command":"new_note"}))
             .unwrap_err()
             .code,
         "storage_recovery"
     );
-    assert_eq!(session.snapshot()["recovery"]["can_restore_previous"], true);
+    let during = temp.path().join("during-recovery.json");
+    assert_eq!(
+        session
+            .execute_json(json!({"command":"export_notebook", "path": during}))
+            .unwrap_err()
+            .code,
+        "storage_recovery"
+    );
+    assert_eq!(frame_of(&session)["recovery"]["can_restore_previous"], true);
     command(&mut session, json!({"command":"restore_previous"}));
-    assert!(session.snapshot()["recovery"].is_null());
+    assert!(frame_of(&session)["recovery"].is_null());
     assert_eq!(session.app.collection(), previous);
     let preserved = std::fs::read_dir(temp.path())
         .unwrap()
@@ -260,7 +282,7 @@ fn merge_import_previews_counts_then_replaces_identity_and_adds_new_note() {
         &mut session,
         json!({"command":"import_notebook", "json":backup}),
     );
-    let pending = &preview["snapshot"]["pending_import"];
+    let pending = &preview["frame"]["confirm"];
     assert_eq!(pending["title"], "Import these notes?");
     assert_eq!(pending["action"], "Import");
     assert_eq!(
@@ -268,11 +290,11 @@ fn merge_import_previews_counts_then_replaces_identity_and_adds_new_note() {
         "Notes in this file: 2\n\nNotes to add: 1\nNotes to replace: 1"
     );
     assert_ne!(session.app.workspace.notes()[0].title, "Replacement");
-    command(&mut session, json!({"command":"confirm_import"}));
+    command(&mut session, json!({"command":"accept_confirm"}));
     session.flush().unwrap();
     assert_eq!(session.app.workspace.notes().len(), 2);
     assert!(session.app.workspace.notes().contains(&replacement));
-    assert!(session.snapshot()["pending_import"].is_null());
+    assert!(frame_of(&session)["confirm"].is_null());
 }
 
 #[test]
@@ -295,14 +317,14 @@ fn complete_notebook_restores_an_empty_profile_and_merges_active_notes_otherwise
         &mut session,
         json!({"command":"import_notebook","json":notebook}),
     );
-    assert_eq!(staged["snapshot"]["pending_import"]["action"], "Import");
+    assert_eq!(staged["frame"]["confirm"]["action"], "Import");
     assert!(
-        staged["snapshot"]["pending_import"]["body"]
+        staged["frame"]["confirm"]["body"]
             .as_str()
             .unwrap()
             .contains("are not applied")
     );
-    command(&mut session, json!({"command":"confirm_import"}));
+    command(&mut session, json!({"command":"accept_confirm"}));
     assert_eq!(session.app.theme, ThemePreference::Light);
     assert!(session.app.workspace.recently_deleted_notes().is_empty());
     assert_eq!(session.app.workspace.notes().len(), 1);
@@ -314,8 +336,8 @@ fn complete_notebook_restores_an_empty_profile_and_merges_active_notes_otherwise
         &mut empty,
         json!({"command":"import_notebook","json":notebook}),
     );
-    assert_eq!(staged["snapshot"]["pending_import"]["action"], "Restore");
-    command(&mut empty, json!({"command":"confirm_import"}));
+    assert_eq!(staged["frame"]["confirm"]["action"], "Restore");
+    command(&mut empty, json!({"command":"accept_confirm"}));
     assert_eq!(empty.app.theme, ThemePreference::Dark);
     assert_eq!(empty.app.workspace.notes()[0].id, active.id);
     assert_eq!(
@@ -340,21 +362,19 @@ fn backup_health_changes_only_after_export_is_written_and_profiles_are_exclusive
     );
     let blocked = temp.path().join("directory.json");
     std::fs::create_dir(&blocked).unwrap();
-    assert!(
-        serde_json::from_value::<Request>(json!({"command":"export_backup","path":"/tmp/x"}))
-            .is_err()
-    );
+    let unknown = session
+        .execute_json(json!({"command":"export_backup","path":"/tmp/x"}))
+        .unwrap_err();
+    assert_eq!(unknown.code, "invalid_argument");
     assert!(
         session
-            .execute(Request::ExportNotebook { path: blocked })
+            .execute_json(json!({"command":"export_notebook", "path": blocked}))
             .is_err()
     );
     assert!(session.app.backup_health.is_none());
     let exported = temp.path().join("backup.json");
     let reply = session
-        .execute(Request::ExportNotebook {
-            path: exported.clone(),
-        })
+        .execute_json(json!({"command":"export_notebook", "path": exported}))
         .unwrap();
     assert!(exported.is_file());
     let document: Value =
@@ -370,9 +390,9 @@ fn backup_health_changes_only_after_export_is_written_and_profiles_are_exclusive
         stored["last_successful_export_at"].as_str().unwrap(),
         embedded
     );
-    assert_eq!(reply["snapshot"]["backup_health"], "Up to date");
+    assert_eq!(reply["frame"]["backup_health"], "Up to date");
     assert!(
-        reply["snapshot"]["suggested_export_name"]
+        reply["frame"]["suggested_export_name"]
             .as_str()
             .unwrap()
             .starts_with("nota-backup-")
@@ -403,23 +423,25 @@ fn transition_restore_keeps_accepted_state_visible_until_metadata_save_can_retry
     )
     .unwrap();
     let staged = session
-        .execute(Request::ImportNotebook { json: transition })
+        .execute_json(json!({"command":"import_notebook", "json": transition}))
         .unwrap();
-    assert_eq!(staged["snapshot"]["pending_import"]["action"], "Restore");
-    let reply = session.execute(Request::ConfirmImport).unwrap();
-    assert_eq!(reply["snapshot"]["selected_note"]["id"], json!(note.id));
-    assert_eq!(reply["snapshot"]["save_status"], "saving");
+    assert_eq!(staged["frame"]["confirm"]["action"], "Restore");
+    let reply = session
+        .execute_json(json!({"command":"accept_confirm"}))
+        .unwrap();
+    assert_eq!(reply["frame"]["selected_note"]["id"], json!(note.id));
+    assert_eq!(reply["frame"]["save_status"], "saving");
     events
         .recv_timeout(std::time::Duration::from_secs(5))
         .unwrap();
-    let reply = session.execute(Request::Snapshot).unwrap();
-    assert_eq!(reply["snapshot"]["save_status"], "failed");
-    assert_eq!(reply["snapshot"]["notification"]["tone"], "error");
+    let reply = session.execute_json(json!({"command":"snapshot"})).unwrap();
+    assert_eq!(reply["frame"]["save_status"], "failed");
+    assert_eq!(reply["frame"]["notification"]["tone"], "error");
     assert_eq!(session.app.workspace.notes(), std::slice::from_ref(&note));
     assert!(session.flush().is_err());
     std::fs::remove_dir(temp.path().join("preferences.json")).unwrap();
     session.flush().unwrap();
-    assert_eq!(session.snapshot()["save_status"], "saved");
+    assert_eq!(frame_of(&session)["save_status"], "saved");
     drop(session);
     let reopened = open(temp.path());
     assert_eq!(reopened.app.workspace.notes(), &[note]);
@@ -428,7 +450,6 @@ fn transition_restore_keeps_accepted_state_visible_until_metadata_save_can_retry
 
 #[test]
 fn gtk_transition_restore_reports_backup_health_failure_and_retries_on_close() {
-    use nota_app::app::AppMsg;
     use nota_core::backup::BackupHealthRecord;
     use nota_core::transition::{ThemePreference, export_desktop_transition};
     let temp = tempfile::tempdir().unwrap();
@@ -455,16 +476,20 @@ fn gtk_transition_restore_reports_backup_health_failure_and_retries_on_close() {
     )
     .unwrap();
     session
-        .execute(Request::ImportNotebook { json: transition })
+        .execute_json(json!({"command":"import_notebook", "json": transition}))
         .unwrap();
-    assert!(session.execute(Request::ConfirmImport).is_ok());
+    assert!(
+        session
+            .execute_json(json!({"command":"accept_confirm"}))
+            .is_ok()
+    );
     assert_eq!(session.app.workspace.notes(), std::slice::from_ref(&note));
     events
         .recv_timeout(std::time::Duration::from_secs(5))
         .unwrap();
-    session.apply_message(AppMsg::PollPersistence).unwrap();
-    assert_eq!(session.snapshot()["save_status"], "failed");
-    assert_eq!(session.snapshot()["notification"]["tone"], "error");
+    session.poll();
+    assert_eq!(frame_of(&session)["save_status"], "failed");
+    assert_eq!(frame_of(&session)["notification"]["tone"], "error");
     assert!(session.flush().is_err());
     std::fs::remove_dir(temp.path().join("backup-health.json")).unwrap();
     session.flush().unwrap();

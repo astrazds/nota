@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::error::Error;
 use std::fmt;
 
@@ -8,6 +7,7 @@ use uuid::Uuid;
 
 use crate::Note;
 use crate::backup::BackupHealthRecord;
+use crate::identity::{DuplicateNoteId, Notebook};
 
 const TRANSITION_VERSION: u32 = 1;
 const TRANSITION_KIND: &str = "nota.desktop_transition";
@@ -96,7 +96,8 @@ pub fn export_desktop_transition(
     theme: ThemePreference,
     backup_health: Option<BackupHealthRecord>,
 ) -> Result<String, TransitionError> {
-    validate_unique_ids(notes, recently_deleted_notes)?;
+    Notebook::try_new(notes.to_vec(), recently_deleted_notes.to_vec())
+        .map_err(|DuplicateNoteId(id)| TransitionError::DuplicateNoteId(id))?;
     serde_json::to_string_pretty(&DesktopTransitionBundle {
         version: TRANSITION_VERSION,
         kind: TRANSITION_KIND.to_string(),
@@ -123,7 +124,8 @@ pub(crate) fn parse_desktop_transition(
     if !is_desktop_transition_kind(&bundle.kind) {
         return Err(TransitionError::UnsupportedKind(bundle.kind));
     }
-    validate_unique_ids(&bundle.notes, &bundle.recently_deleted_notes)?;
+    Notebook::try_new(bundle.notes.clone(), bundle.recently_deleted_notes.clone())
+        .map_err(|DuplicateNoteId(id)| TransitionError::DuplicateNoteId(id))?;
     Ok(bundle)
 }
 
@@ -143,19 +145,6 @@ pub fn import_desktop_transition(
         theme: bundle.theme,
         backup_health: bundle.backup_health,
     })
-}
-
-fn validate_unique_ids(
-    notes: &[Note],
-    recently_deleted_notes: &[Note],
-) -> Result<(), TransitionError> {
-    let mut seen = HashSet::new();
-    for note in notes.iter().chain(recently_deleted_notes) {
-        if !seen.insert(note.id) {
-            return Err(TransitionError::DuplicateNoteId(note.id));
-        }
-    }
-    Ok(())
 }
 
 #[cfg(test)]

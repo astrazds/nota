@@ -1,15 +1,14 @@
-use nota_app::app::{AppModel, AppMsg, AppliedImport};
+use nota_app::app::{AppModel, AppliedImport};
 use nota_app::storage::CollectionEnvelope;
-use nota_core::backup::export_flat_collection_backup;
-use nota_core::editor_view::EditorViewMode;
-use nota_core::note_list_interaction::NoteListDisplayState;
-use nota_core::note_workspace::FocusIntent;
-use nota_core::transition::ThemePreference;
+use nota_app::{
+    EditorViewMode, FocusIntent, ImportDestination, Note, NoteListDisplayState, ThemePreference,
+    export_flat_collection_backup, stage_import,
+};
 
 #[test]
 fn merge_import_does_not_apply_before_backup_import_preview_confirmation() {
-    let existing = nota_core::Note::new("Local".to_string(), "Keep".to_string());
-    let imported = nota_core::Note::new("Backup".to_string(), "New".to_string());
+    let existing = Note::new("Local".to_string(), "Keep".to_string());
+    let imported = Note::new("Backup".to_string(), "New".to_string());
     let json = export_flat_collection_backup(std::slice::from_ref(&imported)).unwrap();
     let mut app = AppModel::new(
         CollectionEnvelope::new(vec![existing.clone()], Vec::new()),
@@ -27,7 +26,7 @@ fn merge_import_does_not_apply_before_backup_import_preview_confirmation() {
 
 #[test]
 fn merge_import_recovers_a_deleted_note_and_keeps_the_collection_valid() {
-    let note = nota_core::Note::new("Recovered".to_string(), "From Backup".to_string());
+    let note = Note::new("Recovered".to_string(), "From Backup".to_string());
     let note_id = note.id;
     let json = export_flat_collection_backup(std::slice::from_ref(&note)).unwrap();
     let mut app = AppModel::new(
@@ -35,8 +34,8 @@ fn merge_import_recovers_a_deleted_note_and_keeps_the_collection_valid() {
         ThemePreference::Light,
         None,
     );
-    app.apply(AppMsg::RequestDelete(note_id));
-    assert!(app.apply(AppMsg::ConfirmDelete));
+    app.request_delete(note_id);
+    assert!(app.confirm_delete());
 
     stage_json(&mut app, &json);
     assert_eq!(
@@ -58,12 +57,13 @@ fn merge_import_recovers_a_deleted_note_and_keeps_the_collection_valid() {
 
 #[test]
 fn storage_recovery_keeps_import_backup_and_does_not_start_empty_silently() {
-    let imported = nota_core::Note::new("Recovered".to_string(), "From Backup".to_string());
+    let imported = Note::new("Recovered".to_string(), "From Backup".to_string());
     let json = export_flat_collection_backup(std::slice::from_ref(&imported)).unwrap();
     let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::Light, None);
     app.set_storage_recovery(true);
 
-    assert!(!app.apply(AppMsg::QuickCapture));
+    app.quick_capture();
+    assert!(app.is_in_storage_recovery());
     stage_json(&mut app, &json);
     assert_eq!(
         app.commit_staged_import().unwrap(),
@@ -73,9 +73,9 @@ fn storage_recovery_keeps_import_backup_and_does_not_start_empty_silently() {
 }
 
 fn stage_json(app: &mut AppModel, json: &str) {
-    let staged = nota_core::exchange::stage_import(
+    let staged = stage_import(
         json,
-        nota_core::exchange::ImportDestination {
+        ImportDestination {
             notes: app.workspace.notes(),
             recently_deleted: app.workspace.recently_deleted_notes(),
             storage_recovery: app.is_in_storage_recovery(),
@@ -87,32 +87,33 @@ fn stage_json(app: &mut AppModel, json: &str) {
 
 #[test]
 fn filtered_search_does_not_use_empty_collection_copy() {
-    let note = nota_core::Note::new("Roadmap".to_string(), "Ship native".to_string());
+    let note = Note::new("Roadmap".to_string(), "Ship native".to_string());
     let mut app = AppModel::new(
         CollectionEnvelope::new(vec![note], Vec::new()),
         ThemePreference::Light,
         None,
     );
-    app.apply(AppMsg::EditSearch("zzzz".to_string()));
-    app.apply(AppMsg::CommitSearch);
+    app.edit_search("zzzz".to_string());
+    app.commit_search();
     let model = app.note_list_render_model();
     assert_eq!(model.display_state, NoteListDisplayState::FilteredEmpty);
+    let copy = app
+        .note_list
+        .list_copy(app.workspace.notes(), app.workspace.selected_id());
+    assert_ne!(copy.title, "No notes yet.");
 }
 
 #[test]
 fn tag_cleanup_message_applies_a_reviewed_plan_as_one_saved_change() {
-    let mut note = nota_core::Note::new("Dirty tags".to_string(), String::new());
+    let mut note = Note::new("Dirty tags".to_string(), String::new());
     note.tags = vec![" Work ".to_string(), "work".to_string()];
     let mut app = AppModel::new(
         CollectionEnvelope::new(vec![note], Vec::new()),
         ThemePreference::Light,
         None,
     );
-    let plan = app.workspace.tag_cleanup_plan();
 
-    assert!(!app.apply(AppMsg::RequestTagCleanup));
-    assert!(app.notification.is_none());
-    assert!(app.apply(AppMsg::ApplyTagCleanup(plan.clone())));
+    assert!(app.apply_tag_cleanup());
 
     assert_eq!(app.workspace.notes()[0].tags, ["Work"]);
     assert_eq!(app.revision(), 1);
@@ -122,7 +123,7 @@ fn tag_cleanup_message_applies_a_reviewed_plan_as_one_saved_change() {
         "Tags cleaned up"
     );
     let notification_generation = app.notification_generation();
-    assert!(!app.apply(AppMsg::ApplyTagCleanup(plan)));
+    assert!(!app.apply_tag_cleanup());
     assert_eq!(app.revision(), 1);
     assert_eq!(app.notification_generation(), notification_generation);
 }
@@ -130,21 +131,25 @@ fn tag_cleanup_message_applies_a_reviewed_plan_as_one_saved_change() {
 #[test]
 fn quick_capture_requests_note_title_focus() {
     let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::Light, None);
-    assert!(app.apply(AppMsg::QuickCapture));
+    assert!(app.quick_capture());
     assert_eq!(app.workspace.focus_intent(), FocusIntent::NoteTitle);
 }
 
 #[test]
 fn preview_and_split_expose_documented_view_mode_surfaces() {
     let mut app = AppModel::new(CollectionEnvelope::empty(), ThemePreference::Light, None);
-    app.apply(AppMsg::SetViewMode(EditorViewMode::Preview));
-    assert!(app.view_mode.surfaces().preview);
-    assert!(!app.view_mode.surfaces().writing);
+    app.set_view_mode(EditorViewMode::Preview);
+    assert!(app.layout.show_preview);
+    assert!(!app.layout.show_writing);
 
-    app.apply(AppMsg::SetViewMode(EditorViewMode::Split));
-    assert!(app.view_mode.surfaces().preview);
-    assert!(app.view_mode.surfaces().writing);
+    app.set_view_mode(EditorViewMode::Split);
+    assert!(app.layout.show_preview);
+    assert!(app.layout.show_writing);
 
-    app.apply(AppMsg::Resize(600.0));
+    app.resize(600.0);
     assert_eq!(app.view_mode, EditorViewMode::Split);
+    assert_eq!(app.layout.editor_min_height_px, 0.0);
+    app.resize(560.0);
+    assert_eq!(app.layout.preview_min_height_px, 500.0);
+    assert_eq!(app.layout.editor_min_height_px, 340.0);
 }

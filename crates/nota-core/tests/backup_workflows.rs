@@ -139,7 +139,9 @@ fn merge_import_recovers_a_same_identity_note_from_recently_deleted() {
     let note = note_with_fields();
     let note_id = note.id;
     let backup_json = export_flat_collection_backup(std::slice::from_ref(&note)).unwrap();
-    let mut workspace = NoteWorkspace::new(vec![note.clone()]);
+    let mut workspace = NoteWorkspace::try_open(
+        nota_core::identity::Notebook::try_new(vec![note.clone()], Vec::new()).unwrap(),
+    );
     assert!(workspace.request_delete(note_id));
     assert!(workspace.confirm_delete());
 

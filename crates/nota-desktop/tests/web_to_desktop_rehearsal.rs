@@ -1,8 +1,10 @@
 use chrono::{TimeZone, Utc};
 use nota_app::app::AppModel;
 use nota_app::storage::{CollectionEnvelope, LoadOutcome, NativeStore, Preferences};
-use nota_core::backup::{BackupHealthRecord, export_flat_collection_backup};
-use nota_core::transition::{ThemePreference, TransitionError, export_desktop_transition};
+use nota_app::{
+    BackupHealthRecord, ImportDestination, Note, ThemePreference, TransitionError,
+    export_desktop_transition, export_flat_collection_backup, stage_import,
+};
 
 const WEB_TRANSITION_V1: &str =
     include_str!("../../nota-core/tests/fixtures/desktop-transition-v1.json");
@@ -57,12 +59,12 @@ fn clean_profile_restores_web_transition_once_then_uses_merge_import() {
         .expect_err("a second desktop transition restore must be rejected");
     assert!(matches!(error, TransitionError::CollectionNotEmpty));
 
-    let extra = nota_core::Note::new("After migration".to_string(), "Merge path".to_string());
+    let extra = Note::new("After migration".to_string(), "Merge path".to_string());
     let backup = export_flat_collection_backup(std::slice::from_ref(&extra)).unwrap();
     let mut migrated = AppModel::new(before.clone(), relaunched.theme, relaunched.backup_health);
-    let staged = nota_core::exchange::stage_import(
+    let staged = stage_import(
         &backup,
-        nota_core::exchange::ImportDestination {
+        ImportDestination {
             notes: migrated.workspace.notes(),
             recently_deleted: migrated.workspace.recently_deleted_notes(),
             storage_recovery: false,
@@ -93,7 +95,7 @@ fn transition_without_backup_health_clears_stale_health_on_relaunch() {
             last_successful_export_at: Utc.with_ymd_and_hms(2026, 8, 1, 9, 0, 0).unwrap(),
         })
         .unwrap();
-    let transferred = nota_core::Note::new("Transferred".to_string(), "Exact state".to_string());
+    let transferred = Note::new("Transferred".to_string(), "Exact state".to_string());
     let transition = export_desktop_transition(
         std::slice::from_ref(&transferred),
         &[],

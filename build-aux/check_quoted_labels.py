@@ -56,7 +56,7 @@ def missing_labels(docs: list[tuple[Path, str]], owners: str) -> list[str]:
                 continue
             seen.add(label)
             if label not in owners:
-                missing.append(f"{path.relative_to(ROOT)}: {label}")
+                missing.append(f"{path.relative_to(ROOT).as_posix()}: {label}")
     return missing
 
 

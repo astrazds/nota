@@ -85,7 +85,7 @@ pub unsafe extern "C" fn nota_open(
         let options: OpenOptionsJson = serde_json::from_slice(bytes)
             .map_err(|e| (3, SessionError::new("invalid_argument", e)))?;
         let opened = Session::open(options).map_err(|e| (1, e))?;
-        let response = opened.reply_json(Effect::Frame(opened.frame()));
+        let response = opened.reply_json(Effect::Frame(Box::new(opened.frame())));
         let handle = NEXT_HANDLE.fetch_add(1, Ordering::Relaxed);
         if handle == 0 || handle == usize::MAX {
             return Err((

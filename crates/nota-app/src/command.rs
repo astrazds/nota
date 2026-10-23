@@ -23,7 +23,7 @@ pub struct FormatEdit {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Effect {
-    Frame(Frame),
+    Frame(Box<Frame>),
     Edit(FormatEdit),
     Preview(String),
     External(Option<String>),

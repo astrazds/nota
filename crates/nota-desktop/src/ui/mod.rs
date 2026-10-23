@@ -21,8 +21,7 @@ mod workspace;
 mod writing_plane;
 use workspace::DesktopWidgets;
 
-use dialogs::{ConfirmationRequest, show_about_dialog, show_confirmation};
-use files::{open_import_file, save_json_file};
+use dialogs::{ConfirmationRequest, show_confirmation};
 use note_list::NoteLists;
 use style::startup_window_size;
 

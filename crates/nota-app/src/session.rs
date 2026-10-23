@@ -443,7 +443,7 @@ impl Session {
                 self.app.dismiss_notification(generation);
             }
         }
-        Ok(Effect::Frame(self.frame()))
+        Ok(Effect::Frame(Box::new(self.frame())))
     }
 
     fn store_theme(&mut self, theme: ThemePreference) -> Result<(), SessionError> {

@@ -971,18 +971,21 @@ impl DesktopWidgets {
                 );
             }
         }));
+        let format_edit = FormattingEdit {
+            session: Rc::clone(&session),
+            sequence: Rc::clone(&edit_sequence),
+            selected: Rc::clone(&selected_id),
+            title: title.clone(),
+            tags: tags.clone(),
+            changed: Rc::clone(&content_changed),
+        };
         connect_formatting_button(
             &bold,
             &content,
             &writing,
             MarkdownCommand::Bold,
             sender,
-            &content_changed,
-            Rc::clone(&session),
-            Rc::clone(&edit_sequence),
-            Rc::clone(&selected_id),
-            title.clone(),
-            tags.clone(),
+            &format_edit,
         );
         connect_formatting_button(
             &italic,
@@ -990,12 +993,7 @@ impl DesktopWidgets {
             &writing,
             MarkdownCommand::Italic,
             sender,
-            &content_changed,
-            Rc::clone(&session),
-            Rc::clone(&edit_sequence),
-            Rc::clone(&selected_id),
-            title.clone(),
-            tags.clone(),
+            &format_edit,
         );
         connect_formatting_button(
             &heading,
@@ -1003,12 +1001,7 @@ impl DesktopWidgets {
             &writing,
             MarkdownCommand::Heading,
             sender,
-            &content_changed,
-            Rc::clone(&session),
-            Rc::clone(&edit_sequence),
-            Rc::clone(&selected_id),
-            title.clone(),
-            tags.clone(),
+            &format_edit,
         );
         connect_formatting_button(
             &bullet_list,
@@ -1016,12 +1009,7 @@ impl DesktopWidgets {
             &writing,
             MarkdownCommand::BulletList,
             sender,
-            &content_changed,
-            Rc::clone(&session),
-            Rc::clone(&edit_sequence),
-            Rc::clone(&selected_id),
-            title.clone(),
-            tags.clone(),
+            &format_edit,
         );
         connect_formatting_button(
             &link,
@@ -1029,12 +1017,7 @@ impl DesktopWidgets {
             &writing,
             MarkdownCommand::Link,
             sender,
-            &content_changed,
-            Rc::clone(&session),
-            Rc::clone(&edit_sequence),
-            Rc::clone(&selected_id),
-            title.clone(),
-            tags.clone(),
+            &format_edit,
         );
         connect_formatting_button(
             &strike,
@@ -1042,12 +1025,7 @@ impl DesktopWidgets {
             &writing,
             MarkdownCommand::Strikethrough,
             sender,
-            &content_changed,
-            Rc::clone(&session),
-            Rc::clone(&edit_sequence),
-            Rc::clone(&selected_id),
-            title.clone(),
-            tags.clone(),
+            &format_edit,
         );
         connect_formatting_button(
             &task,
@@ -1055,12 +1033,7 @@ impl DesktopWidgets {
             &writing,
             MarkdownCommand::TaskList,
             sender,
-            &content_changed,
-            Rc::clone(&session),
-            Rc::clone(&edit_sequence),
-            Rc::clone(&selected_id),
-            title.clone(),
-            tags.clone(),
+            &format_edit,
         );
         connect_formatting_button(
             &table,
@@ -1068,12 +1041,7 @@ impl DesktopWidgets {
             &writing,
             MarkdownCommand::Table,
             sender,
-            &content_changed,
-            Rc::clone(&session),
-            Rc::clone(&edit_sequence),
-            Rc::clone(&selected_id),
-            title.clone(),
-            tags.clone(),
+            &format_edit,
         );
 
         let shortcuts = gtk::ShortcutController::new();
@@ -1588,10 +1556,11 @@ fn icon_label_button(icon: &str, label: &str) -> gtk::Button {
     button
 }
 
-/// GTK4 `Entry` keeps keyboard focus on an inner `GtkText`, so `has_focus()` is
-/// false while the user is editing. `FOCUS_WITHIN` is set on the Entry itself.
-fn entry_has_input_focus(entry: &gtk::Entry) -> bool {
-    entry.has_focus() || entry.state_flags().contains(gtk::StateFlags::FOCUS_WITHIN)
+/// GTK4 entries keep keyboard focus on an inner `GtkText`, so `has_focus()` is
+/// false while the user is editing. `FOCUS_WITHIN` is set on the entry itself.
+fn entry_has_input_focus(widget: &impl IsA<gtk::Widget>) -> bool {
+    let widget = widget.as_ref();
+    widget.has_focus() || widget.state_flags().contains(gtk::StateFlags::FOCUS_WITHIN)
 }
 
 fn formatting_button(label: &str, tooltip: &str) -> gtk::Button {
@@ -1623,23 +1592,28 @@ fn queue_note_edit(
     });
 }
 
+#[derive(Clone)]
+struct FormattingEdit {
+    session: Rc<RefCell<Session>>,
+    sequence: Rc<Cell<u64>>,
+    selected: Rc<Cell<Option<uuid::Uuid>>>,
+    title: gtk::Entry,
+    tags: gtk::Entry,
+    changed: Rc<gtk::glib::SignalHandlerId>,
+}
+
 fn connect_formatting_button(
     button: &gtk::Button,
     content: &gtk::TextView,
     writing: &gtk::Box,
     command: MarkdownCommand,
     sender: &relm4::Sender<Command>,
-    content_changed: &Rc<gtk::glib::SignalHandlerId>,
-    session: Rc<RefCell<Session>>,
-    edit_sequence: Rc<Cell<u64>>,
-    selected_id: Rc<Cell<Option<uuid::Uuid>>>,
-    title: gtk::Entry,
-    tags: gtk::Entry,
+    edit: &FormattingEdit,
 ) {
     let content = content.clone();
     let writing = writing.clone();
     let sender = sender.clone();
-    let content_changed = content_changed.clone();
+    let edit = edit.clone();
     button.set_focus_on_click(false);
     button.connect_clicked(move |_| {
         let buffer = content.buffer();
@@ -1656,7 +1630,7 @@ fn connect_formatting_button(
             return;
         };
         let (selection_start_byte, selection_end_byte) = selection.ordered();
-        let Ok(Effect::Edit(edit)) = session.borrow_mut().apply(Command::Format {
+        let Ok(Effect::Edit(formatted)) = edit.session.borrow_mut().apply(Command::Format {
             content: text.to_string(),
             selection: TextSelection::Utf8 {
                 start: selection_start_byte,
@@ -1666,22 +1640,22 @@ fn connect_formatting_button(
         }) else {
             return;
         };
-        let replacement = edit.content[selection_start_byte..edit.caret_byte].to_string();
-        buffer.block_signal(&content_changed);
+        let replacement = formatted.content[selection_start_byte..formatted.caret_byte].to_string();
+        buffer.block_signal(&edit.changed);
         buffer.begin_user_action();
         buffer.delete(&mut start, &mut end);
         buffer.insert(&mut start, &replacement);
-        let caret = edit.content[..edit.caret_byte].chars().count() as i32;
+        let caret = formatted.content[..formatted.caret_byte].chars().count() as i32;
         buffer.place_cursor(&buffer.iter_at_offset(caret));
         buffer.end_user_action();
-        buffer.unblock_signal(&content_changed);
+        buffer.unblock_signal(&edit.changed);
         queue_note_edit(
             &sender,
-            &edit_sequence,
-            &selected_id,
-            title.text().to_string(),
-            edit.content,
-            tags.text().to_string(),
+            &edit.sequence,
+            &edit.selected,
+            edit.title.text().to_string(),
+            formatted.content,
+            edit.tags.text().to_string(),
         );
         if !writing.is_visible() {
             let _send_result = sender.send(Command::SetViewMode {
@@ -1725,12 +1699,14 @@ mod tests {
             &writing,
             MarkdownCommand::Bold,
             &sender,
-            &changed,
-            session,
-            Rc::new(Cell::new(0)),
-            Rc::new(Cell::new(None)),
-            gtk::Entry::new(),
-            gtk::Entry::new(),
+            &FormattingEdit {
+                session,
+                sequence: Rc::new(Cell::new(0)),
+                selected: Rc::new(Cell::new(None)),
+                title: gtk::Entry::new(),
+                tags: gtk::Entry::new(),
+                changed,
+            },
         );
         bold.emit_clicked();
         let text = || {

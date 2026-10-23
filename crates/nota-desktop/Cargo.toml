@@ -20,7 +20,6 @@ preview-webkit = ["gui", "dep:webkit6"]
 [dependencies]
 chrono = { version = "0.4.44", features = ["serde"] }
 nota-app = { path = "../nota-app" }
-nota-core = { path = "../nota-core" }
 pango = { version = "0.22.9", features = ["v1_56"], optional = true }
 relm4 = { version = "0.11.0", features = ["gnome_50"], optional = true }
 url = "2.5.7"

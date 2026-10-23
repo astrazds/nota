@@ -2,20 +2,26 @@ use crate::backup::{
     BackupError, BackupImport, PendingBackupImport, import_flat_collection_backup,
     prepare_backup_import,
 };
+use crate::identity::Notebook;
 use crate::model::Note;
 use crate::note_collection::NoteCollection;
 use crate::note_discovery::{NoteListProjection, project_note_list};
 use crate::tag_rules::{TagCleanupPlan, plan_collection_tag_cleanup};
 use uuid::Uuid;
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NoteWorkspace {
-    notes: Vec<Note>,
-    recently_deleted_notes: Vec<Note>,
+    notebook: Notebook,
     selected_id: Option<Uuid>,
     focus_intent: FocusIntent,
     delete_confirmation: Option<DeleteConfirmation>,
     clear_all_recently_deleted_confirmation_count: Option<usize>,
+}
+
+impl Default for NoteWorkspace {
+    fn default() -> Self {
+        Self::try_open(Notebook::empty())
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -32,23 +38,10 @@ struct DeleteConfirmation {
 }
 
 impl NoteWorkspace {
-    pub fn new(notes: Vec<Note>) -> Self {
-        let selected_id = notes.first().map(|note| note.id);
+    pub fn try_open(notebook: Notebook) -> Self {
+        let selected_id = notebook.active().first().map(|note| note.id);
         Self {
-            notes,
-            recently_deleted_notes: Vec::new(),
-            selected_id,
-            focus_intent: FocusIntent::None,
-            delete_confirmation: None,
-            clear_all_recently_deleted_confirmation_count: None,
-        }
-    }
-
-    pub fn new_with_recently_deleted(notes: Vec<Note>, recently_deleted_notes: Vec<Note>) -> Self {
-        let selected_id = notes.first().map(|note| note.id);
-        Self {
-            notes,
-            recently_deleted_notes,
+            notebook,
             selected_id,
             focus_intent: FocusIntent::None,
             delete_confirmation: None,
@@ -57,11 +50,11 @@ impl NoteWorkspace {
     }
 
     pub fn notes(&self) -> &[Note] {
-        &self.notes
+        self.notebook.active()
     }
 
     pub fn recently_deleted_notes(&self) -> &[Note] {
-        &self.recently_deleted_notes
+        self.notebook.deleted()
     }
 
     pub fn selected_id(&self) -> Option<Uuid> {
@@ -73,7 +66,7 @@ impl NoteWorkspace {
     }
 
     pub fn create_note(&mut self) {
-        let created = NoteCollection::create_note(&mut self.notes);
+        let created = NoteCollection::create_note(self.notebook.active_mut());
         self.selected_id = created.selected_id;
         self.focus_intent = if created.should_focus_title {
             FocusIntent::NoteTitle
@@ -83,7 +76,7 @@ impl NoteWorkspace {
     }
 
     pub fn select_note(&mut self, id: Uuid) -> bool {
-        if self.notes.iter().any(|note| note.id == id) {
+        if self.notebook.active().iter().any(|note| note.id == id) {
             self.selected_id = Some(id);
             true
         } else {
@@ -95,63 +88,62 @@ impl NoteWorkspace {
         let Some(id) = self.selected_id else {
             return false;
         };
-        NoteCollection::update_title(&mut self.notes, id, title)
+        NoteCollection::update_title(self.notebook.active_mut(), id, title)
     }
 
     pub fn update_selected_content(&mut self, content: String) -> bool {
         let Some(id) = self.selected_id else {
             return false;
         };
-        NoteCollection::update_content(&mut self.notes, id, content)
+        NoteCollection::update_content(self.notebook.active_mut(), id, content)
     }
 
     pub fn update_selected_tags(&mut self, tags: Vec<String>) -> bool {
         let Some(id) = self.selected_id else {
             return false;
         };
-        NoteCollection::update_tags(&mut self.notes, id, tags)
+        NoteCollection::update_tags(self.notebook.active_mut(), id, tags)
     }
 
     pub fn remove_selected_tag(&mut self, tag: &str) -> bool {
         let Some(id) = self.selected_id else {
             return false;
         };
-        NoteCollection::remove_tag(&mut self.notes, id, tag)
+        NoteCollection::remove_tag(self.notebook.active_mut(), id, tag)
     }
 
     pub fn tag_cleanup_plan(&self) -> TagCleanupPlan {
-        plan_collection_tag_cleanup(&self.notes)
+        plan_collection_tag_cleanup(self.notebook.active())
     }
 
     pub fn apply_tag_cleanup(&mut self, plan: &TagCleanupPlan) -> bool {
-        NoteCollection::apply_tag_cleanup(&mut self.notes, plan)
+        NoteCollection::apply_tag_cleanup(self.notebook.active_mut(), plan)
     }
 
     pub fn prepare_backup_import(
         &self,
         backup_json: String,
     ) -> Result<PendingBackupImport, BackupError> {
-        prepare_backup_import(
-            self.notes.iter().chain(&self.recently_deleted_notes),
-            backup_json,
-        )
+        let (active, deleted) = self.notebook.parts();
+        prepare_backup_import(active.iter().chain(deleted), backup_json)
     }
 
     pub fn import_flat_collection_backup(
         &mut self,
         backup_json: &str,
     ) -> Result<BackupImport, BackupError> {
-        let imported = import_flat_collection_backup(&mut self.notes, backup_json)?;
-        self.recently_deleted_notes
+        let imported = import_flat_collection_backup(self.notebook.active_mut(), backup_json)?;
+        self.notebook
+            .deleted_mut()
             .retain(|note| !imported.imported_ids.contains(&note.id));
         self.selected_id = imported
             .selected_id
-            .or_else(|| self.notes.first().map(|note| note.id));
+            .or_else(|| self.notebook.active().first().map(|note| note.id));
         Ok(imported)
     }
 
     pub fn request_delete(&mut self, id: Uuid) -> bool {
-        let Some(note) = self.notes.iter().find(|note| note.id == id) else {
+        let Some(note) = self.notebook.active().iter().find(|note| note.id == id) else {
             return false;
         };
 
@@ -183,10 +175,10 @@ impl NoteWorkspace {
         };
 
         if let Some((deleted_note, next_selected_id)) =
-            NoteCollection::remove_note(&mut self.notes, confirmation.id)
+            NoteCollection::remove_note(self.notebook.active_mut(), confirmation.id)
         {
             self.selected_id = next_selected_id;
-            self.recently_deleted_notes.insert(0, deleted_note);
+            self.notebook.deleted_mut().insert(0, deleted_note);
             true
         } else {
             false
@@ -195,39 +187,40 @@ impl NoteWorkspace {
 
     pub fn restore_recently_deleted(&mut self, id: Uuid) -> bool {
         let Some(index) = self
-            .recently_deleted_notes
+            .notebook
+            .deleted()
             .iter()
             .position(|note| note.id == id)
         else {
             return false;
         };
 
-        let note = self.recently_deleted_notes.remove(index);
+        let note = self.notebook.deleted_mut().remove(index);
         self.selected_id = Some(note.id);
-        self.notes.insert(0, note);
+        self.notebook.active_mut().insert(0, note);
         true
     }
 
     pub fn permanently_clear_recently_deleted(&mut self, id: Uuid) -> bool {
         let Some(index) = self
-            .recently_deleted_notes
+            .notebook
+            .deleted()
             .iter()
             .position(|note| note.id == id)
         else {
             return false;
         };
 
-        self.recently_deleted_notes.remove(index);
+        self.notebook.deleted_mut().remove(index);
         true
     }
 
     pub fn request_clear_all_recently_deleted(&mut self) -> bool {
-        if self.recently_deleted_notes.is_empty() {
+        if self.notebook.deleted().is_empty() {
             return false;
         }
 
-        self.clear_all_recently_deleted_confirmation_count =
-            Some(self.recently_deleted_notes.len());
+        self.clear_all_recently_deleted_confirmation_count = Some(self.notebook.deleted().len());
         true
     }
 
@@ -244,17 +237,17 @@ impl NoteWorkspace {
             .clear_all_recently_deleted_confirmation_count
             .take()
             .is_none()
-            || self.recently_deleted_notes.is_empty()
+            || self.notebook.deleted().is_empty()
         {
             return false;
         }
 
-        self.recently_deleted_notes.clear();
+        self.notebook.deleted_mut().clear();
         true
     }
 
     pub fn toggle_pin(&mut self, id: Uuid) -> bool {
-        NoteCollection::toggle_pin(&mut self.notes, id)
+        NoteCollection::toggle_pin(self.notebook.active_mut(), id)
     }
 
     pub fn focus_intent(&self) -> FocusIntent {
@@ -272,21 +265,30 @@ impl NoteWorkspace {
         query: &str,
         active_tag: Option<&str>,
     ) -> NoteListProjection {
-        project_note_list(&self.notes, self.selected_id, query, active_tag)
+        project_note_list(self.notebook.active(), self.selected_id, query, active_tag)
     }
 
     fn selected_note_ref(&self) -> Option<&Note> {
         self.selected_id
-            .and_then(|id| self.notes.iter().find(|note| note.id == id))
+            .and_then(|id| self.notebook.active().iter().find(|note| note.id == id))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn open(notes: Vec<Note>) -> NoteWorkspace {
+        NoteWorkspace::try_open(Notebook::try_new(notes, Vec::new()).unwrap())
+    }
+
+    fn open_both(notes: Vec<Note>, deleted: Vec<Note>) -> NoteWorkspace {
+        NoteWorkspace::try_open(Notebook::try_new(notes, deleted).unwrap())
+    }
+
     #[test]
     fn creating_a_note_updates_selection_and_focus_intent_inside_the_workspace() {
-        let mut workspace = NoteWorkspace::new(Vec::new());
+        let mut workspace = open(Vec::new());
 
         workspace.create_note();
 
@@ -298,12 +300,12 @@ mod tests {
 
     #[test]
     fn empty_collection_has_no_selection_and_a_loaded_note_is_selected() {
-        let empty = NoteWorkspace::new(Vec::new());
+        let empty = open(Vec::new());
         assert!(empty.notes().is_empty());
         assert_eq!(empty.selected_id(), None);
 
         let note = Note::new("First".to_string(), String::new());
-        let selected = NoteWorkspace::new(vec![note.clone()]);
+        let selected = open(vec![note.clone()]);
         assert_eq!(selected.selected_id(), Some(note.id));
         assert_eq!(selected.selected_note().unwrap().id, note.id);
     }
@@ -312,7 +314,7 @@ mod tests {
     fn selected_note_identity_stays_stable_when_title_content_and_tags_change() {
         let note = Note::new("First".to_string(), "Draft".to_string());
         let note_id = note.id;
-        let mut workspace = NoteWorkspace::new(vec![note]);
+        let mut workspace = open(vec![note]);
 
         assert!(workspace.update_selected_title("Updated".to_string()));
         assert!(workspace.update_selected_content("Updated draft".to_string()));
@@ -330,7 +332,7 @@ mod tests {
 
     #[test]
     fn creates_selects_and_updates_the_selected_note() {
-        let mut workspace = NoteWorkspace::new(Vec::new());
+        let mut workspace = open(Vec::new());
         workspace.create_note();
         let selected_id = workspace.selected_id();
 
@@ -356,7 +358,7 @@ mod tests {
         let mut note = Note::new("Tagged".to_string(), "Find me".to_string());
         note.tags = vec!["Work".to_string(), "Rust".to_string()];
         let note_id = note.id;
-        let mut workspace = NoteWorkspace::new(vec![note]);
+        let mut workspace = open(vec![note]);
 
         assert!(workspace.remove_selected_tag("work"));
         assert_eq!(
@@ -384,7 +386,7 @@ mod tests {
         let mut clean = Note::new("Clean".to_string(), "Reference".to_string());
         clean.tags = vec!["Reference".to_string()];
         let clean_id = clean.id;
-        let mut workspace = NoteWorkspace::new(vec![dirty, clean]);
+        let mut workspace = open(vec![dirty, clean]);
 
         let plan = workspace.tag_cleanup_plan();
         assert_eq!(plan.changes.len(), 1);
@@ -411,8 +413,7 @@ mod tests {
         let backup_json =
             crate::backup::export_flat_collection_backup(std::slice::from_ref(&imported_note))
                 .unwrap();
-        let mut workspace =
-            NoteWorkspace::new_with_recently_deleted(Vec::new(), vec![deleted_note.clone()]);
+        let mut workspace = open_both(Vec::new(), vec![deleted_note.clone()]);
 
         let imported = workspace
             .import_flat_collection_backup(&backup_json)
@@ -432,7 +433,7 @@ mod tests {
         let deleted_id = deleted_note.id;
         let survivor = Note::new("Survivor".to_string(), String::new());
         let survivor_id = survivor.id;
-        let mut workspace = NoteWorkspace::new(vec![deleted_note.clone(), survivor]);
+        let mut workspace = open(vec![deleted_note.clone(), survivor]);
 
         workspace.request_delete(deleted_id);
         assert!(workspace.confirm_delete());
@@ -456,8 +457,7 @@ mod tests {
         let deleted_id = deleted_note.id;
         let active_note = Note::new("Active".to_string(), String::new());
         let active_id = active_note.id;
-        let mut workspace =
-            NoteWorkspace::new_with_recently_deleted(vec![active_note], vec![deleted_note]);
+        let mut workspace = open_both(vec![active_note], vec![deleted_note]);
 
         assert!(workspace.permanently_clear_recently_deleted(deleted_id));
 
@@ -473,7 +473,7 @@ mod tests {
         let active_id = active_note.id;
         let first_deleted = Note::new("First deleted".to_string(), String::new());
         let second_deleted = Note::new("Second deleted".to_string(), String::new());
-        let mut workspace = NoteWorkspace::new_with_recently_deleted(
+        let mut workspace = open_both(
             vec![active_note.clone()],
             vec![first_deleted, second_deleted],
         );
@@ -511,7 +511,7 @@ mod tests {
     #[test]
     fn invalid_flat_collection_backup_leaves_workspace_unchanged() {
         let existing_note = Note::new("Existing".to_string(), "Current content".to_string());
-        let mut workspace = NoteWorkspace::new(vec![existing_note.clone()]);
+        let mut workspace = open(vec![existing_note.clone()]);
 
         let result = workspace.import_flat_collection_backup("{not valid json");
 
@@ -526,7 +526,7 @@ mod tests {
         let second = Note::new("Second".to_string(), String::new());
         let first_id = first.id;
         let second_id = second.id;
-        let mut workspace = NoteWorkspace::new(vec![first, second]);
+        let mut workspace = open(vec![first, second]);
 
         assert!(workspace.request_delete(first_id));
         assert_eq!(workspace.selected_id(), Some(first_id));
@@ -543,7 +543,7 @@ mod tests {
     fn delete_confirmation_identifies_the_selected_note() {
         let note = Note::new("Delete me".to_string(), String::new());
         let note_id = note.id;
-        let mut workspace = NoteWorkspace::new(vec![note]);
+        let mut workspace = open(vec![note]);
         assert!(workspace.request_delete(note_id));
 
         assert_eq!(workspace.delete_confirmation_title(), Some("Delete me"));
@@ -553,7 +553,7 @@ mod tests {
     fn cancelled_delete_leaves_notes_unchanged() {
         let note = Note::new("First".to_string(), String::new());
         let note_id = note.id;
-        let mut workspace = NoteWorkspace::new(vec![note]);
+        let mut workspace = open(vec![note]);
 
         assert!(workspace.request_delete(note_id));
         workspace.cancel_delete();
@@ -571,7 +571,7 @@ mod tests {
         let second = Note::new("Second".to_string(), String::new());
         let first_id = first.id;
         let second_id = second.id;
-        let mut workspace = NoteWorkspace::new(vec![first, second]);
+        let mut workspace = open(vec![first, second]);
 
         assert!(workspace.request_delete(first_id));
         assert!(workspace.select_note(second_id));
@@ -586,7 +586,7 @@ mod tests {
         let first = Note::new("First".to_string(), String::new());
         let second = Note::new("Second".to_string(), String::new());
         let second_id = second.id;
-        let mut workspace = NoteWorkspace::new(vec![first, second]);
+        let mut workspace = open(vec![first, second]);
 
         assert!(workspace.toggle_pin(second_id));
         assert!(workspace.notes()[1].is_pinned);

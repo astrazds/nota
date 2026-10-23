@@ -2,13 +2,11 @@ use std::sync::OnceLock;
 
 use base64::Engine;
 use nota_core::markdown_preview::render_markdown_preview_body;
-use serde::Deserialize;
 use url::Url;
 
 pub const PREVIEW_CSP: &str = "default-src 'none'; script-src 'none'; connect-src 'none'; frame-src 'none'; media-src 'none'; object-src 'none'; img-src data:; font-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'";
 
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PreviewLayout {
     Reading,
     Split,

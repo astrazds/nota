@@ -1,5 +1,6 @@
 use crate::model::Note;
 use crate::note_discovery::{NoteListProjection, project_note_list};
+use crate::product::ProductText;
 use uuid::Uuid;
 
 pub const SEARCH_DEBOUNCE_MS: i32 = 200;
@@ -61,6 +62,24 @@ impl NoteListInteraction {
             self.committed_search.clone()
         };
         project_note_list(notes, selected_id, &query, self.active_tag())
+    }
+
+    pub fn list_copy(&self, notes: &[Note], selected_id: Option<Uuid>) -> ProductText {
+        let model = self.render_model(notes, selected_id);
+        match model.display_state {
+            NoteListDisplayState::EmptyCollection => ProductText {
+                title: "No notes yet.".to_string(),
+                body: String::new(),
+            },
+            NoteListDisplayState::FilteredEmpty => ProductText {
+                title: model.filtered_empty_message.title,
+                body: model.filtered_empty_message.body.to_string(),
+            },
+            NoteListDisplayState::Rows => ProductText {
+                title: String::new(),
+                body: String::new(),
+            },
+        }
     }
 
     pub fn render_model(&self, notes: &[Note], selected_id: Option<Uuid>) -> NoteListRenderModel {

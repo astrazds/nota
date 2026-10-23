@@ -1,4 +1,6 @@
 use std::collections::HashSet;
+
+use crate::identity::{DuplicateNoteId, Notebook};
 use std::error::Error;
 use std::fmt;
 
@@ -81,6 +83,34 @@ pub enum BackupHealth {
     Stale {
         last_successful_export_at: DateTime<Utc>,
     },
+}
+
+pub struct HealthSentences {
+    pub label: String,
+    pub detail: String,
+}
+
+impl BackupHealth {
+    pub fn sentences(self) -> HealthSentences {
+        match self {
+            Self::Missing => HealthSentences {
+                label: "No backup yet".to_string(),
+                detail: "No backup yet".to_string(),
+            },
+            Self::Recent {
+                last_successful_export_at,
+            } => HealthSentences {
+                label: "Up to date".to_string(),
+                detail: format!("Backup current as of {last_successful_export_at}"),
+            },
+            Self::Stale {
+                last_successful_export_at,
+            } => HealthSentences {
+                label: "Backup stale".to_string(),
+                detail: format!("Backup stale; last export {last_successful_export_at}"),
+            },
+        }
+    }
 }
 
 pub fn assess_backup_health(
@@ -205,12 +235,8 @@ fn validate_backup(backup: &FlatCollectionBackup) -> Result<(), BackupError> {
     if !is_flat_collection_kind(&backup.kind) {
         return Err(BackupError::UnsupportedKind(backup.kind.clone()));
     }
-    let mut seen_ids = HashSet::new();
-    for note in &backup.notes {
-        if !seen_ids.insert(note.id) {
-            return Err(BackupError::DuplicateNoteId(note.id));
-        }
-    }
+    Notebook::try_new(backup.notes.clone(), Vec::new())
+        .map_err(|DuplicateNoteId(id)| BackupError::DuplicateNoteId(id))?;
     Ok(())
 }
 

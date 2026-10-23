@@ -1,13 +1,15 @@
-use super::dialogs::show_markdown_help;
+use super::dialogs::{
+    ConfirmationRequest, show_about_dialog, show_confirmation, show_markdown_help,
+};
+use super::files::{open_import_file, save_json_file};
 use super::note_list::NoteLists;
 use super::style::{install_css, install_workspace_fonts};
 use super::writing_plane::WritingPlane;
-use nota_app::app::{AppModel, AppMsg, NotificationTone, SaveStatus};
+use nota_app::app::{AppModel, NotificationTone, SaveStatus};
+use nota_app::command::{Command, Effect, TextSelection};
+use nota_app::session::Session;
 use nota_app::storage::NativeRecovery;
-use nota_core::backup::BackupHealth;
-use nota_core::editor_view::EditorViewMode;
-use nota_core::markdown_editing::{MarkdownCommand, apply_markdown_command};
-use nota_core::note_list_interaction::NoteListDisplayState;
+use nota_app::{EditorViewMode, MarkdownCommand, SEARCH_DEBOUNCE_MS, ThemePreference};
 use nota_desktop::selection::gtk_character_range_to_byte_selection;
 use nota_desktop::visual_contract::NATIVE_VISUAL_CONTRACT;
 #[cfg(feature = "preview-webkit")]
@@ -15,6 +17,7 @@ use nota_desktop::webkit_preview::SecurePreview;
 use relm4::gtk::prelude::*;
 use relm4::{RelmWidgetExt, gtk};
 use std::cell::Cell;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 pub(super) struct DesktopWidgets {
@@ -80,7 +83,10 @@ impl DesktopWidgets {
         window: &gtk::ApplicationWindow,
         note_lists: &NoteLists,
         recovery: Option<&NativeRecovery>,
-        sender: &relm4::Sender<AppMsg>,
+        sender: &relm4::Sender<Command>,
+        session: Rc<RefCell<Session>>,
+        edit_sequence: Rc<Cell<u64>>,
+        selected_id: Rc<Cell<Option<uuid::Uuid>>>,
     ) -> Self {
         install_workspace_fonts(window);
         if let Some(display) = gtk::gdk::Display::default() {
@@ -187,8 +193,10 @@ impl DesktopWidgets {
             button.set_css_classes(&["nota-filter-button"]);
             let filter_sender = sender.clone();
             button.connect_clicked(move |_| {
-                let _send_result = filter_sender.send(AppMsg::ClearTag);
-                let _send_result = filter_sender.send(AppMsg::SetPinnedFilter(pinned_only));
+                let _send_result = filter_sender.send(Command::FilterTag { tag: None });
+                let _send_result = filter_sender.send(Command::FilterPinned {
+                    pinned: pinned_only,
+                });
             });
             discovery_filters.append(button);
         }
@@ -215,7 +223,7 @@ impl DesktopWidgets {
         notes_header.append(&notes_label);
         notes_header.append(&notes_count);
         sidebar_content.append(&notes_header);
-        let empty_state = gtk::Label::new(Some("No notes yet."));
+        let empty_state = gtk::Label::new(None);
         empty_state.set_xalign(0.0);
         empty_state.set_wrap(true);
         empty_state.set_css_classes(&["nota-empty-state"]);
@@ -344,13 +352,15 @@ impl DesktopWidgets {
         let metadata_sender = sender.clone();
         metadata.connect_activate_link(move |_, uri| {
             if uri == "nota:edit-tags" {
-                let _send_result = metadata_sender.send(AppMsg::StartEditTags);
+                let _send_result = metadata_sender.send(Command::StartEditTags {});
             } else if let Some(query) = uri.strip_prefix("nota:tag?")
                 && let Some((_, tag)) =
                     url::form_urlencoded::parse(query.as_bytes()).find(|(key, _)| key == "tag")
             {
-                let _send_result = metadata_sender.send(AppMsg::SetPinnedFilter(false));
-                let _send_result = metadata_sender.send(AppMsg::SelectTag(tag.into_owned()));
+                let _send_result = metadata_sender.send(Command::FilterPinned { pinned: false });
+                let _send_result = metadata_sender.send(Command::FilterTag {
+                    tag: Some(tag.into_owned()),
+                });
             }
             gtk::glib::Propagation::Stop
         });
@@ -359,9 +369,26 @@ impl DesktopWidgets {
         let cleanup_tags = gtk::Button::with_label("Review Tag cleanup");
         cleanup_tags.set_halign(gtk::Align::Start);
         cleanup_tags.set_css_classes(&["nota-footer-button"]);
+        let cleanup_session = Rc::clone(&session);
+        let cleanup_window = window.clone();
         let cleanup_sender = sender.clone();
         cleanup_tags.connect_clicked(move |_| {
-            let _send_result = cleanup_sender.send(AppMsg::RequestTagCleanup);
+            let prompt = cleanup_session.borrow().frame().tag_cleanup;
+            let Some(prompt) = prompt else {
+                return;
+            };
+            show_confirmation(
+                &cleanup_window,
+                ConfirmationRequest {
+                    title: prompt.title,
+                    detail: prompt.body,
+                    accept_label: prompt.action,
+                    accepted: Command::ApplyTagCleanup {},
+                    cancelled: Command::FinishEditTags {},
+                    destructive: false,
+                },
+                &cleanup_sender,
+            );
         });
         header_inner.append(&cleanup_tags);
         let tag_suggestions = gtk::Box::new(gtk::Orientation::Vertical, 0);
@@ -527,7 +554,7 @@ impl DesktopWidgets {
         empty_capture.set_css_classes(&["nota-footer-button"]);
         let capture_sender = sender.clone();
         empty_capture.connect_clicked(move |_| {
-            let _send_result = capture_sender.send(AppMsg::QuickCapture);
+            let _send_result = capture_sender.send(Command::NewNote {});
         });
         editor_empty.append(&empty_heading);
         editor_empty.append(&empty_hint);
@@ -544,15 +571,30 @@ impl DesktopWidgets {
         surface_row.append(&writing);
         #[cfg(feature = "preview-webkit")]
         let preview = {
+            let link_session = Rc::clone(&session);
             let link_sender = sender.clone();
-            let preview = SecurePreview::new(move |target| {
+            let preview = SecurePreview::new(move |uri, user_activated| {
+                let target = match link_session
+                    .borrow_mut()
+                    .apply(Command::ExternalNavigation {
+                        uri,
+                        user_activated,
+                    }) {
+                    Ok(Effect::External(target)) => target,
+                    _ => None,
+                };
+                let Some(target) = target else {
+                    return;
+                };
                 if let Err(error) = gtk::gio::AppInfo::launch_default_for_uri(
-                    target.as_str(),
+                    &target,
                     None::<&gtk::gio::AppLaunchContext>,
                 ) {
-                    let _send_result = link_sender.send(AppMsg::OperationFailed(format!(
-                        "Could not open link: {error}"
-                    )));
+                    link_session
+                        .borrow_mut()
+                        .app
+                        .notify_failure(format!("Could not open link: {error}"));
+                    let _send_result = link_sender.send(Command::Snapshot {});
                 }
             });
             let preview_plane = WritingPlane::new(writing_plane_max_px);
@@ -613,7 +655,7 @@ impl DesktopWidgets {
             button.set_sensitive(true);
             let mode_sender = sender.clone();
             button.connect_clicked(move |_| {
-                let _send_result = mode_sender.send(AppMsg::SetViewMode(mode));
+                let _send_result = mode_sender.send(Command::SetViewMode { mode });
             });
             modes.append(&button);
             mode_buttons.push((mode, button));
@@ -652,7 +694,7 @@ impl DesktopWidgets {
             button.connect_clicked(move |_| {
                 popover.popdown();
                 if let Some(id) = selected.get() {
-                    let _send_result = pin_sender.send(AppMsg::TogglePin(id));
+                    let _send_result = pin_sender.send(Command::TogglePin { id });
                 }
             });
         }
@@ -662,7 +704,7 @@ impl DesktopWidgets {
         delete.connect_clicked(move |_| {
             delete_popover.popdown();
             if let Some(id) = selected_for_delete.get() {
-                let _send_result = delete_sender.send(AppMsg::RequestDelete(id));
+                let _send_result = delete_sender.send(Command::AskDelete { id });
             }
         });
         for (popover, buttons) in [
@@ -678,43 +720,107 @@ impl DesktopWidgets {
 
         let create_sender = sender.clone();
         create.connect_clicked(move |_| {
-            let _send_result = create_sender.send(AppMsg::QuickCapture);
+            let _send_result = create_sender.send(Command::NewNote {});
         });
         let edit_tags_sender = sender.clone();
         edit_tags.connect_clicked(move |_| {
-            let _send_result = edit_tags_sender.send(AppMsg::StartEditTags);
+            let _send_result = edit_tags_sender.send(Command::StartEditTags {});
         });
         let restore_sender = sender.clone();
         restore_previous.connect_clicked(move |_| {
-            let _send_result = restore_sender.send(AppMsg::RestorePreviousSnapshot);
+            let _send_result = restore_sender.send(Command::RestorePrevious {});
         });
         let empty_sender = sender.clone();
         start_empty.connect_clicked(move |_| {
-            let _send_result = empty_sender.send(AppMsg::StartEmptyAfterRecovery);
+            let _send_result = empty_sender.send(Command::StartEmpty {});
         });
         let clear_all_sender = sender.clone();
         clear_all.connect_clicked(move |_| {
-            let _send_result = clear_all_sender.send(AppMsg::RequestClearAll);
+            let _send_result = clear_all_sender.send(Command::AskClearDeleted {});
         });
-        let export_notebook_sender = sender.clone();
+        let export_session = Rc::clone(&session);
+        let export_window = window.clone();
+        let export_sender = sender.clone();
         export_notebook.connect_clicked(move |_| {
-            let _send_result = export_notebook_sender.send(AppMsg::RequestExport);
+            let mut session = export_session.borrow_mut();
+            if session.recovery.is_some() {
+                session
+                    .app
+                    .notify_failure("Resolve Storage Recovery before editing");
+                drop(session);
+                let _send_result = export_sender.send(Command::Snapshot {});
+                return;
+            }
+            match session.notebook_export() {
+                Ok(exported) => {
+                    let name = session.frame().suggested_export_name;
+                    let health = exported.health;
+                    drop(session);
+                    let written_session = Rc::clone(&export_session);
+                    let written_sender = export_sender.clone();
+                    let failed_session = Rc::clone(&export_session);
+                    let failed_sender = export_sender.clone();
+                    // A portal save has no path the session can write itself.
+                    save_json_file(
+                        &export_window,
+                        "Backup / Export",
+                        &name,
+                        exported.json,
+                        move || {
+                            let mut session = written_session.borrow_mut();
+                            if let Err(error) = session.record_successful_notes_export(health) {
+                                session.app.notify_failure(error.to_string());
+                            }
+                            let _send_result = written_sender.send(Command::Snapshot {});
+                        },
+                        move |message| {
+                            failed_session.borrow_mut().app.notify_failure(message);
+                            let _send_result = failed_sender.send(Command::Snapshot {});
+                        },
+                    );
+                }
+                Err(error) => {
+                    session.app.notify_failure(error.to_string());
+                    drop(session);
+                    let _send_result = export_sender.send(Command::Snapshot {});
+                }
+            }
         });
-        let import_notebook_sender = sender.clone();
+        let import_session = Rc::clone(&session);
+        let import_window = window.clone();
+        let import_sender = sender.clone();
         import_notebook.connect_clicked(move |_| {
-            let _send_result = import_notebook_sender.send(AppMsg::RequestImport);
+            open_import_file(
+                &import_window,
+                import_sender.clone(),
+                Rc::clone(&import_session),
+            );
         });
-        let recovery_import_sender = sender.clone();
+        let recovery_session = Rc::clone(&session);
+        let recovery_window = window.clone();
+        let recovery_sender = sender.clone();
         recovery_import.connect_clicked(move |_| {
-            let _send_result = recovery_import_sender.send(AppMsg::RequestImport);
+            open_import_file(
+                &recovery_window,
+                recovery_sender.clone(),
+                Rc::clone(&recovery_session),
+            );
         });
         let theme_sender = sender.clone();
         theme.connect_clicked(move |_| {
-            let _send_result = theme_sender.send(AppMsg::ToggleTheme);
+            let _send_result = theme_sender.send(Command::ToggleTheme {});
         });
-        let diagnostics_sender = sender.clone();
+        let diagnostics_session = Rc::clone(&session);
+        let diagnostics_window = window.clone();
         diagnostics.connect_clicked(move |_| {
-            let _send_result = diagnostics_sender.send(AppMsg::RequestDiagnostics);
+            let frame = diagnostics_session.borrow().frame();
+            show_about_dialog(
+                &diagnostics_window,
+                env!("CARGO_PKG_VERSION"),
+                &frame.data_directory.display().to_string(),
+                &frame.backup_detail,
+                &frame.quarantine,
+            );
         });
         let help_window = window.clone();
         help.connect_clicked(move |_| {
@@ -722,23 +828,37 @@ impl DesktopWidgets {
         });
         let sidebar_navigation_sender = sender.clone();
         sidebar_navigation.connect_clicked(move |_| {
-            let _send_result = sidebar_navigation_sender.send(AppMsg::ToggleNavigation);
+            let _send_result = sidebar_navigation_sender.send(Command::ToggleNavigation {});
         });
         let scrim_sender = sender.clone();
         scrim.connect_clicked(move |_| {
-            let _send_result = scrim_sender.send(AppMsg::ToggleNavigation);
+            let _send_result = scrim_sender.send(Command::ToggleNavigation {});
         });
         let editor_navigation_sender = sender.clone();
         editor_navigation.connect_clicked(move |_| {
-            let _send_result = editor_navigation_sender.send(AppMsg::ToggleNavigation);
+            let _send_result = editor_navigation_sender.send(Command::ToggleNavigation {});
         });
         let refreshing = Rc::new(Cell::new(false));
         let search_sender = sender.clone();
         let search_refreshing = refreshing.clone();
+        let search_generation = Rc::new(Cell::new(0_u64));
         search.connect_changed(move |entry| {
-            if !search_refreshing.get() {
-                let _send_result = search_sender.send(AppMsg::EditSearch(entry.text().to_string()));
+            if search_refreshing.get() {
+                return;
             }
+            let query = entry.text().to_string();
+            let ticket = search_generation.get().saturating_add(1);
+            search_generation.set(ticket);
+            let sender = search_sender.clone();
+            let generation = Rc::clone(&search_generation);
+            gtk::glib::timeout_add_local_once(
+                std::time::Duration::from_millis(SEARCH_DEBOUNCE_MS as u64),
+                move || {
+                    if generation.get() == ticket {
+                        let _send_result = sender.send(Command::Search { query });
+                    }
+                },
+            );
         });
         let sidebar_for_stop_search = sidebar.downgrade();
         let stop_search_sender = sender.clone();
@@ -747,7 +867,7 @@ impl DesktopWidgets {
                 .upgrade()
                 .is_some_and(|sidebar| sidebar.is_visible())
             {
-                let _send_result = stop_search_sender.send(AppMsg::ToggleNavigation);
+                let _send_result = stop_search_sender.send(Command::ToggleNavigation {});
             }
         });
         let hint = search_hint.clone();
@@ -762,28 +882,54 @@ impl DesktopWidgets {
         search.add_controller(focus);
         let filter_sender = sender.clone();
         filter_chip.connect_clicked(move |_| {
-            let _send_result = filter_sender.send(AppMsg::ClearTag);
+            let _send_result = filter_sender.send(Command::FilterTag { tag: None });
         });
         let title_refreshing = refreshing.clone();
         let title_sender = sender.clone();
+        let title_sequence = Rc::clone(&edit_sequence);
+        let title_selected = Rc::clone(&selected_id);
+        let title_tags = tags.clone();
+        let title_content = content.clone();
         title.connect_changed(move |entry| {
             // GTK4 Entry puts keyboard focus on an inner GtkText, so has_focus() is
             // false while typing. FOCUS_WITHIN lets title edits reach the model.
             if !title_refreshing.get() && entry_has_input_focus(entry) {
-                let _send_result = title_sender.send(AppMsg::UpdateTitle(entry.text().to_string()));
+                let buffer = title_content.buffer();
+                let body = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false);
+                queue_note_edit(
+                    &title_sender,
+                    &title_sequence,
+                    &title_selected,
+                    entry.text().to_string(),
+                    body.to_string(),
+                    title_tags.text().to_string(),
+                );
             }
         });
         let tags_refreshing = refreshing.clone();
         let tags_sender = sender.clone();
+        let tags_sequence = Rc::clone(&edit_sequence);
+        let tags_selected = Rc::clone(&selected_id);
+        let tags_title = title.clone();
+        let tags_content = content.clone();
         tags.connect_changed(move |entry| {
             if !tags_refreshing.get() && entry_has_input_focus(entry) {
-                let _send_result = tags_sender.send(AppMsg::UpdateTags(entry.text().to_string()));
+                let buffer = tags_content.buffer();
+                let body = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false);
+                queue_note_edit(
+                    &tags_sender,
+                    &tags_sequence,
+                    &tags_selected,
+                    tags_title.text().to_string(),
+                    body.to_string(),
+                    entry.text().to_string(),
+                );
             }
         });
         let finish_tags_sender = sender.clone();
         let tags_focus = gtk::EventControllerFocus::new();
         tags_focus.connect_leave(move |_| {
-            let _send_result = finish_tags_sender.send(AppMsg::FinishEditTags);
+            let _send_result = finish_tags_sender.send(Command::FinishEditTags {});
         });
         tags.add_controller(tags_focus);
         let tag_suggestion_count = Rc::new(Cell::new(0));
@@ -796,8 +942,9 @@ impl DesktopWidgets {
                 return gtk::glib::Propagation::Proceed;
             }
             if keyval == gtk::gdk::Key::Return || keyval == gtk::gdk::Key::Tab {
-                let _send_result = accept_tag_sender
-                    .send(AppMsg::AcceptTagSuggestion(tags_for_key.text().to_string()));
+                let _send_result = accept_tag_sender.send(Command::AcceptTagSuggestion {
+                    input: tags_for_key.text().to_string(),
+                });
                 gtk::glib::Propagation::Stop
             } else {
                 gtk::glib::Propagation::Proceed
@@ -807,19 +954,38 @@ impl DesktopWidgets {
         let content_refreshing = refreshing.clone();
         let content_sender = sender.clone();
         let content_view = content.clone();
+        let content_sequence = Rc::clone(&edit_sequence);
+        let content_selected = Rc::clone(&selected_id);
+        let content_title = title.clone();
+        let content_tags = tags.clone();
         let content_changed = Rc::new(content.buffer().connect_changed(move |buffer| {
             if !content_refreshing.get() && content_view.has_focus() {
                 let text = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false);
-                let _send_result = content_sender.send(AppMsg::UpdateContent(text.to_string()));
+                queue_note_edit(
+                    &content_sender,
+                    &content_sequence,
+                    &content_selected,
+                    content_title.text().to_string(),
+                    text.to_string(),
+                    content_tags.text().to_string(),
+                );
             }
         }));
+        let format_edit = FormattingEdit {
+            session: Rc::clone(&session),
+            sequence: Rc::clone(&edit_sequence),
+            selected: Rc::clone(&selected_id),
+            title: title.clone(),
+            tags: tags.clone(),
+            changed: Rc::clone(&content_changed),
+        };
         connect_formatting_button(
             &bold,
             &content,
             &writing,
             MarkdownCommand::Bold,
             sender,
-            &content_changed,
+            &format_edit,
         );
         connect_formatting_button(
             &italic,
@@ -827,7 +993,7 @@ impl DesktopWidgets {
             &writing,
             MarkdownCommand::Italic,
             sender,
-            &content_changed,
+            &format_edit,
         );
         connect_formatting_button(
             &heading,
@@ -835,7 +1001,7 @@ impl DesktopWidgets {
             &writing,
             MarkdownCommand::Heading,
             sender,
-            &content_changed,
+            &format_edit,
         );
         connect_formatting_button(
             &bullet_list,
@@ -843,7 +1009,7 @@ impl DesktopWidgets {
             &writing,
             MarkdownCommand::BulletList,
             sender,
-            &content_changed,
+            &format_edit,
         );
         connect_formatting_button(
             &link,
@@ -851,7 +1017,7 @@ impl DesktopWidgets {
             &writing,
             MarkdownCommand::Link,
             sender,
-            &content_changed,
+            &format_edit,
         );
         connect_formatting_button(
             &strike,
@@ -859,7 +1025,7 @@ impl DesktopWidgets {
             &writing,
             MarkdownCommand::Strikethrough,
             sender,
-            &content_changed,
+            &format_edit,
         );
         connect_formatting_button(
             &task,
@@ -867,7 +1033,7 @@ impl DesktopWidgets {
             &writing,
             MarkdownCommand::TaskList,
             sender,
-            &content_changed,
+            &format_edit,
         );
         connect_formatting_button(
             &table,
@@ -875,7 +1041,7 @@ impl DesktopWidgets {
             &writing,
             MarkdownCommand::Table,
             sender,
-            &content_changed,
+            &format_edit,
         );
 
         let shortcuts = gtk::ShortcutController::new();
@@ -883,7 +1049,7 @@ impl DesktopWidgets {
         shortcuts.add_shortcut(gtk::Shortcut::new(
             gtk::ShortcutTrigger::parse_string("<Control>n"),
             Some(gtk::CallbackAction::new(move |_, _| {
-                let _send_result = quick_capture_sender.send(AppMsg::QuickCapture);
+                let _send_result = quick_capture_sender.send(Command::NewNote {});
                 gtk::glib::Propagation::Stop
             })),
         ));
@@ -894,7 +1060,7 @@ impl DesktopWidgets {
             gtk::ShortcutTrigger::parse_string("<Control>f"),
             Some(gtk::CallbackAction::new(move |_, _| {
                 if !sidebar_for_search.is_visible() {
-                    let _send_result = search_shortcut_sender.send(AppMsg::ToggleNavigation);
+                    let _send_result = search_shortcut_sender.send(Command::ToggleNavigation {});
                 }
                 let search = search_for_shortcut.clone();
                 gtk::glib::idle_add_local_once(move || {
@@ -909,7 +1075,7 @@ impl DesktopWidgets {
             gtk::ShortcutTrigger::parse_string("Escape"),
             Some(gtk::CallbackAction::new(move |_, _| {
                 if sidebar_for_escape.is_visible() {
-                    let _send_result = escape_sender.send(AppMsg::ToggleNavigation);
+                    let _send_result = escape_sender.send(Command::ToggleNavigation {});
                     gtk::glib::Propagation::Stop
                 } else {
                     gtk::glib::Propagation::Proceed
@@ -934,7 +1100,9 @@ impl DesktopWidgets {
                     if let Some(window) = window.upgrade() {
                         let width = window.width();
                         if width > 0 && previous_width.replace(width) != width {
-                            let _send_result = resize_sender.send(AppMsg::Resize(width as f64));
+                            let _send_result = resize_sender.send(Command::Resize {
+                                width_px: width as f64,
+                            });
                         }
                     }
                 });
@@ -1011,14 +1179,16 @@ impl DesktopWidgets {
     pub(super) fn refresh(
         &self,
         app: &AppModel,
+        frame: &nota_app::Frame,
+        preview_html: Option<&str>,
         window: &gtk::ApplicationWindow,
         recovery: Option<&NativeRecovery>,
-        sender: &relm4::Sender<AppMsg>,
+        sender: &relm4::Sender<Command>,
     ) {
         self.refreshing.set(true);
         let selected = app.workspace.selected_id();
         let selection_changed = self.rendered_note.replace(selected) != selected;
-        let dark = matches!(app.theme, nota_core::transition::ThemePreference::Dark);
+        let dark = matches!(app.theme, ThemePreference::Dark);
         if dark {
             self.root.add_css_class("nota-dark");
             window.add_css_class("nota-dark");
@@ -1028,7 +1198,7 @@ impl DesktopWidgets {
         }
         self.theme_label
             .set_label(if dark { "Light Theme" } else { "Dark Theme" });
-        let full_width_drawer = window.width() > 0 && window.width() <= 560;
+        let full_width_drawer = frame.layout.drawer_fills_width;
         self.recovery_actions.set_orientation(if full_width_drawer {
             gtk::Orientation::Vertical
         } else {
@@ -1037,7 +1207,7 @@ impl DesktopWidgets {
         let split = app.view_mode == EditorViewMode::Split;
         self.root.set_class_active("nota-split", split);
         self.root
-            .set_class_active("nota-medium", window.width() <= 760);
+            .set_class_active("nota-medium", frame.layout.title_px == 36.0);
         self.root
             .set_class_active("nota-compact", full_width_drawer);
         window.set_class_active("nota-compact", full_width_drawer);
@@ -1054,45 +1224,35 @@ impl DesktopWidgets {
             }
             self.footer_saved_row.set_visible(full_width_drawer);
         }
-        if self.search.text().as_str() != app.note_list.search_input() {
-            self.search.set_text(app.note_list.search_input());
+        if !entry_has_input_focus(&self.search) && self.search.text().as_str() != frame.search_input
+        {
+            self.search.set_text(&frame.search_input);
         }
         if let Some(body_plane) = self.content.parent() {
-            body_plane.set_margin_top(if full_width_drawer { 28 } else { 31 });
-            let inset = if full_width_drawer {
-                24
-            } else if split {
-                27
-            } else {
-                42
-            };
-            body_plane.set_margin_start(inset);
-            body_plane.set_margin_end(if split && !full_width_drawer {
-                14
-            } else {
-                inset
-            });
+            let insets = frame.layout.writing_insets;
+            body_plane.set_margin_top(insets.top as i32);
+            body_plane.set_margin_start(insets.start as i32);
+            body_plane.set_margin_end(insets.end as i32);
+            body_plane.set_margin_bottom(insets.bottom as i32);
         }
         let drawer_was_open = self.sidebar.is_visible();
-        if app.note_list_visible && !drawer_was_open {
+        if frame.drawer_open && !drawer_was_open {
             self.previous_focus
                 .set(gtk::prelude::GtkWindowExt::focus(window).as_ref());
         }
-        self.sidebar.set_visible(app.note_list_visible);
+        self.sidebar.set_visible(frame.drawer_open);
         self.sidebar.set_halign(if full_width_drawer {
             gtk::Align::Fill
         } else {
             gtk::Align::Start
         });
-        self.scrim.set_visible(app.note_list_visible);
-        self.editor.set_sensitive(!app.note_list_visible);
+        self.scrim.set_visible(frame.drawer_open);
+        self.editor.set_sensitive(!frame.drawer_open);
         self.editor_navigation
-            .update_state(&[gtk::accessible::State::Expanded(Some(
-                app.note_list_visible,
-            ))]);
+            .update_state(&[gtk::accessible::State::Expanded(Some(frame.drawer_open))]);
         self.editor_navigation
-            .set_class_active("active", app.note_list_visible);
-        if drawer_was_open && !app.note_list_visible {
+            .set_class_active("active", frame.drawer_open);
+        if drawer_was_open && !frame.drawer_open {
             if let Some(previous) = self
                 .previous_focus
                 .upgrade()
@@ -1115,16 +1275,14 @@ impl DesktopWidgets {
             .set_class_active("active", app.note_list.pinned_only());
         self.deleted_count
             .set_text(&app.workspace.recently_deleted_notes().len().to_string());
-        let backup_health = app.backup_health_status(chrono::Utc::now());
-        let backup_dot_class = match backup_health {
-            BackupHealth::Missing => "missing",
-            BackupHealth::Recent { .. } => "recent",
-            BackupHealth::Stale { .. } => "stale",
+        let backup_dot_class = match frame.backup_health.as_str() {
+            "Up to date" => "recent",
+            "Backup stale" => "stale",
+            _ => "missing",
         };
         self.backup_dot
             .set_css_classes(&["nota-backup-dot", backup_dot_class]);
-        self.backup_label
-            .set_label(app.backup_health_label(chrono::Utc::now()));
+        self.backup_label.set_label(&frame.backup_health);
         self.recovery_panel.set_visible(recovery.is_some());
         let recovering = recovery.is_some() || app.is_in_storage_recovery();
         let has_note = selected.is_some() && !recovering;
@@ -1152,16 +1310,12 @@ impl DesktopWidgets {
         );
         let rendered_notes = list.projection.rows.len();
         self.notes_count.set_text(&rendered_notes.to_string());
-        match list.display_state {
-            NoteListDisplayState::EmptyCollection => {
-                self.empty_state.set_visible(true);
-                self.empty_state.set_text("No notes yet.");
-            }
-            NoteListDisplayState::FilteredEmpty => {
-                self.empty_state.set_visible(true);
-                self.empty_state.set_text("No matching notes.");
-            }
-            NoteListDisplayState::Rows => self.empty_state.set_visible(false),
+        self.empty_state.set_visible(!frame.list_title.is_empty());
+        if frame.list_body.is_empty() {
+            self.empty_state.set_text(&frame.list_title);
+        } else {
+            self.empty_state
+                .set_text(&format!("{}\n{}", frame.list_title, frame.list_body));
         }
         if let Some(tag) = app.note_list.active_tag() {
             self.filter_chip.set_label(&format!("#{tag} ×"));
@@ -1281,8 +1435,9 @@ impl DesktopWidgets {
                 let suggestion_sender = sender.clone();
                 button.connect_clicked(move |_| {
                     tags_entry.set_text(&completed);
-                    let _send_result =
-                        suggestion_sender.send(AppMsg::UpdateTags(completed.clone()));
+                    let _send_result = suggestion_sender.send(Command::AcceptTagSuggestion {
+                        input: completed.clone(),
+                    });
                 });
                 self.tag_suggestions.append(&button);
             }
@@ -1311,8 +1466,9 @@ impl DesktopWidgets {
         } else {
             self.notification.set_visible(false);
         }
-        let surfaces = app.view_mode.surfaces();
-        let stacked = split && full_width_drawer;
+        let show_writing = frame.layout.show_writing;
+        let show_preview = frame.layout.show_preview;
+        let stacked = frame.layout.axis == nota_app::Axis::Vertical;
         self.surface_scroll.set_vscrollbar_policy(if stacked {
             gtk::PolicyType::Automatic
         } else {
@@ -1325,13 +1481,14 @@ impl DesktopWidgets {
             gtk::PolicyType::Automatic
         });
         self.content.set_bottom_margin(0);
-        if let Some(plane) = self.content.parent() {
-            plane.set_margin_bottom(if stacked { 0 } else { 45 });
-        }
-        self.content
-            .set_height_request(if stacked { 340 } else { -1 });
+        let editor_min = frame.layout.editor_min_height_px;
+        self.content.set_height_request(if editor_min > 0.0 {
+            editor_min as i32
+        } else {
+            -1
+        });
         self.writing.set_vexpand(!stacked);
-        self.formatting.set_visible(has_note && surfaces.writing);
+        self.formatting.set_visible(has_note && show_writing);
         self.surface_row
             .set_orientation(if split && full_width_drawer {
                 gtk::Orientation::Vertical
@@ -1339,8 +1496,8 @@ impl DesktopWidgets {
                 gtk::Orientation::Horizontal
             });
         self.surface_row
-            .set_homogeneous(surfaces.writing && surfaces.preview && !stacked);
-        self.writing.set_visible(surfaces.writing);
+            .set_homogeneous(show_writing && show_preview && !stacked);
+        self.writing.set_visible(show_writing);
         for (mode, button) in &self.mode_buttons {
             if *mode == app.view_mode {
                 button.set_css_classes(&["nota-mode-button", "active"]);
@@ -1351,56 +1508,31 @@ impl DesktopWidgets {
         }
         #[cfg(feature = "preview-webkit")]
         {
-            let layout = if !split {
-                nota_app::preview::PreviewLayout::Reading
-            } else if window.width() <= 760 {
-                nota_app::preview::PreviewLayout::SplitNarrow
-            } else {
-                nota_app::preview::PreviewLayout::Split
-            };
-            self.preview.widget().set_visible(surfaces.preview);
+            self.preview.widget().set_visible(show_preview);
+            let preview_min = frame.layout.preview_min_height_px;
             self.preview
                 .widget()
-                .set_height_request(if stacked { 500 } else { -1 });
+                .set_height_request(if preview_min > 0.0 {
+                    preview_min as i32
+                } else {
+                    -1
+                });
             if let Some(plane) = self.preview.widget().parent() {
-                plane.set_visible(surfaces.preview);
-                plane.set_margin_top(if stacked {
-                    18
-                } else if full_width_drawer {
-                    28
-                } else {
-                    31
-                });
+                plane.set_visible(show_preview);
+                let insets = frame.layout.preview_insets;
+                plane.set_margin_top(insets.top as i32);
                 plane.set_class_active("nota-split-preview", split);
-                plane.set_margin_start(if full_width_drawer {
-                    24
-                } else if split {
-                    14
-                } else {
-                    42
-                });
-                plane.set_margin_end(if full_width_drawer {
-                    24
-                } else if split {
-                    27
-                } else {
-                    42
-                });
+                plane.set_margin_start(insets.start as i32);
+                plane.set_margin_end(insets.end as i32);
+                plane.set_margin_bottom(insets.bottom as i32);
             }
-            if let Some(note) = app.workspace.selected_note() {
-                self.preview.load_note(
-                    note.display_title(),
-                    &note.content,
-                    matches!(app.theme, nota_core::transition::ThemePreference::Dark),
-                    layout,
-                );
-            } else {
-                self.preview.load_note("", "", dark, layout);
+            if let Some(html) = preview_html {
+                self.preview.load_html(html);
             }
         }
         #[cfg(not(feature = "preview-webkit"))]
         {
-            self.preview_fallback.set_visible(surfaces.preview);
+            self.preview_fallback.set_visible(show_preview);
         }
         self.refreshing.set(false);
     }
@@ -1424,10 +1556,11 @@ fn icon_label_button(icon: &str, label: &str) -> gtk::Button {
     button
 }
 
-/// GTK4 `Entry` keeps keyboard focus on an inner `GtkText`, so `has_focus()` is
-/// false while the user is editing. `FOCUS_WITHIN` is set on the Entry itself.
-fn entry_has_input_focus(entry: &gtk::Entry) -> bool {
-    entry.has_focus() || entry.state_flags().contains(gtk::StateFlags::FOCUS_WITHIN)
+/// GTK4 entries keep keyboard focus on an inner `GtkText`, so `has_focus()` is
+/// false while the user is editing. `FOCUS_WITHIN` is set on the entry itself.
+fn entry_has_input_focus(widget: &impl IsA<gtk::Widget>) -> bool {
+    let widget = widget.as_ref();
+    widget.has_focus() || widget.state_flags().contains(gtk::StateFlags::FOCUS_WITHIN)
 }
 
 fn formatting_button(label: &str, tooltip: &str) -> gtk::Button {
@@ -1437,18 +1570,50 @@ fn formatting_button(label: &str, tooltip: &str) -> gtk::Button {
     button
 }
 
+fn queue_note_edit(
+    sender: &relm4::Sender<Command>,
+    sequence: &Cell<u64>,
+    selected: &Cell<Option<uuid::Uuid>>,
+    title: String,
+    content: String,
+    tags_input: String,
+) {
+    let Some(id) = selected.get() else {
+        return;
+    };
+    let next = sequence.get().saturating_add(1);
+    sequence.set(next);
+    let _send_result = sender.send(Command::EditNote {
+        id,
+        edit_sequence: next,
+        title,
+        content,
+        tags_input,
+    });
+}
+
+#[derive(Clone)]
+struct FormattingEdit {
+    session: Rc<RefCell<Session>>,
+    sequence: Rc<Cell<u64>>,
+    selected: Rc<Cell<Option<uuid::Uuid>>>,
+    title: gtk::Entry,
+    tags: gtk::Entry,
+    changed: Rc<gtk::glib::SignalHandlerId>,
+}
+
 fn connect_formatting_button(
     button: &gtk::Button,
     content: &gtk::TextView,
     writing: &gtk::Box,
     command: MarkdownCommand,
-    sender: &relm4::Sender<AppMsg>,
-    content_changed: &Rc<gtk::glib::SignalHandlerId>,
+    sender: &relm4::Sender<Command>,
+    edit: &FormattingEdit,
 ) {
     let content = content.clone();
     let writing = writing.clone();
     let sender = sender.clone();
-    let content_changed = content_changed.clone();
+    let edit = edit.clone();
     button.set_focus_on_click(false);
     button.connect_clicked(move |_| {
         let buffer = content.buffer();
@@ -1464,20 +1629,38 @@ fn connect_formatting_button(
         ) else {
             return;
         };
-        let (selection_start_byte, _) = selection.ordered();
-        let formatted = apply_markdown_command(&text, selection, command);
-        let replacement = &formatted.content[selection_start_byte..formatted.caret_byte];
-        buffer.block_signal(&content_changed);
+        let (selection_start_byte, selection_end_byte) = selection.ordered();
+        let Ok(Effect::Edit(formatted)) = edit.session.borrow_mut().apply(Command::Format {
+            content: text.to_string(),
+            selection: TextSelection::Utf8 {
+                start: selection_start_byte,
+                end: selection_end_byte,
+            },
+            kind: command,
+        }) else {
+            return;
+        };
+        let replacement = formatted.content[selection_start_byte..formatted.caret_byte].to_string();
+        buffer.block_signal(&edit.changed);
         buffer.begin_user_action();
         buffer.delete(&mut start, &mut end);
-        buffer.insert(&mut start, replacement);
+        buffer.insert(&mut start, &replacement);
         let caret = formatted.content[..formatted.caret_byte].chars().count() as i32;
         buffer.place_cursor(&buffer.iter_at_offset(caret));
         buffer.end_user_action();
-        buffer.unblock_signal(&content_changed);
-        let _send_result = sender.send(AppMsg::UpdateContent(formatted.content));
+        buffer.unblock_signal(&edit.changed);
+        queue_note_edit(
+            &sender,
+            &edit.sequence,
+            &edit.selected,
+            edit.title.text().to_string(),
+            formatted.content,
+            edit.tags.text().to_string(),
+        );
         if !writing.is_visible() {
-            let _send_result = sender.send(AppMsg::SetViewMode(EditorViewMode::Write));
+            let _send_result = sender.send(Command::SetViewMode {
+                mode: EditorViewMode::Write,
+            });
         }
         let content_for_focus = content.clone();
         gtk::glib::idle_add_local_once(move || {
@@ -1503,13 +1686,27 @@ mod tests {
         let (sender, _receiver) = relm4::channel();
         let bold = formatting_button("B", "Bold");
         let writing = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        let temp = tempfile::tempdir().unwrap();
+        let session = Rc::new(RefCell::new(
+            Session::open(nota_app::session::OpenOptionsJson {
+                data_directory: Some(temp.path().to_path_buf()),
+            })
+            .unwrap(),
+        ));
         connect_formatting_button(
             &bold,
             &view,
             &writing,
             MarkdownCommand::Bold,
             &sender,
-            &changed,
+            &FormattingEdit {
+                session,
+                sequence: Rc::new(Cell::new(0)),
+                selected: Rc::new(Cell::new(None)),
+                title: gtk::Entry::new(),
+                tags: gtk::Entry::new(),
+                changed,
+            },
         );
         bold.emit_clicked();
         let text = || {

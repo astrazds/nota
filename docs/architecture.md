@@ -9,7 +9,7 @@ contracts.
 ## Dependency direction
 
 `nota-app` depends on `nota-core` and owns application state, persistence,
-recovery, and preview generation. `nota-desktop` consumes those crates for GTK.
+recovery, and preview generation. `nota-desktop`'s Nota dependency is `nota-app`.
 `nota-ffi` exposes the shared application to WinUI through a small C ABI.
 The domain core has no dependency on UI toolkits or native persistence.
 Each frontend owns widgets, input, native file selection, and webview hosting.
@@ -20,7 +20,12 @@ Each frontend owns widgets, input, native file selection, and webview hosting.
 | Search results, snippets, and Tags | `crates/nota-core/src/note_discovery.rs`, `note_list_interaction.rs`, and `tag_rules.rs` | Core discovery tests and native workflow tests |
 | Backup and desktop-transition formats | `crates/nota-core/src/backup.rs` and `transition.rs` | Backup workflows and compatibility fixtures |
 | Markdown parsing and formatting | `crates/nota-core/src/markdown_preview.rs` and `markdown_editing.rs` | Core Markdown tests and native visual contracts |
+| Notebook construction | `crates/nota-core/src/identity.rs` | Core identity tests |
+| Width layout | `crates/nota-core/src/layout.rs` | Core layout tests |
+| Confirmation prompts | `crates/nota-core/src/product.rs` | Session workflows |
 | Application state transitions | `crates/nota-app/src/app.rs` | Shared application tests |
+| Command inventory | `crates/nota-app/src/command.rs` | Session workflows |
+| Painted frame | `crates/nota-app/src/frame.rs` | Session workflows |
 | Storage Recovery and save lifecycle | `crates/nota-app` | Persistence and session behavior tests |
 | GTK widgets and input conversion | `crates/nota-desktop/src/ui/workspace.rs` and `selection.rs` | Native visual contracts and live GTK verification |
 | GTK row identity and synchronization | `crates/nota-desktop/src/ui/note_list.rs` | Row identity tests and live GTK selection |
@@ -34,21 +39,25 @@ Each frontend owns widgets, input, native file selection, and webview hosting.
 ## Follow a change through the app
 
 `Session` in `crates/nota-app/src/session.rs` owns `AppModel`, `NativeStore`,
-the profile lock, and `PersistenceWorker`. GTK sends `AppMsg` values through
-`Session::apply_message`. Windows sends JSON `Request` values through the ABI
-to `Session::execute` and receives a snapshot or an error.
+the profile lock, and `PersistenceWorker`. `commands!` in
+`crates/nota-app/src/command.rs` is the only command inventory. GTK sends
+`Command` to `Session::apply`. Windows sends JSON to `nota_execute`.
+`Session::execute_json` decodes it and calls `Session::apply`. A successful
+reply uses the key `frame`.
 
 `AppModel` delegates Note mutations to `NoteWorkspace` and increments its save
 revision after a persistent change. `Session` schedules `PersistenceWorker`,
-which coalesces edits and writes through `NativeStore`. GTK receives completion
-notifications as `AppMsg::PollPersistence`; Windows polls snapshots while a
-save is pending. Normal saves run off the UI thread. A failed close-time flush
-keeps either frontend open for retry.
+which coalesces edits and writes through `NativeStore`. GTK sends
+`Command::Snapshot` when the worker reports a result. `Session::apply` starts
+by calling `Session::poll`. Windows sends `snapshot` while a save is pending.
+Normal saves run off the UI thread. A failed close-time flush keeps either
+frontend open for retry.
 
 Search uses `NoteListInteraction` to produce a render-ready projection. GTK's
 `NoteLists` owns its factories and updates existing row widgets when
-UUID order is unchanged. Dialogs and file selection emit `AppMsg` through a
-channel. They do not depend on the root Relm4 component type.
+UUID order is unchanged. Dialogs and file selection send `Command` through a
+channel. They do not depend on the root Relm4 component type. `Session::frame`
+places the list copy, backup health, and any open `Prompt` on `Frame`.
 
 Core Markdown formatting accepts UTF-8 byte ranges. The GTK toolbar applies
 the changed range as one TextBuffer user action so undo, redo, and caret
@@ -89,12 +98,12 @@ input until the drawer closes.
 Both frontends retain one native title and metadata header across view modes.
 Write and Preview use a centered reading area. Split divides the body area
 equally above 560 logical pixels and stacks the editor above Preview at 560
-or below. `PreviewLayout` selects the shared HTML typography for Reading,
-Split, and SplitNarrow. In Split mode, the frontends select SplitNarrow at
-760 or below.
+or below. `LayoutFrame::from_width` makes that width decision, including the
+narrow split at 760 or below. `Session` chooses `PreviewLayout` from that
+`LayoutFrame`.
 
-GTK layout lives in `ui/workspace.rs`, `ui/writing_plane.rs`, and `nota.css`.
-WinUI layout lives in `MainWindow.xaml` and `ApplyViewMode` and
+GTK applies that frame in `ui/workspace.rs`, `ui/writing_plane.rs`, and
+`nota.css`. WinUI applies it in `MainWindow.xaml`, `ApplyViewMode`, and
 `UpdateLayoutMode` in `MainWindow.xaml.cs`. `App.xaml` owns WinUI resources.
 Keep these native layout rules aligned with the shared Preview CSS when a
 change affects both editing and reading.
@@ -108,7 +117,8 @@ data URLs, so webviews do not fetch fonts from the network.
 ## Boundaries worth preserving
 
 Keep `NoteWorkspace` and `NoteListInteraction` as the domain behavior
-boundaries. Keep platform focus and page composition in the frontends.
+boundaries. `Notebook::try_new` is the only constructor for active Notes and
+Recently Deleted. Keep platform focus and page composition in the frontends.
 Keep save and recovery invariants in `nota-app`.
 
 Keep Backup v1, desktop-transition v1, legacy kind acceptance, UUID identity,

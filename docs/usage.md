@@ -53,10 +53,11 @@ Its header shows the deleted count. Scroll the drawer if the section is
 below the visible list.
 
 Choose **Restore** beside a deleted Note to return it to the active collection.
-The adjacent **Delete** permanently removes that Note. Linux applies this
-action immediately; Windows asks for confirmation. Below the deleted rows,
-**Clear All** on Linux or **Clear all** on Windows asks for confirmation
-before permanently clearing every deleted Note. Cancel leaves them in place.
+The adjacent **Delete** asks for confirmation before it permanently removes
+that Note. Choose **Cancel** to leave the Note in Recently Deleted. Below the
+deleted rows, **Clear All** on Linux or **Clear all** on Windows asks for
+confirmation before permanently clearing every deleted Note. Cancel leaves
+them in place.
 The clear action is hidden when the section is empty.
 
 To preserve Notes before permanently removing them, choose **Backup / Export**.

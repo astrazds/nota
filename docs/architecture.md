@@ -99,8 +99,8 @@ Both frontends retain one native title and metadata header across view modes.
 Write and Preview use a centered reading area. Split divides the body area
 equally above 560 logical pixels and stacks the editor above Preview at 560
 or below. `LayoutFrame::from_width` makes that width decision, including the
-narrow split at 760 or below. `Session` chooses `PreviewLayout` from that
-`LayoutFrame`.
+narrow split at 760 or below. `Session` chooses `PreviewLayout` from the view
+mode and `LayoutFrame::title_px`.
 
 GTK applies that frame in `ui/workspace.rs`, `ui/writing_plane.rs`, and
 `nota.css`. WinUI applies it in `MainWindow.xaml`, `ApplyViewMode`, and

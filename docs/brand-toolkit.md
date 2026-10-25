@@ -337,7 +337,7 @@ External brand layouts may be more spacious and expressive, but they should stil
 
 ### Buttons
 
-Primary buttons use Warm Capture Yellow for clear action. Secondary buttons use paper neutrals. Recovery Red marks destructive controls and confirmations in Recently Deleted. Linux applies individual permanent Delete immediately; Windows confirms it. Restore remains neutral.
+Primary buttons use Warm Capture Yellow for clear action. Secondary buttons use paper neutrals. Recovery Red marks destructive controls and confirmations in Recently Deleted. Permanent Delete asks for confirmation before it removes the Note. Restore remains neutral.
 
 Labels should name outcomes:
 

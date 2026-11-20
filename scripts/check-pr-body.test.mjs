@@ -35,6 +35,26 @@ test("678ed76 Cursor Agent trailer fails", () => {
   assert.match(violations[0], /678ed76 contains "Co-authored-by: Cursor Agent <cursoragent@cursor.com>"/);
 });
 
+test("a7092a0 fabricated noreply fails without a Cursor trailer", () => {
+  const line = "Co-authored-by: Andrejs Strazds <astrazds@users.noreply.github.com>";
+  const violations = commitMessageViolations(`chore\n\n${line}\n`, "a7092a0");
+  assert.equal(violations.length, 1);
+  assert.match(
+    violations[0],
+    /a7092a0 contains "Co-authored-by: Andrejs Strazds <astrazds@users\.noreply\.github\.com>"/,
+  );
+  assert.match(
+    violations[0],
+    /Commit as Andrejs Strazds <35437548\+astrazds@users\.noreply\.github\.com>/,
+  );
+});
+
+test("the real GitHub noreply co-author passes", () => {
+  const message =
+    "Co-authored-by: Andrejs Strazds <35437548+astrazds@users.noreply.github.com>\n";
+  assert.deepEqual(commitMessageViolations(message, "36fc64b"), []);
+});
+
 test("a dependabot trailer is not a Cursor agent signature", () => {
   const message = "Co-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\n";
   assert.deepEqual(commitMessageViolations(message, "dependabot"), []);

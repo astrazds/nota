@@ -4,6 +4,8 @@ import { pathToFileURL } from "node:url";
 
 export const footerMarker = "<!-- CURSOR_AGENT_PR_BODY";
 const cursorEmail = "cursoragent@cursor.com";
+const fabricatedNoreply =
+  "Co-authored-by: Andrejs Strazds <astrazds@users.noreply.github.com>";
 
 export function bodyViolations(body) {
   if (!body || !body.includes(footerMarker)) return [];
@@ -13,13 +15,21 @@ export function bodyViolations(body) {
 }
 
 export function commitMessageViolations(message, commit = "HEAD") {
-  const line = message
+  const violations = [];
+  const cursorLine = message
     .split("\n")
     .find((entry) => entry.includes("Co-authored-by:") && entry.includes(cursorEmail));
-  if (!line) return [];
-  return [
-    `${commit} contains "${line.trim()}". Commit as Andrejs Strazds and remove the Cursor agent trailer.`,
-  ];
+  if (cursorLine) {
+    violations.push(
+      `${commit} contains "${cursorLine.trim()}". Commit as Andrejs Strazds and remove the Cursor agent trailer.`,
+    );
+  }
+  if (message.includes(fabricatedNoreply)) {
+    violations.push(
+      `${commit} contains "${fabricatedNoreply}". Commit as Andrejs Strazds <35437548+astrazds@users.noreply.github.com> and remove this trailer.`,
+    );
+  }
+  return violations;
 }
 
 export function commitRangeViolations(baseSha, root = process.cwd()) {

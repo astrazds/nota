@@ -1,5 +1,7 @@
 # Domain documentation for agents
 
+The shared rule table is [rules.md](rules.md).
+
 Read [CONTEXT.md](../../CONTEXT.md) before changing domain behavior. Use its
 terms for Notes, Tags, Backup, Desktop Transition, and Storage Recovery.
 

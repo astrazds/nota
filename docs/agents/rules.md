@@ -1,9 +1,6 @@
-# AGENTS.md
+# Rules these checks enforce
 
-Domain terms and ownership live in [docs/agents/domain.md](docs/agents/domain.md).
-Local notes stay in `AGENTS.local.md`, which is gitignored.
-
-## Rules these checks enforce
+Domain terms and ownership live in [domain.md](domain.md).
 
 | Rule | What enforces it |
 | --- | --- |

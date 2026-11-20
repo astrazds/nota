@@ -13,7 +13,7 @@ __pycache__/
 .ui-review/
 
 # Local AI agent configuration, state, and generated artifacts.
-# Keep shared CONTEXT.md, AGENTS.md, and docs/agents guidance versioned.
+# Keep shared CONTEXT.md and docs/agents guidance versioned.
 /.agent
 /.agents
 /.aider*
@@ -36,6 +36,7 @@ __pycache__/
 /.windsurf
 /.mcp.json
 /.mcp.local.json
+AGENTS.md
 AGENTS.local.md
 AGENTS.override.md
 CLAUDE.local.md
